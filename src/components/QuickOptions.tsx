@@ -30,7 +30,7 @@ const translations = {
     stores: "المتاجر",
     pets: "حيوانات",
     fashion: "أزياء",
-    blog: "المدونة",
+    blog: "المنتدى",
     // Car Brands - Arabic
     toyota: "تويوتا",
     hyundai: "هيونداي",
@@ -313,7 +313,7 @@ export default function QuickOptions() {
     <Collapsible open={anyMenuOpen}>
       <div className="container mx-auto px-4">
         <div className="flex items-center gap-2 overflow-x-auto custom-scrollbar py-2">
-            <Link href="/blog" className="flex-shrink-0">
+            <Link href="/forum" className="flex-shrink-0">
                 <Button 
                     variant="ghost" 
                     className="flex items-center gap-2"
