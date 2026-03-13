@@ -64,13 +64,14 @@ export default async function ForumHomePage() {
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                     {subs.map((sub) => {
                        const SubIcon = (lucideIcons as any)[sub.icon] || MessageSquare;
+                       const nestedSubs = categories.filter(c => c.parentId === sub.id);
+                       
                        return (
-                        <Link 
-                          href={`/forum/${sub.id}`} 
+                        <div 
                           key={sub.id} 
                           className="group bg-white dark:bg-slate-900 p-5 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm hover:shadow-md hover:border-primary/30 transition-all duration-200"
                         >
-                          <div className="flex items-start gap-4">
+                          <Link href={`/forum/${sub.id}`} className="flex items-start gap-4 mb-4">
                             <div className="flex-shrink-0 w-12 h-12 bg-slate-50 dark:bg-slate-800/50 rounded-xl flex items-center justify-center text-slate-400 group-hover:bg-primary/10 group-hover:text-primary transition-colors">
                                <SubIcon className="h-6 w-6" />
                             </div>
@@ -82,15 +83,34 @@ export default async function ForumHomePage() {
                               <p className="text-slate-500 dark:text-slate-400 text-xs leading-relaxed line-clamp-2">
                                 {sub.description.ar}
                               </p>
-                              <div className="mt-3 flex items-center gap-3 text-[10px] text-slate-400 uppercase tracking-wider">
-                                <span className="flex items-center gap-1">
-                                  <MessageSquare className="h-3 w-3" />
-                                  {sub.threadCount || 0} موضوع
-                                </span>
-                              </div>
                             </div>
+                          </Link>
+
+                          {nestedSubs.length > 0 && (
+                            <div className="pt-3 border-t border-slate-100 dark:border-slate-800 space-y-2">
+                                <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mb-2">الأقسام الفرعية:</p>
+                                <div className="flex flex-wrap gap-x-3 gap-y-2">
+                                    {nestedSubs.map(nested => (
+                                        <Link 
+                                            key={nested.id} 
+                                            href={`/forum/${nested.id}`}
+                                            className="text-xs text-slate-500 dark:text-slate-400 hover:text-primary dark:hover:text-primary flex items-center gap-1 transition-colors"
+                                        >
+                                            <div className="w-1 h-1 bg-slate-300 dark:bg-slate-700 rounded-full" />
+                                            {nested.name.ar}
+                                        </Link>
+                                    ))}
+                                </div>
+                            </div>
+                          )}
+
+                          <div className="mt-4 flex items-center justify-between text-[10px] text-slate-400 uppercase tracking-wider">
+                            <span className="flex items-center gap-1">
+                              <MessageSquare className="h-3 w-3" />
+                              {sub.threadCount || 0} موضوع
+                            </span>
                           </div>
-                        </Link>
+                        </div>
                        );
                     })}
                     {subs.length === 0 && (

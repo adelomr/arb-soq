@@ -2,6 +2,7 @@ import { getForumThreads, getForumCategories } from "@/lib/forum-service";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import { MessageSquare, Plus, ArrowRight, User, Clock, MessageCircle, Pin, CheckCircle2 } from "lucide-react";
+import * as lucideIcons from 'lucide-react';
 import Link from "next/link";
 import { formatDistanceToNow } from "date-fns";
 import { ar } from "date-fns/locale";
@@ -27,6 +28,18 @@ export default async function ForumCategoryPage({ params }: CategoryPageProps) {
     );
   }
 
+  // Recursive Breadcrumb Builder
+  const getBreadcrumbs = (catId: string, acc: any[] = []): any[] => {
+    const cat = categories.find(c => c.id === catId);
+    if (!cat) return acc;
+    const newAcc = [cat, ...acc];
+    if (cat.parentId) return getBreadcrumbs(cat.parentId, newAcc);
+    return newAcc;
+  };
+
+  const breadcrumbs = getBreadcrumbs(catId);
+  const subCategories = categories.filter(c => c.parentId === catId);
+
   return (
     <div className="min-h-screen bg-[#f8fafc] dark:bg-[#0f172a] flex flex-col" dir="rtl">
       <Header />
@@ -34,16 +47,16 @@ export default async function ForumCategoryPage({ params }: CategoryPageProps) {
       <main className="flex-grow container mx-auto px-4 py-8">
         <div className="mb-6 flex items-center gap-2 text-sm text-slate-400">
             <Link href="/forum" className="hover:text-primary transition-colors">المنتدى</Link>
-            <ArrowRight className="h-4 w-4 rotate-180" />
-            {category.parentId && (
-              <>
-                <Link href="/forum" className="hover:text-primary transition-colors">
-                  {categories.find(c => c.id === category.parentId)?.name.ar || 'قسم رئيسي'}
-                </Link>
-                <ArrowRight className="h-4 w-4 rotate-180" />
-              </>
-            )}
-            <span className="text-slate-600 dark:text-slate-300 font-medium">{category.name.ar}</span>
+            {breadcrumbs.map((bc, idx) => (
+                <div key={bc.id} className="flex items-center gap-2">
+                    <ArrowRight className="h-4 w-4 rotate-180" />
+                    {idx === breadcrumbs.length - 1 ? (
+                        <span className="text-slate-600 dark:text-slate-300 font-medium">{bc.name.ar}</span>
+                    ) : (
+                        <Link href={`/forum/${bc.id}`} className="hover:text-primary transition-colors">{bc.name.ar}</Link>
+                    )}
+                </div>
+            ))}
         </div>
 
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center bg-white dark:bg-slate-900 p-6 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-800 mb-8 gap-4 shadow-[0_4px_6px_-1px_rgba(0,0,0,0.05),0_2px_4px_-1px_rgba(0,0,0,0.03)]">
@@ -58,6 +71,30 @@ export default async function ForumCategoryPage({ params }: CategoryPageProps) {
             </button>
           </Link>
         </div>
+
+        {/* Sub Categories in this view if any */}
+        {subCategories.length > 0 && (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+                {subCategories.map(sub => {
+                    const SubIcon = (lucideIcons as any)[sub.icon] || MessageSquare;
+                    return (
+                        <Link 
+                            key={sub.id} 
+                            href={`/forum/${sub.id}`}
+                            className="bg-white dark:bg-slate-900 p-4 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm hover:border-primary/50 transition-all flex items-center gap-3"
+                        >
+                            <div className="w-10 h-10 bg-slate-50 dark:bg-slate-800 rounded-lg flex items-center justify-center text-slate-400 group-hover:text-primary">
+                                <SubIcon className="h-5 w-5" />
+                            </div>
+                            <div className="truncate">
+                                <p className="font-bold text-slate-900 dark:text-white text-sm truncate">{sub.name.ar}</p>
+                                <p className="text-[10px] text-slate-400">{sub.threadCount || 0} موضوع</p>
+                            </div>
+                        </Link>
+                    );
+                })}
+            </div>
+        )}
 
         <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden">
           {threads.length === 0 ? (

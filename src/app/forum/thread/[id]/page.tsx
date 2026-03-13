@@ -38,6 +38,7 @@ export default function ThreadViewPage() {
   
   const [thread, setThread] = useState<ForumThread | null>(null);
   const [category, setCategory] = useState<ForumCategory | null>(null);
+  const [categories, setCategories] = useState<ForumCategory[]>([]);
   const [replies, setReplies] = useState<ForumReply[]>([]);
   const [loading, setLoading] = useState(true);
   const [replyContent, setReplyContent] = useState("");
@@ -47,14 +48,15 @@ export default function ThreadViewPage() {
     const fetchData = async () => {
       if (!threadId) return;
       try {
-        const [threadData, categories] = await Promise.all([
+        const [threadData, cats] = await Promise.all([
           getForumThreadById(threadId),
           getForumCategories()
         ]);
         
         if (threadData) {
           setThread(threadData);
-          setCategory(categories.find(c => c.id === threadData.categoryId) || null);
+          setCategories(cats);
+          setCategory(cats.find(c => c.id === threadData.categoryId) || null);
           const repliesData = await getForumReplies(threadId);
           setReplies(repliesData);
         }
@@ -105,6 +107,17 @@ export default function ThreadViewPage() {
     }
   };
 
+  // Recursive Breadcrumb Builder
+  const getBreadcrumbs = (catId: string, acc: ForumCategory[] = []): ForumCategory[] => {
+    const cat = categories.find(c => c.id === catId);
+    if (!cat) return acc;
+    const newAcc = [cat, ...acc];
+    if (cat.parentId) return getBreadcrumbs(cat.parentId, newAcc);
+    return newAcc;
+  };
+
+  const breadcrumbs = category ? getBreadcrumbs(category.id) : [];
+
   if (loading) {
     return (
         <div className="min-h-screen flex items-center justify-center">
@@ -130,13 +143,13 @@ export default function ThreadViewPage() {
         {/* Breadcrumbs */}
         <div className="mb-6 flex items-center gap-2 text-sm text-slate-400">
             <Link href="/forum" className="hover:text-primary transition-colors">المنتدى</Link>
-            <ArrowRight className="h-4 w-4 rotate-180" />
-            {category && (
-                <>
-                    <Link href={`/forum/${category.id}`} className="hover:text-primary transition-colors">{category.name.ar}</Link>
+            {breadcrumbs.map((bc) => (
+                <div key={bc.id} className="flex items-center gap-2">
                     <ArrowRight className="h-4 w-4 rotate-180" />
-                </>
-            )}
+                    <Link href={`/forum/${bc.id}`} className="hover:text-primary transition-colors">{bc.name.ar}</Link>
+                </div>
+            ))}
+            <ArrowRight className="h-4 w-4 rotate-180" />
             <span className="text-slate-600 dark:text-slate-300 truncate max-w-[200px]">{thread.title}</span>
         </div>
 
