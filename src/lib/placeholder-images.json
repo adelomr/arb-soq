@@ -1,0 +1,208 @@
+{
+  "placeholderImages": [
+    {
+      "id": "hero-background",
+      "description": "Abstract background of a bustling market",
+      "imageUrl": "https://images.unsplash.com/photo-1534990752323-06669b09880a?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwxMHx8bWFya2V0cGxhY2UlMjBhYnN0cmFjdHxlbnwwfHx8fDE3NTg2NjM2MzJ8MA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "marketplace abstract"
+    },
+    {
+      "id": "ad-imac",
+      "description": "iMac on a desk",
+      "imageUrl": "https://images.unsplash.com/photo-1416339442236-8ceb164046f8?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwzfHxjb21wdXRlciUyMGRlc2t8ZW58MHx8fHwxNzU4NjI1MTQ2fDA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "computer desk"
+    },
+    {
+      "id": "ad-sofa",
+      "description": "Modern sofa in a living room",
+      "imageUrl": "https://images.unsplash.com/photo-1598928506311-c55ded91a20c?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw0fHxsaXZpbmclMjByb29tfGVufDB8fHx8MTc1ODU4NDI0Mnww&ixlib-rb-4.1.0&q=80&w=1080",
+      "imageHint": "living room"
+    },
+    {
+      "id": "ad-car",
+      "description": "Red sports car",
+      "imageUrl": "https://images.unsplash.com/photo-1625231334168-35067f8853ed?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwzfHxzcG9ydHMlMjBjYXJ8ZW58MHx8fHwxNzU4NTg3NjU5fDA&ixlib-rb-4.1.0&q=80&w=1080",
+      "imageHint": "sports car"
+    },
+    {
+      "id": "ad-apartment",
+      "description": "Apartment building exterior",
+      "imageUrl": "https://images.unsplash.com/photo-1492659991124-ba70990ba2f4?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw5fHxhcGFydG1lbnQlMjBidWlsZGluZ3xlbnwwfHx8fDE3NTg1ODc0MzB8MA&ixlib-rb-4.1.0&q=80&w=1080",
+      "imageHint": "apartment building"
+    },
+    {
+      "id": "ad-jacket",
+      "description": "Leather jacket on a mannequin",
+      "imageUrl": "https://images.unsplash.com/photo-1511280303142-0051e93baeeb?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw3fHxsZWF0aGVyJTIwamFja2V0fGVufDB8fHx8MTc1ODU4MjczM3ww&ixlib-rb-4.1.0&q=80&w=1080",
+      "imageHint": "leather jacket"
+    },
+    {
+      "id": "ad-gardening",
+      "description": "Gardening tools",
+      "imageUrl": "https://images.unsplash.com/photo-1573561368183-fd88bdb4503d?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwxMHx8Z2FyZGVuaW5nJTIwdG9vbHN8ZW58MHx8fHwxNzU4NTkxMzUwfDA&ixlib-rb-4.1.0&q=80&w=1080",
+      "imageHint": "gardening tools"
+    },
+    {
+      "id": "ad-iphone",
+      "description": "iPhone on a table",
+      "imageUrl": "https://images.unsplash.com/photo-1610994213830-a595c7f26228?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwyfHxzbWFydHBob25lJTIwdGFibGV8ZW58MHx8fHwxNzU4NTg5MjA4fDA&ixlib-rb-4.1.0&q=80&w=1080",
+      "imageHint": "smartphone table"
+    },
+    {
+      "id": "ad-chair",
+      "description": "Wooden dining chair",
+      "imageUrl": "https://images.unsplash.com/photo-1531851243379-1524c00c0545?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw4fHx3b29kZW4lMjBjaGFpcnxlbnwwfHx8fDE3NTg2MTI2NzB8MA&ixlib-rb-4.1.0&q=80&w=1080",
+      "imageHint": "wooden chair"
+    },
+    {
+      "id": "ad-bike",
+      "description": "Mountain bike on a trail",
+      "imageUrl": "https://images.unsplash.com/photo-1506316940527-4d1c138978a0?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwyfHxtb3VudGFpbiUyMGJpa2V8ZW58MHx8fHwxNzU4NTkzMTI2fDA&ixlib-rb-4.1.0&q=80&w=1080",
+      "imageHint": "mountain bike"
+    },
+    {
+      "id": "ad-house",
+      "description": "Suburban house with a lawn",
+      "imageUrl": "https://images.unsplash.com/photo-1572120360610-d971b9d7767c?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw3fHxzdWJ1cmJhbiUyMGhvdXNlfGVufDB8fHx8MTc1ODU5MjA5Nnww&ixlib-rb-4.1.0&q=80&w=1080",
+      "imageHint": "suburban house"
+    },
+    {
+      "id": "ad-watch",
+      "description": "A classic wrist watch",
+      "imageUrl": "https://images.unsplash.com/photo-1579543768549-96d37c1df78f?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw4fHx3cmlzdCUyMHdhdGNofGVufDB8fHx8MTc1ODYxNzM3NXww&ixlib-rb-4.1.0&q=80&w=1080",
+      "imageHint": "wrist watch"
+    },
+    {
+      "id": "ad-cleaning",
+      "description": "Cleaning supplies",
+      "imageUrl": "https://images.unsplash.com/photo-1664004924947-2a2b6fbefb8b?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw3fHxjbGVhbmluZyUyMHN1cHBsaWVzfGVufDB8fHx8fDE3NTg1OTU5Mzl8MA&ixlib-rb-4.1.0&q=80&w=1080",
+      "imageHint": "cleaning supplies"
+    },
+    {
+      "id": "user-avatar-1",
+      "description": "User avatar of a woman",
+      "imageUrl": "https://images.unsplash.com/photo-1580489944761-15a19d654956?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwyfHx3b21hbiUyMHBvcnRyYWl0fGVufDB8fHx8fDE3NTg2NDA3MzZ8MA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "woman portrait"
+    },
+    {
+      "id": "user-avatar-2",
+      "description": "User avatar of a man",
+      "imageUrl": "https://images.unsplash.com/photo-1607031542107-f6f46b5d54e9?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw2fHxtYW4lMjBwb3J0cmFpdHxlbnwwfHx8fDE3NTg1ODI4MTZ8MA&ixlib-rb-4.1.0&q=80&w=1080",
+      "imageHint": "man portrait"
+    },
+    {
+      "id": "user-avatar-3",
+      "description": "User avatar",
+      "imageUrl": "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwzfHxwZXJzb24lMjBwb3J0cmFpdHxlbnwwfHx8fDE3NTg1ODUxMDl8MA&ixlib-rb-4.1.0&q=80&w=1080",
+      "imageHint": "person portrait"
+    },
+    {
+      "id": "ad-logo-design",
+      "description": "Graphic designer working on a logo",
+      "imageUrl": "https://images.unsplash.com/photo-1626785774573-4b799315345d?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwxfHxsb2dvJTIwZGVzaWdufGVufDB8fHx8fDE3NTg2NzMzNDZ8MA&ixlib-rb-4.1.0&q=80&w=1080",
+      "imageHint": "logo design"
+    },
+    {
+      "id": "ad-egyptian-cotton",
+      "description": "Egyptian cotton bed sheets",
+      "imageUrl": "https://images.unsplash.com/photo-1604724554359-99b821d6e1a4?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwxfHxiZWQlMjBzaGVldHN8ZW58MHx8fHwxNzU4NzI1MjY0fDA&ixlib-rb-4.1.0&q=80&w=1080",
+      "imageHint": "bed sheets"
+    },
+    {
+      "id": "ad-nile-cruise",
+      "description": "Nile cruise boat in Luxor",
+      "imageUrl": "https://images.unsplash.com/photo-1588675971486-4813589b253e?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwxfHxuaWxlJTIwY3J1aXNlfGVufDB8fHx8fDE3NTg3MjUzMTd8MA&ixlib-rb-4.1.0&q=80&w=1080",
+      "imageHint": "nile cruise"
+    },
+    {
+      "id": "ad-fiat-128",
+      "description": "Vintage Fiat 128 car",
+      "imageUrl": "https://images.unsplash.com/photo-1565451247059-32d169a71649?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwxfHxmaWF0JTIwMTI4fGVufDB8fHx8fDE3NTg3MjU2MTF8MA&ixlib-rb-4.1.0&q=80&w=1080",
+      "imageHint": "vintage car"
+    },
+    {
+      "id": "user-avatar-4",
+      "description": "User avatar of a woman with hijab",
+      "imageUrl": "https://images.unsplash.com/photo-1579339948400-5347a61f269a?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwyfHxtdXNsaW0lMjB3b21hbiUyMHBvcnRyYWl0fGVufDB8fHx8fDE3NTg3MjYwMDN8MA&ixlib/rb-4.1.0&q=80&w=1080",
+      "imageHint": "woman portrait"
+    },
+    {
+      "id": "user-avatar-5",
+      "description": "User avatar of an Egyptian man",
+      "imageUrl": "https://images.unsplash.com/photo-1616237199133-78b79b634898?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwxfHxlZ3lwdGlhbiUyMG1hbiUyMHBvcnRyYWl0fGVufDB8fHx8fDE3NTg3MjYwODd8MA&ixlib/rb-4.1.0&q=80&w=1080",
+      "imageHint": "man portrait"
+    },
+    {
+      "id": "ad-dubai-apartment",
+      "description": "Luxury apartment with a view of Burj Khalifa",
+      "imageUrl": "https://images.unsplash.com/photo-1563486333336-b50e48239442?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwzfHxkdWJhaSUyMGFwYXJ0bWVudHxlbnwwfHx8fDE3NTg3MzE5OTV8MA&ixlib/rb-4.1.0&q=80&w=1080",
+      "imageHint": "Dubai apartment"
+    },
+    {
+      "id": "ad-burj-khalifa",
+      "description": "View of Burj Khalifa from below",
+      "imageUrl": "https://images.unsplash.com/photo-1526495124232-a04e1849168c?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwxfHxidXJqJTIwa2hhbGlmYXxlbnwwfHx8fDE3NTg3MzIwNDZ8MA&ixlib/rb-4.1.0&q=80&w=1080",
+      "imageHint": "Burj Khalifa"
+    },
+    {
+      "id": "user-avatar-6",
+      "description": "User avatar of an Emirati man",
+      "imageUrl": "https://images.unsplash.com/photo-1581803118522-7b72a50f7e9f?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwxfHxlbWlyYXRpJTIwbWFufGVufDB8fHx8fDE3NTg3MzIxMDF8MA&ixlib/rb-4.1.0&q=80&w=1080",
+      "imageHint": "emirati man"
+    },
+    {
+      "id": "ad-mansaf",
+      "description": "Traditional Jordanian Mansaf dish",
+      "imageUrl": "https://images.unsplash.com/photo-1628430342303-a20a67f13b63?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwxfHxtYW5zYWYlMjBqb3JkYW58ZW58MHx8fHwxNzU4NzMyMTc2fDA&ixlib/rb-4.1.0&q=80&w=1080",
+      "imageHint": "Jordanian food"
+    },
+    {
+      "id": "ad-petra",
+      "description": "The Treasury building in Petra, Jordan",
+      "imageUrl": "https://images.unsplash.com/photo-1548825894-39924ed8943c?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwxfHxwZXRyYSUyMGpvcmRhbnxlbnwwfHx8fDE3NTg3MzIyMjJ8MA&ixlib/rb-4.1.0&q=80&w=1080",
+      "imageHint": "Petra Jordan"
+    },
+    {
+      "id": "user-avatar-7",
+      "description": "User avatar of a Jordanian woman",
+      "imageUrl": "https://images.unsplash.com/photo-1605362143457-3a8f5f403f70?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwxfHwqb3JkYW5pYW4lMjB3b21hbnxlbnwwfHx8fDE3NTg3MzIyNjV8MA&ixlib/rb-4.1.0&q=80&w=1080",
+      "imageHint": "Jordanian woman"
+    },
+    {
+      "id": "ad-tagine",
+      "description": "Moroccan tagine pot",
+      "imageUrl": "https://images.unsplash.com/photo-1590502122843-e4a8a5c3a372?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwxfHxtb3JvY2NhbiUyMHRhZ2luZXxlbnwwfHx8fDE3NTg4MjQyNzR8MA&ixlib/rb-4.1.0&q=80&w=1080",
+      "imageHint": "Moroccan tagine"
+    },
+    {
+      "id": "user-avatar-8",
+      "description": "User avatar of a Moroccan woman",
+      "imageUrl": "https://images.unsplash.com/photo-1534528741775-53994a69daeb?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw0fHxtb3JvY2NhbiUyMHdvbWFufGVufDB8fHx8fDE3NTg4MjQzNDd8MA&ixlib/rb-4.1.0&q=80&w=1080",
+      "imageHint": "Moroccan woman"
+    },
+    {
+      "id": "ad-kuwait-apt",
+      "description": "Modern apartment building in Kuwait",
+      "imageUrl": "https://images.unsplash.com/photo-1606558836544-a52d3a39f604?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwyfHxrdXdhaXQlMjBjaXR5fGVufDB8fHx8fDE3NTg4MjQ1NTN8MA&ixlib/rb-4.1.0&q=80&w=1080",
+      "imageHint": "Kuwait city"
+    },
+    {
+      "id": "user-avatar-9",
+      "description": "User avatar of a Kuwaiti man",
+      "imageUrl": "https://images.unsplash.com/photo-1629893952554-e7b330369806?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwxfHxrdXdhaXRpJTIwbWFufGVufDB8fHx8fDE3NTg4MjQ2OTN8MA&ixlib/rb-4.1.0&q=80&w=1080",
+      "imageHint": "Kuwaiti man"
+    },
+    {
+      "id": "ad-incense",
+      "description": "Omani frankincense burner",
+      "imageUrl": "https://images.unsplash.com/photo-1631853521251-874b01d36881?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwxfHxmbGFua2luY2Vuc2V8ZW58MHx8fHwxNzU4ODI0ODg2fDA&ixlib/rb-4.1.0&q=80&w=1080",
+      "imageHint": "frankincense burner"
+    },
+    {
+      "id": "user-avatar-10",
+      "description": "User avatar of an Omani man",
+      "imageUrl": "https://images.unsplash.com/photo-1629893952554-e7b330369806?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwxfHxvbWFuaSUyMG1hbnxlbnwwfHx8fDE3NTg4MjQ5NTF8MA&ixlib/rb-4.1.0&q=80&w=1080",
+      "imageHint": "Omani man"
+    }
+  ]
+}

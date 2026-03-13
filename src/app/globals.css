@@ -1,0 +1,111 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 0 0% 98%;
+    --foreground: 222.2 84% 4.9%;
+    --card: 0 0% 100%;
+    --card-foreground: 222.2 84% 4.9%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 222.2 84% 4.9%;
+    --primary: 190 35% 41%;
+    --primary-foreground: 190 15% 98%;
+    --secondary: 210 40% 96.1%;
+    --secondary-foreground: 222.2 47.4% 11.2%;
+    --muted: 210 40% 96.1%;
+    --muted-foreground: 215.4 16.3% 46.9%;
+    --accent: 186 61% 28%;
+    --accent-foreground: 186 15% 98%;
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 214.3 31.8% 85%;
+    --input: 214.3 31.8% 85%;
+    --ring: 190 35% 41%;
+    --radius: 0.5rem;
+    --category-icon-bg: 210 40% 96.1%;
+    --font-cairo: "Cairo", sans-serif;
+  }
+
+  .dark {
+    --background: 200 15% 10%;
+    --foreground: 190 15% 90%;
+    --card: 200 15% 14%;
+    --card-foreground: 190 15% 90%;
+    --popover: 200 15% 14%;
+    --popover-foreground: 190 15% 90%;
+    --primary: 190 35% 51%;
+    --primary-foreground: 190 15% 98%;
+    --secondary: 200 15% 20%;
+    --secondary-foreground: 190 15% 98%;
+    --muted: 200 15% 20%;
+    --muted-foreground: 190 10% 60%;
+    --accent: 186 61% 38%;
+    --accent-foreground: 186 15% 98%;
+    --destructive: 0 62.8% 30.6%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 200 15% 25%;
+    --input: 200 15% 25%;
+    --ring: 190 35% 51%;
+    --category-icon-bg: 200 15% 20%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground font-body;
+  }
+  
+  /* تصغير حجم الخط على الشاشات الصغيرة */
+  @media (max-width: 640px) {
+    html {
+      font-size: 14px;
+    }
+  }
+}
+
+@layer utilities {
+  .custom-scrollbar::-webkit-scrollbar {
+    height: 4px;
+    width: 4px;
+  }
+
+  .custom-scrollbar::-webkit-scrollbar-track {
+    background-color: hsl(var(--secondary));
+    border-radius: 10px;
+  }
+
+  .custom-scrollbar::-webkit-scrollbar-thumb {
+    background-color: hsl(var(--primary) / 0.5);
+    border-radius: 10px;
+  }
+  .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+    background-color: hsl(var(--accent));
+  }
+}
+
+/* === دعم RTL الكامل لعناصر Select من shadcn/ui === */
+
+[dir="rtl"] [data-radix-select-trigger] > span {
+  text-align: right;
+}
+
+[dir="rtl"] [data-radix-select-trigger] .lucide-chevron-down {
+  margin-left: auto;
+  margin-right: 0.5rem; /* 8px */
+}
+
+[dir="rtl"] [role="option"] {
+  padding-right: 2rem !important; /* 32px */
+  padding-left: 0.5rem !important; /* 8px */
+  justify-content: flex-end;
+}
+
+[dir="rtl"] [role="option"] > span {
+  right: 0.5rem; /* 8px */
+  left: auto;
+}
