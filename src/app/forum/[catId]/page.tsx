@@ -35,7 +35,15 @@ export default async function ForumCategoryPage({ params }: CategoryPageProps) {
         <div className="mb-6 flex items-center gap-2 text-sm text-slate-400">
             <Link href="/forum" className="hover:text-primary transition-colors">المنتدى</Link>
             <ArrowRight className="h-4 w-4 rotate-180" />
-            <span className="text-slate-600 dark:text-slate-300">{category.name.ar}</span>
+            {category.parentId && (
+              <>
+                <Link href="/forum" className="hover:text-primary transition-colors">
+                  {categories.find(c => c.id === category.parentId)?.name.ar || 'قسم رئيسي'}
+                </Link>
+                <ArrowRight className="h-4 w-4 rotate-180" />
+              </>
+            )}
+            <span className="text-slate-600 dark:text-slate-300 font-medium">{category.name.ar}</span>
         </div>
 
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center bg-white dark:bg-slate-900 p-6 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-800 mb-8 gap-4 shadow-[0_4px_6px_-1px_rgba(0,0,0,0.05),0_2px_4px_-1px_rgba(0,0,0,0.03)]">

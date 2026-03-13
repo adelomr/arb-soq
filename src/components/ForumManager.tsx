@@ -20,6 +20,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Loader2, Save, MessageSquare, Plus, Trash2, ChevronDown, Search } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import * as lucideIcons from 'lucide-react';
 import { getCategoryIcon } from '@/lib/data';
@@ -37,7 +38,7 @@ const iconNames = Object.keys(lucideIcons).filter(key =>
 const translations = {
   ar: {
     title: 'إدارة أقسام المنتدى',
-    description: 'إضافة وتعديل وحذف أقسام المنتدى الرئيسية.',
+    description: 'إضافة وتعديل وحذف أقسام المنتدى الرئيسية والفرعية.',
     save: 'حفظ التغييرات',
     saving: 'جارٍ الحفظ...',
     success: 'تم الحفظ بنجاح!',
@@ -48,16 +49,22 @@ const translations = {
     categoryNameAr: 'اسم القسم (عربي)',
     categoryDescAr: 'وصف القسم (عربي)',
     icon: 'الأيقونة',
-    addCategory: 'إضافة قسم جديد',
+    addMainCategory: 'إضافة قسم رئيسي جديد',
+    addSubCategory: 'إضافة قسم فرعي',
     removeCategory: 'حذف القسم',
     newCategory: 'قسم جديد',
+    newSubCategory: 'قسم فرعي جديد',
     searchIcon: "ابحث عن أيقونة...",
     order: "الترتيب",
+    type: "نوع القسم",
+    mainCategory: "قسم رئيسي",
+    subCategory: "قسم فرعي (تابع لـ: {name})",
   },
 };
 
 const categorySchema = z.object({
     id: z.string(),
+    parentId: z.string().optional(),
     name: z.object({
         ar: z.string().min(1),
     }),
@@ -175,14 +182,11 @@ export default function ForumManager() {
     try {
       const batch = writeBatch(firestore);
       
-      // We need to fetch existing IDs to handle deletions if we were doing a full sync, 
-      // but here we'll just write the current state.
-      // Note: A real implementation should handle deleting docs that are no longer in 'data.categories'
-      
       data.categories.forEach((cat) => {
           const docRef = doc(firestore, CATEGORIES_COLLECTION, cat.id);
+          const { id, ...saveData } = cat;
           batch.set(docRef, {
-              ...cat,
+              ...saveData,
               updatedAt: serverTimestamp(),
           }, { merge: true });
       });
@@ -205,7 +209,7 @@ export default function ForumManager() {
     }
   };
 
-  const addCategory = () => {
+  const addMainCategory = () => {
     const newId = `fcat_${Date.now()}`;
     append({
       id: newId,
@@ -216,10 +220,25 @@ export default function ForumManager() {
     });
     setOpenCollapsibles(prev => ({ ...prev, [newId]: true }));
   };
+
+  const addSubCategory = (parentId: string) => {
+    const newId = `fsub_${Date.now()}`;
+    append({
+      id: newId,
+      parentId,
+      name: { ar: '' },
+      description: { ar: '' },
+      icon: 'ChevronLeft',
+      order: fields.length,
+    });
+    setOpenCollapsibles(prev => ({ ...prev, [newId]: true }));
+  }
   
   const toggleCollapsible = (id: string) => {
     setOpenCollapsibles(prev => ({ ...prev, [id]: !prev[id] }));
   }
+
+  const mainCategories = fields.filter(f => !form.watch(`categories.${fields.indexOf(f)}.parentId`));
 
   if (isFetching) {
     return (
@@ -242,44 +261,87 @@ export default function ForumManager() {
       <CardContent>
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
-            <div className="space-y-6">
-                {fields.map((field, index) => (
-                    <Collapsible key={field.id} open={openCollapsibles[field.id] || false} onOpenChange={() => toggleCollapsible(field.id)} className="space-y-4 rounded-lg border p-4 bg-muted/30">
-                        <div className="flex items-center justify-between">
-                            <CollapsibleTrigger asChild>
-                                <div className="flex items-center gap-2 cursor-pointer flex-1">
-                                    <h3 className="text-xl font-semibold">{form.watch(`categories.${index}.name.ar`) || t.newCategory}</h3>
-                                    <ChevronDown className="h-5 w-5 transition-transform duration-200" />
+            <div className="space-y-8">
+                {mainCategories.map((mainField) => {
+                    const mainIndex = fields.indexOf(mainField);
+                    const mainId = mainField.id;
+                    const subCategories = fields.filter(f => form.watch(`categories.${fields.indexOf(f)}.parentId`) === mainField.id);
+                    
+                    return (
+                        <div key={mainId} className="space-y-4 border-r-4 border-primary pr-4">
+                            <Collapsible open={openCollapsibles[mainId] || false} onOpenChange={() => toggleCollapsible(mainId)} className="space-y-4 rounded-lg border p-4 bg-primary/5">
+                                <div className="flex items-center justify-between">
+                                    <CollapsibleTrigger asChild>
+                                        <div className="flex items-center gap-2 cursor-pointer flex-1">
+                                            <Badge variant="default">{t.mainCategory}</Badge>
+                                            <h3 className="text-xl font-bold">{form.watch(`categories.${mainIndex}.name.ar`) || t.newCategory}</h3>
+                                            <ChevronDown className="h-5 w-5 transition-transform duration-200" />
+                                        </div>
+                                    </CollapsibleTrigger>
+                                    <div className="flex gap-2">
+                                        <Button type="button" variant="outline" size="sm" onClick={() => addSubCategory(mainId)}>
+                                            <Plus className="h-4 w-4 md:mr-2"/>
+                                            <span className="hidden md:inline">{t.addSubCategory}</span>
+                                        </Button>
+                                        <Button type="button" variant="destructive" size="sm" onClick={() => remove(mainIndex)}>
+                                            <Trash2 className="h-4 w-4"/>
+                                        </Button>
+                                    </div>
                                 </div>
-                            </CollapsibleTrigger>
-                            <Button type="button" variant="destructive" size="sm" onClick={() => remove(index)}>
-                                <Trash2 className="h-4 w-4 md:mr-2"/>
-                                <span className="hidden md:inline">{t.removeCategory}</span>
-                            </Button>
-                        </div>
-                        <CollapsibleContent className="space-y-4 pt-4">
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                <FormField control={form.control} name={`categories.${index}.name.ar`} render={({ field }) => ( <FormItem><FormLabel>{t.categoryNameAr}</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem> )} />
-                                <FormField control={form.control} name={`categories.${index}.order`} render={({ field }) => ( <FormItem><FormLabel>{t.order}</FormLabel><FormControl><Input type="number" {...field} onChange={e => field.onChange(parseInt(e.target.value))} /></FormControl><FormMessage /></FormItem> )} />
+                                <CollapsibleContent className="space-y-4 pt-4">
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                        <FormField control={form.control} name={`categories.${mainIndex}.name.ar`} render={({ field }) => ( <FormItem><FormLabel>{t.categoryNameAr}</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem> )} />
+                                        <FormField control={form.control} name={`categories.${mainIndex}.order`} render={({ field }) => ( <FormItem><FormLabel>{t.order}</FormLabel><FormControl><Input type="number" {...field} onChange={e => field.onChange(parseInt(e.target.value))} /></FormControl><FormMessage /></FormItem> )} />
+                                    </div>
+                                    <FormField control={form.control} name={`categories.${mainIndex}.description.ar`} render={({ field }) => ( <FormItem><FormLabel>{t.categoryDescAr}</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem> )} />
+                                    <FormField control={form.control} name={`categories.${mainIndex}.icon`} render={({ field }) => <IconPicker value={field.value} onChange={field.onChange} />} />
+                                </CollapsibleContent>
+                            </Collapsible>
+
+                            {/* Sub Categories */}
+                            <div className="mr-8 space-y-4 border-r border-slate-200 pr-4">
+                                {subCategories.map((subField) => {
+                                    const subIndex = fields.indexOf(subField);
+                                    const subId = subField.id;
+                                    return (
+                                        <Collapsible key={subId} open={openCollapsibles[subId] || false} onOpenChange={() => toggleCollapsible(subId)} className="space-y-4 rounded-lg border p-4 bg-muted/30">
+                                            <div className="flex items-center justify-between">
+                                                <CollapsibleTrigger asChild>
+                                                    <div className="flex items-center gap-2 cursor-pointer flex-1">
+                                                        <Badge variant="outline">{t.subCategory.replace('{name}', form.watch(`categories.${mainIndex}.name.ar`) || '')}</Badge>
+                                                        <h4 className="text-lg font-semibold">{form.watch(`categories.${subIndex}.name.ar`) || t.newSubCategory}</h4>
+                                                        <ChevronDown className="h-5 w-5 transition-transform duration-200" />
+                                                    </div>
+                                                </CollapsibleTrigger>
+                                                <Button type="button" variant="destructive" size="sm" onClick={() => remove(subIndex)}>
+                                                    <Trash2 className="h-4 w-4 md:mr-2"/>
+                                                    <span className="hidden md:inline">{t.removeCategory}</span>
+                                                </Button>
+                                            </div>
+                                            <CollapsibleContent className="space-y-4 pt-4">
+                                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                                    <FormField control={form.control} name={`categories.${subIndex}.name.ar`} render={({ field }) => ( <FormItem><FormLabel>{t.categoryNameAr}</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem> )} />
+                                                    <FormField control={form.control} name={`categories.${subIndex}.order`} render={({ field }) => ( <FormItem><FormLabel>{t.order}</FormLabel><FormControl><Input type="number" {...field} onChange={e => field.onChange(parseInt(e.target.value))} /></FormControl><FormMessage /></FormItem> )} />
+                                                </div>
+                                                <FormField control={form.control} name={`categories.${subIndex}.description.ar`} render={({ field }) => ( <FormItem><FormLabel>{t.categoryDescAr}</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem> )} />
+                                                <FormField control={form.control} name={`categories.${subIndex}.icon`} render={({ field }) => <IconPicker value={field.value} onChange={field.onChange} />} />
+                                            </CollapsibleContent>
+                                        </Collapsible>
+                                    );
+                                })}
                             </div>
-                            <FormField control={form.control} name={`categories.${index}.description.ar`} render={({ field }) => ( <FormItem><FormLabel>{t.categoryDescAr}</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem> )} />
-                            <FormField
-                                control={form.control}
-                                name={`categories.${index}.icon`}
-                                render={({ field }) => <IconPicker value={field.value} onChange={field.onChange} />}
-                            />
-                        </CollapsibleContent>
-                    </Collapsible>
-                ))}
+                        </div>
+                    );
+                })}
             </div>
 
-            <div className="flex flex-col sm:flex-row gap-4">
-                <Button type="button" variant="outline" onClick={addCategory} className="w-full sm:w-auto">
+            <div className="flex flex-col sm:flex-row gap-4 pt-6 border-t">
+                <Button type="button" variant="outline" onClick={addMainCategory} className="w-full sm:w-auto">
                     <Plus className="h-4 w-4 mr-2"/>
-                    {t.addCategory}
+                    {t.addMainCategory}
                 </Button>
 
-                <Button type="submit" disabled={isLoading} className="w-full sm:w-auto">
+                <Button type="submit" disabled={isLoading} className="w-full sm:w-auto bg-primary">
                 {isLoading ? ( <><Loader2 className="mr-2 h-4 w-4 animate-spin" />{t.saving}</> ) : ( <><Save className="mr-2 h-4 w-4" />{t.save}</> )}
                 </Button>
             </div>

@@ -12,6 +12,7 @@ export interface ForumCategory {
   };
   icon: string;
   order: number;
+  parentId?: string;
   threadCount: number;
   lastPostAt?: Timestamp;
 }
