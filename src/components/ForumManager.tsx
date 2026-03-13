@@ -23,7 +23,7 @@ import { Loader2, Save, MessageSquare, Plus, Trash2, ChevronDown, Search } from 
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import * as lucideIcons from 'lucide-react';
 import { getCategoryIcon } from '@/lib/data';
-import { ScrollArea } from './ui/scroll-area';
+import { ScrollArea } from '@/components/ui/scroll-area';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 
 const CATEGORIES_COLLECTION = 'forum_categories';

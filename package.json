@@ -10,7 +10,8 @@
     "start": "next start",
     "lint": "next lint",
     "typecheck": "tsc --noEmit",
-    "postinstall": "patch-package"
+    "postinstall": "patch-package",
+    "upload": "git add . && git commit -m \"تحديث الموقع\" && git push"
   },
   "engines": {
     "node": "22"

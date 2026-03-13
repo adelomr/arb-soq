@@ -4,7 +4,7 @@ import AdminDashboard from "@/components/AdminDashboard";
 import { useAuth } from "@/context/AuthContext";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import { Shield, Loader2, Users, Bell, Settings, ShieldCheck, Megaphone, BadgeDollarSign, Shapes, Briefcase } from "lucide-react";
+import { Shield, Loader2, Users, Bell, Settings, ShieldCheck, Megaphone, BadgeDollarSign, Shapes, Briefcase, MessageSquare } from "lucide-react";
 import { Card, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import NotificationManager from "@/components/NotificationManager";
 import ImageModerationTool from "@/components/ImageModerationTool";
