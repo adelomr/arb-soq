@@ -200,9 +200,9 @@ export default function AdminDashboard() {
           <CardDescription>{t.userManagementDesc}</CardDescription>
         </div>
         <Button asChild>
-          <Link href="/admin/blog/new">
+          <Link href="/forum/new">
             <PlusCircle className="ml-2 h-4 w-4" />
-            إضافة مقالة للمدونة
+            إضافة موضوع للمنتدى
           </Link>
         </Button>
       </CardHeader>
