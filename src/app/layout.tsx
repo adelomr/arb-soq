@@ -22,8 +22,38 @@ const cairo = Cairo({
 });
 
 export const metadata: Metadata = {
-  title: 'سوق العرب',
-  description: 'سوقك العربي الاحترافي للإعلانات.',
+  title: {
+    default: 'سوق العرب | بيع واشتري مجاناً في منطقتك',
+    template: '%s | سوق العرب'
+  },
+  description: 'سوق العرب هو منصتك الأولى للإعلانات المبوبة في الوطن العربي. بيع واشتري السيارات، العقارات، والخدمات بسهولة وأمان في السعودية، الإمارات، مصر وكل الدول العربية.',
+  keywords: ['سوق العرب', 'حراج', 'سيارات للبيع', 'عقارات', 'سوق مستعمل', 'إعلانات مبوبة', 'السعودية', 'الإمارات', 'مصر', 'الخليج العربي'],
+  authors: [{ name: 'سوق العرب' }],
+  creator: 'سوق العرب',
+  publisher: 'سوق العرب',
+  metadataBase: new URL('https://sooq-elarab.com'),
+  openGraph: {
+    type: 'website',
+    locale: 'ar_SA',
+    url: 'https://sooq-elarab.com',
+    siteName: 'سوق العرب',
+    title: 'سوق العرب | أكبر سوق للإعلانات في الوطن العربي',
+    description: 'بيع واشتري كل شيء في منطقتك. سيارات، عقارات، وتوظيف مجاناً.',
+    images: [
+      {
+        url: '/og-image.png',
+        width: 1200,
+        height: 630,
+        alt: 'سوق العرب',
+      },
+    ],
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'سوق العرب - بيع واشتري في منطقتك',
+    description: 'أفضل العروض والخدمات في الوطن العربي والخليج.',
+    images: ['/og-image.png'],
+  },
   icons: {
     icon: '/favicon.ico',
     shortcut: '/favicon.ico',
@@ -32,22 +62,24 @@ export const metadata: Metadata = {
 };
 
 
+import AdminNodeInitializer from '@/components/AdminNodeInitializer';
+
 export default function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="ar" dir="rtl">
+    <html lang="ar" dir="rtl" suppressHydrationWarning>
       <head>
           <Script
-            async
-            src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-4808414573627321"
-            crossOrigin="anonymous"
-            strategy="afterInteractive"
+             async
+             src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-4808414573627321"
+             crossOrigin="anonymous"
+             strategy="lazyOnload"
           ></Script>
       </head>
-      <body className={`${cairo.variable} min-h-screen bg-background font-body text-base flex flex-col antialiased`}>
+      <body className={`${cairo.variable} min-h-screen bg-background font-body text-base flex flex-col antialiased`} suppressHydrationWarning>
         <Suspense fallback={<div>Loading...</div>}>
           <LanguageProvider>
             <ThemeProvider>
@@ -57,6 +89,23 @@ export default function RootLayout({
                         <CartProvider>
                           <FontSizeApplier>
                             <ErrorWatcher />
+                            <AdminNodeInitializer />
+                            <script
+                              type="application/ld+json"
+                              dangerouslySetInnerHTML={{
+                                __html: JSON.stringify({
+                                  "@context": "https://schema.org",
+                                  "@type": "WebSite",
+                                  "name": "سوق العرب",
+                                  "url": "https://sooq-elarab.com",
+                                  "potentialAction": {
+                                    "@type": "SearchAction",
+                                    "target": "https://sooq-elarab.com/?q={search_term_string}",
+                                    "query-input": "required name=search_term_string"
+                                  }
+                                })
+                              }}
+                            />
                             {children}
                             <CookieConsent />
                             <div id="recaptcha-container"></div>

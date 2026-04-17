@@ -47,10 +47,12 @@ import Link from 'next/link';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import StoreCard from './StoreCard';
+import { useSearchParams } from 'next/navigation';
+import { UserProfile } from '@/lib/types';
 
 const translations = {
     ar: {
-        dashboardTitle: "لوحة التحكم",
+        dashboardTitle: "إدارة الإعلانات",
         dashboardDescription: "إدارة إعلاناتك، متجرك، وعرض أدائها.",
         myAds: "إعلاناتي",
         myStore: "متجري",
@@ -208,9 +210,9 @@ const AdTable = ({ ads, isLoading, isAdmin, noItemsMessage, isStoreProduct = fal
                 <TableHead>{t.title}</TableHead>
                 {isAdmin && <TableHead className="hidden lg:table-cell">{t.user}</TableHead>}
                 <TableHead className="hidden sm:table-cell">{t.status}</TableHead>
-                <TableHead className="hidden md:table-cell">{t.price}</TableHead>
-                <TableHead className="hidden lg:table-cell">{t.views}</TableHead>
-                <TableHead className="hidden lg:table-cell">{t.clicks}</TableHead>
+                <TableHead>{t.price}</TableHead>
+                <TableHead>{t.views}</TableHead>
+                <TableHead>{t.clicks}</TableHead>
                 <TableHead>
                     <span className="sr-only">{t.actions}</span>
                 </TableHead>
@@ -224,19 +226,19 @@ const AdTable = ({ ads, isLoading, isAdmin, noItemsMessage, isStoreProduct = fal
                             <TableCell>
                             <Image
                                 alt={ad.title}
-                                className="aspect-square rounded-md object-cover"
-                                height="64"
-                                src={ad.imageUrls[0]}
-                                width="64"
-                                data-ai-hint={ad.imageHints ? ad.imageHints[0] : ''}
+                                className="aspect-square rounded-md object-cover transition-all hover:scale-105"
+                                height={64}
+                                src={(ad.imageUrls && ad.imageUrls.length > 0) ? ad.imageUrls[0] : (ad as any).imageUrl || '/pattern-placeholder.jpg'}
+                                width={64}
+                                data-ai-hint={(ad.imageHints && ad.imageHints.length > 0) ? ad.imageHints[0] : ''}
                             />
                             </TableCell>
                             <TableCell className="font-medium">{ad.title}</TableCell>
                             {isAdmin && (
                                 <TableCell className="hidden lg:table-cell">
                                     <div className="flex items-center gap-2">
-                                        <Image src={ad.user.avatarUrl!} alt={ad.user.name} width={24} height={24} className="rounded-full"/>
-                                        <span>{ad.user.name}</span>
+                                        <Image src={ad.user?.avatarUrl || ''} alt={ad.user?.name || 'User'} width={24} height={24} className="rounded-full"/>
+                                        <span>{ad.user?.name || 'Unknown'}</span>
                                     </div>
                                 </TableCell>
                             )}
@@ -246,16 +248,16 @@ const AdTable = ({ ads, isLoading, isAdmin, noItemsMessage, isStoreProduct = fal
                                 {ad.isPromoted && <Badge className="mt-1">{t.promoted}</Badge>}
                             </div>
                             </TableCell>
-                            <TableCell className="hidden md:table-cell">
+                            <TableCell>
                                 {ad.price ? currencyFormatter.format(ad.price) : '-'}
                             </TableCell>
-                            <TableCell className="hidden lg:table-cell">
+                            <TableCell>
                                 <div className="flex items-center gap-1">
                                     <Eye className="h-4 w-4 text-muted-foreground" />
                                     {(ad.views || 0).toLocaleString('en-US')}
                                 </div>
                             </TableCell>
-                            <TableCell className="hidden lg:table-cell">
+                            <TableCell>
                                 <div className="flex items-center gap-1">
                                      <MousePointerClick className="h-4 w-4 text-muted-foreground" />
                                     {(ad.clicks || 0).toLocaleString('en-US')}
@@ -312,8 +314,8 @@ const AdTable = ({ ads, isLoading, isAdmin, noItemsMessage, isStoreProduct = fal
     );
 }
 
-const StoreTab = () => {
-    const { user, userProfile, deleteStore, refreshUserProfile, getAds } = useAuth();
+const StoreTab = ({ user, userProfile, targetUserId, effectiveProfile }: { user: any, userProfile: UserProfile | null, targetUserId: string, effectiveProfile: UserProfile | null }) => {
+    const { deleteStore, refreshUserProfile, getAds } = useAuth();
     const { language } = useLanguage();
     const t = translations.ar;
     const { toast } = useToast();
@@ -323,10 +325,10 @@ const StoreTab = () => {
     const [isLoading, setIsLoading] = useState(true);
 
     useEffect(() => {
-        if (user && userProfile?.store) {
+        if (targetUserId && effectiveProfile?.store) {
             setIsLoading(true);
             const unsubscribe = getAds({
-                userId: user.uid,
+                userId: targetUserId,
                 categories: ['store-product']
             }, (products) => {
                 setStoreProducts(products);
@@ -336,18 +338,21 @@ const StoreTab = () => {
         } else {
             setIsLoading(false);
         }
-    }, [user, userProfile?.store, getAds]);
+    }, [targetUserId, effectiveProfile?.store, getAds]);
 
 
-    if (!user || !userProfile) return null;
+    if (!targetUserId || !effectiveProfile) return null;
 
-    const hasStore = !!userProfile.store;
+    const hasStore = !!effectiveProfile.store;
+    const isOwner = user?.uid === targetUserId;
+    const isAdmin = userProfile?.role === 'admin';
+    const canManage = isOwner || isAdmin;
 
     const handleDeleteStore = async () => {
-        if (!user) return;
+        if (!canManage) return;
         setIsDeleting(true);
         try {
-            await deleteStore(user.uid);
+            await deleteStore(targetUserId);
             toast({ title: t.storeDeleted });
             await refreshUserProfile();
         } catch (error) {
@@ -378,39 +383,53 @@ const StoreTab = () => {
         <>
             <div className="flex flex-col sm:flex-row gap-6 items-start mb-8">
                  <div className="w-full sm:w-2/3 lg:w-1/2">
-                   <StoreCard store={userProfile} />
+                   <StoreCard store={effectiveProfile} />
                 </div>
-                <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto self-start">
-                    <Button asChild variant="outline" className="w-full sm:w-auto">
-                         <Link href={`/store/${user.uid}`}>
-                            <Store className="mr-2 h-4 w-4" />
-                            {t.viewStore}
-                        </Link>
-                    </Button>
-                    <Button asChild variant="outline" className="w-full sm:w-auto">
-                        <Link href="/store/create">
-                            <Edit className="mr-2 h-4 w-4" />
-                            {t.editStore}
-                        </Link>
-                    </Button>
-                    <Button variant="destructive" className="w-full sm:w-auto" onClick={() => setShowDeleteDialog(true)} disabled={isDeleting}>
-                       {isDeleting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Trash2 className="mr-2 h-4 w-4" />}
-                       {t.delete}
-                    </Button>
-                </div>
+                {canManage && (
+                    <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto self-start">
+                        <Button asChild variant="outline" className="w-full sm:w-auto">
+                            <Link href={`/store/${targetUserId}`}>
+                                <Store className="mr-2 h-4 w-4" />
+                                {t.viewStore}
+                            </Link>
+                        </Button>
+                        <Button asChild variant="outline" className="w-full sm:w-auto">
+                            <Link href="/store/create">
+                                <Edit className="mr-2 h-4 w-4" />
+                                {t.editStore}
+                            </Link>
+                        </Button>
+                        <Button variant="destructive" className="w-full sm:w-auto" onClick={() => setShowDeleteDialog(true)} disabled={isDeleting}>
+                        {isDeleting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Trash2 className="mr-2 h-4 w-4" />}
+                        {t.delete}
+                        </Button>
+                    </div>
+                )}
+                {!canManage && (
+                     <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto self-start">
+                        <Button asChild variant="outline" className="w-full sm:w-auto">
+                            <Link href={`/store/${targetUserId}`}>
+                                <Store className="mr-2 h-4 w-4" />
+                                {t.viewStore}
+                            </Link>
+                        </Button>
+                     </div>
+                )}
             </div>
 
             <div className="mb-4 flex justify-between items-center">
                  <h3 className="text-xl font-semibold">{t.myAds}</h3>
-                <Button asChild>
-                    <Link href="/submit?type=store-product">
-                         <PlusCircle className="mr-2 h-4 w-4" />
-                         {t.addNewProduct}
-                    </Link>
-                </Button>
+                {canManage && (
+                    <Button asChild>
+                        <Link href="/submit?type=store-product">
+                            <PlusCircle className="mr-2 h-4 w-4" />
+                            {t.addNewProduct}
+                        </Link>
+                    </Button>
+                )}
             </div>
 
-            <AdTable ads={storeProducts} isLoading={isLoading} isAdmin={false} noItemsMessage={t.noProducts} isStoreProduct={true} />
+            <AdTable ads={storeProducts} isLoading={isLoading} isAdmin={isAdmin} noItemsMessage={t.noProducts} isStoreProduct={true} />
 
             <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
                 <AlertDialogContent>
@@ -433,20 +452,31 @@ const StoreTab = () => {
 
 export default function UserDashboard() {
   const { language } = useLanguage();
-  const { user, userProfile, getAds } = useAuth();
+  const { user, userProfile, getAds, getUserById } = useAuth();
+  const searchParams = useSearchParams();
   const t = translations.ar;
+
+  const urlUserId = searchParams.get('userId');
+  const targetUserId = urlUserId || user?.uid;
 
   const [regularAds, setRegularAds] = useState<Ad[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [externalProfile, setExternalProfile] = useState<UserProfile | null>(null);
 
   const isAdmin = userProfile?.role === 'admin';
-  const hasStore = !!userProfile?.store;
+  const hasStore = !!userProfile?.store || !!externalProfile?.store;
   
   useEffect(() => {
+    if (urlUserId && !user) {
+        getUserById(urlUserId).then(setExternalProfile);
+    }
+  }, [urlUserId, user, getUserById]);
+
+  useEffect(() => {
     let unsubscribe: () => void;
-    if (user) {
+    if (targetUserId) {
         const filters = {
-            userId: isAdmin ? undefined : user.uid,
+            userId: targetUserId,
         };
         
         setIsLoading(true);
@@ -462,16 +492,26 @@ export default function UserDashboard() {
             unsubscribe();
         }
     };
-  }, [user, isAdmin, getAds]);
+  }, [targetUserId, getAds]);
+
+  if (!targetUserId) {
+    if (user === null && !urlUserId) return <div className="text-center py-20">{t.dashboardTitle} - يرجى تسجيل الدخول</div>;
+    return null;
+  }
+
+  const effectiveProfile = userProfile || externalProfile;
 
   return (
     <Card>
       <CardHeader>
         <CardTitle className="text-2xl md:text-3xl font-headline flex items-center gap-3">
             <LayoutDashboard className="h-6 w-6 md:h-8 md:w-8" />
-            {t.dashboardTitle}
+            {isAdmin ? 'لوحة التحكم' : t.dashboardTitle}
         </CardTitle>
-        <CardDescription>{isAdmin ? t.adminView : t.dashboardDescription}</CardDescription>
+        <CardDescription>
+            {isAdmin ? t.adminView : t.dashboardDescription}
+            {urlUserId && <Badge variant="outline" className="ml-2">عرض ملف: {effectiveProfile?.name}</Badge>}
+        </CardDescription>
       </CardHeader>
       <CardContent>
           <Tabs defaultValue="ads" className="w-full">
@@ -484,7 +524,7 @@ export default function UserDashboard() {
               </TabsContent>
               {hasStore && (
                 <TabsContent value="store" className="mt-6">
-                    <StoreTab />
+                    <StoreTab user={user} userProfile={userProfile} targetUserId={targetUserId} effectiveProfile={effectiveProfile} />
                 </TabsContent>
               )}
           </Tabs>

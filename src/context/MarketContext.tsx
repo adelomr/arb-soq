@@ -18,7 +18,7 @@ interface MarketContextType {
 const MarketContext = createContext<MarketContextType | undefined>(undefined);
 
 export function MarketProvider({ children }: { children: ReactNode }) {
-  const [market, setMarketState] = useState<Market>(markets[0]); // Default to first market
+  const [market, setMarketState] = useState<Market>(markets[0]); // Initial default, will be updated by useEffect
   const [loading, setLoading] = useState(true);
   const [userLocation, setUserLocation] = useState<{ latitude: number, longitude: number } | null>(null);
   const searchParams = useSearchParams();
@@ -26,42 +26,68 @@ export function MarketProvider({ children }: { children: ReactNode }) {
 
   const setMarket = useCallback((newMarket: Market) => {
     setMarketState(newMarket);
+    if (typeof window !== 'undefined') {
+        localStorage.setItem('selectedMarketId', newMarket.id);
+    }
+  }, []);
+
+
+  const detectMarket = useCallback(async () => {
+    setLoading(true);
+    try {
+        const response = await fetch('https://ipapi.co/json/');
+        if (!response.ok) throw new Error('Failed to fetch location');
+        const data = await response.json();
+        const countryCode = data.country_code?.toLowerCase();
+        
+        const detectedMarket = markets.find(m => m.id === countryCode);
+        if (detectedMarket) {
+            setMarketState(detectedMarket);
+            return detectedMarket;
+        }
+    } catch (error) {
+        console.warn("Market detection failed:", error);
+    } finally {
+        setLoading(false);
+    }
   }, []);
 
   useEffect(() => {
-    const marketIdFromUrl = searchParams.get('market');
-    if (marketIdFromUrl) {
-      const foundMarket = markets.find(m => m.id === marketIdFromUrl);
-      if (foundMarket && foundMarket.id !== market.id) {
-        setMarket(foundMarket);
-      }
-      setLoading(false);
-    } else {
-      const detectMarket = async () => {
+    const initializeMarket = async () => {
         setLoading(true);
-        try {
-          // Fetch user's country from a free IP geolocation API
-          const response = await fetch('https://ipapi.co/json/');
-          if (!response.ok) {
-              throw new Error('Failed to fetch location');
-          }
-          const data = await response.json();
-          const countryCode = data.country_code?.toLowerCase();
-          
-          const detectedMarket = markets.find(m => m.id === countryCode);
-          if (detectedMarket) {
-            setMarket(detectedMarket);
-          }
-        } catch (error) {
-          console.warn("لم نتمكن من تحديد السوق تلقائيًا، تم التعيين إلى السعودية.", error);
-          // Silently fail and keep the default market
-        } finally {
-          setLoading(false);
+        
+        // 1. Priority: URL Parameter
+        const marketIdFromUrl = searchParams.get('market');
+        if (marketIdFromUrl) {
+            const foundMarket = markets.find(m => m.id === marketIdFromUrl);
+            if (foundMarket) {
+                setMarketState(foundMarket);
+                localStorage.setItem('selectedMarketId', foundMarket.id);
+                setLoading(false);
+                return;
+            }
         }
-      };
-      detectMarket();
+
+        // 2. Priority: LocalStorage
+        const savedMarketId = localStorage.getItem('selectedMarketId');
+        if (savedMarketId) {
+            const foundMarket = markets.find(m => m.id === savedMarketId);
+            if (foundMarket) {
+                setMarketState(foundMarket);
+                setLoading(false);
+                return;
+            }
+        }
+
+        // 3. Priority: Auto-Detection
+        await detectMarket();
+        setLoading(false);
+    };
+
+    if (typeof window !== 'undefined') {
+        initializeMarket();
     }
-  }, [searchParams, setMarket, market.id]);
+  }, [searchParams, detectMarket]);
 
   const sortAdsByDistance = useCallback(() => {
     if (!navigator.geolocation) {
@@ -70,10 +96,14 @@ export function MarketProvider({ children }: { children: ReactNode }) {
     }
 
     navigator.geolocation.getCurrentPosition(
-        (position) => {
+        async (position) => {
             const { latitude, longitude } = position.coords;
             setUserLocation({ latitude, longitude });
-            toast({ title: 'نجاح', description: 'تم تحديد موقعك. سيتم الآن فرز الإعلانات حسب القرب.' });
+            
+            // Refresh market to match detected location
+            await detectMarket();
+            
+            toast({ title: 'نجاح', description: 'تم تحديد موقعك وتحديث السوق بنجاح.' });
         },
         (error) => {
             let message = 'حدث خطأ غير معروف.';
@@ -83,7 +113,7 @@ export function MarketProvider({ children }: { children: ReactNode }) {
             toast({ title: 'فشل تحديد الموقع', description: message, variant: 'destructive' });
         }
     );
-  }, [toast]);
+  }, [toast, detectMarket]);
 
 
   const value = {

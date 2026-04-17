@@ -43,12 +43,12 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
 import { useToast } from '@/hooks/use-toast';
-import { DollarSign, FileUp, Sparkles, Send, MapPin, ShoppingBag, Wrench, Handshake, Loader2, CreditCard, Map, Store, PlusCircle, Trash2, X, Globe, Info, Hash, Package } from 'lucide-react';
+import { DollarSign, FileUp, Sparkles, Send, MapPin, ShoppingBag, Wrench, Handshake, Loader2, CreditCard, Map, Store, PlusCircle, Trash2, X, Globe, Info, Hash, Package, Tv, ImageIcon } from 'lucide-react';
 import { useState, useMemo, useEffect, Suspense } from 'react';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import type { AdType, AdCondition, Category } from '@/lib/types';
 import { useMarket } from '@/context/MarketContext';
-import { handleAdSuggestion } from '@/app/actions';
+import { handleAdSuggestion, fetchYouTubePlaylistItems } from '@/app/actions';
 import Image from 'next/image';
 import { useAuth } from '@/context/AuthContext';
 import Link from 'next/link';
@@ -89,7 +89,7 @@ const translations = {
         provinceTooltip: "تحديد المحافظة سيجعل إعلانك يظهر للمستخدمين في هذه المنطقة المحددة.",
         selectOnMap: "تحديد على الخريطة",
         uploadImages: "تحميل الصور",
-        uploadImagesDescSell: "أرفق صورًا للمنتج أو الخدمة التي تقدمها. الصورة الأولى ستكون الصورة الرئيسية.",
+        uploadImagesDescSell: "أرفق صورًا للمنتج أو الخدمة. في الإعلان الصوري، يمكنك رفع عدة صور وسيتم عرضها كنظام شرائح (Slideshow) تلقائي.",
         uploadImagesDescRequest: "أرفق صورة توضيحية للخدمة المطلوبة. للحصول على أفضل النتائج، استخدم صورة بنسبة عرض إلى ارتفاع 16:9.",
         clickToUpload: "انقر للتحميل",
         dragAndDrop: "أو السحب والإفلات",
@@ -135,28 +135,94 @@ const translations = {
         condition: "الحالة",
         conditionNew: "جديد",
         conditionUsed: "مستعمل",
+        videoAd: "إعلان فيديو",
+        imageAd: "إعلان صوري",
+        adName: "اسم الإعلان / العنوان",
+        videoUrl: "رابط الفيديو (يوتيوب أو MP4)",
+        playlistUrl: "رابط قائمة تشغيل يوتيوب (إضافة جماعية)",
+        education: "تعليم",
+        communicationMode: "تفعيل الوسائل التواصل",
+        commApp: "تواصل عبر التطبيق (رسائل/اتصال)",
+        commWebsite: "رابط موقع إلكتروني خارجي",
+        targetCountry: "الدولة المستهدفة",
+        advertiserCountry: "دولة صاحب الإعلان",
+        locationScope: "نطاق ظهور الإعلان",
+        websiteUrl: "رابط الموقع الإلكتروني الخاص بمشروعك",
+        governorate: "المحافظة",
+        city: "المركز/المدينة",
+        village: "القرية",
+        videoUrlRequired: "يرجى إضافة رابط الفيديو",
+        videoSource: "مصدر الفيديو",
+        singleVideo: "فيديو واحد",
+        playlistSource: "قائمة تشغيل (إضافة جماعية)",
+        playlistUrlRequired: "يرجى إضافة رابط قائمة التشغيل",
     }
 };
 
 const getAdFormSchema = (t: typeof translations.ar, isStoreProduct: boolean) => z.object({
-  adType: z.enum(['sell-item', 'sell-service', 'request-service'], {
+  adType: z.enum(['sell-item', 'sell-service', 'request-service', 'video', 'image'], {
     required_error: t.adTypeRequired
   }),
-  title: z.string().min(5, { message: t.titleMin }).max(100),
+  title: z.string().max(100).optional(),
   category: z.string().optional(),
   subcategory: z.string().optional(),
-  description: z.string().min(20, { message: t.descriptionMin }).max(1000),
+  description: z.string().max(1000),
   price: z.coerce.number().optional(),
   productCode: z.string().optional(),
-  market: z.string().min(1, { message: t.marketRequired }),
+  market: z.string().optional(),
   province: z.string().optional(),
-  location: isStoreProduct ? z.string().optional() : z.string().min(1, { message: t.locationRequired }),
+  location: z.string().optional(),
   latitude: z.number().optional(),
   longitude: z.number().optional(),
   images: z.array(z.object({ file: z.any().nullable(), url: z.string() })).min(0, t.imageRequired), // Changed to 0 temporarily
-  isPromoted: z.boolean().default(false),
   condition: z.enum(['new', 'used']).optional(),
+  videoSource: z.enum(['single', 'playlist']).default('single'),
+  videoUrl: z.string().optional(),
+  playlistUrl: z.string().optional(),
+  governorate: z.string().optional(),
+  city: z.string().optional(),
+  village: z.string().optional(),
+  categoryId: z.string().optional(),
+  showCommIcon: z.boolean().default(true),
+  websiteUrl: z.string().optional(),
+  locationScope: z.string().optional(),
+  isPremium: z.boolean().default(false),
 }).superRefine((data, ctx) => {
+    if (data.videoSource !== 'playlist') {
+        if (!data.title || data.title.trim().length < 5) {
+            ctx.addIssue({
+                code: z.ZodIssueCode.custom,
+                message: t.titleMin,
+                path: ['title'],
+            });
+        }
+    }
+
+    if (data.adType !== 'video' && data.adType !== 'image') {
+        if (!data.description || data.description.trim().length < 20) {
+            ctx.addIssue({
+                code: z.ZodIssueCode.custom,
+                message: t.descriptionMin,
+                path: ['description'],
+            });
+        }
+    }
+    
+    if (data.adType === 'video') {
+        if (data.videoSource === 'single' && !data.videoUrl) {
+            ctx.addIssue({
+                code: z.ZodIssueCode.custom,
+                message: t.videoUrlRequired,
+                path: ['videoUrl'],
+            });
+        } else if (data.videoSource === 'playlist' && !data.playlistUrl) {
+            ctx.addIssue({
+                code: z.ZodIssueCode.custom,
+                message: t.playlistUrlRequired,
+                path: ['playlistUrl'],
+            });
+        }
+    }
     if (data.adType === 'sell-item' && data.category !== 'store-product') {
         if (!data.category) {
             ctx.addIssue({
@@ -197,7 +263,6 @@ function AdFormContent({ adId, userId, isEditMode }: { adId?: string | null, use
   type AdFormValues = z.infer<typeof adFormSchema>;
 
   const [isSuggesting, setIsSuggesting] = useState(false);
-  const [showPaymentDialog, setShowPaymentDialog] = useState(false);
   const [isMapOpen, setMapOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState<Category | null>(null);
@@ -209,20 +274,53 @@ function AdFormContent({ adId, userId, isEditMode }: { adId?: string | null, use
   const form = useForm<AdFormValues>({
     resolver: zodResolver(adFormSchema),
     defaultValues: {
-      adType: isStoreProduct ? 'sell-item' : 'sell-item',
+      adType: isStoreProduct ? 'sell-item' : 'sell-service',
       title: '',
       description: '',
       price: 0,
       productCode: '',
       images: [],
-      isPromoted: false,
-      market: market.id,
+      market: userProfile?.country || market.id,
       province: '',
       location: '',
       category: isStoreProduct ? 'store-product' : undefined,
       condition: 'new',
+      showCommIcon: true,
+      videoSource: 'single',
+      websiteUrl: '',
+      locationScope: 'city',
     },
   });
+
+  // Handle incoming share target data
+  useEffect(() => {
+    if (isEditMode) return;
+    
+    const sharedTitle = searchParams.get('title');
+    const sharedText = searchParams.get('text');
+    const sharedUrl = searchParams.get('url');
+
+    if (sharedTitle || sharedText || sharedUrl) {
+      let finalTitle = sharedTitle || '';
+      let finalDescription = sharedText || '';
+      const finalUrl = sharedUrl || '';
+
+      // If text/url looks like a YouTube video, set adType to video
+      const isYouTube = (sharedText && (sharedText.includes('youtube.com') || sharedText.includes('youtu.be'))) || 
+                        (sharedUrl && (sharedUrl.includes('youtube.com') || sharedUrl.includes('youtu.be')));
+      
+      if (isYouTube) {
+        form.setValue('adType', 'video');
+        const videoUrl = sharedUrl || sharedText || '';
+        form.setValue('videoUrl', videoUrl);
+        if (!finalTitle) finalTitle = 'مشاركة من يوتيوب';
+        if (!finalDescription) finalDescription = 'إعلان فيديو تمت مشاركته من يوتيوب';
+      }
+
+      if (finalTitle) form.setValue('title', finalTitle);
+      if (finalDescription) form.setValue('description', finalDescription);
+    }
+  }, [searchParams, form, isEditMode]);
   
   const { fields: imageFields, append: appendImage, remove: removeImage } = useFieldArray({
     control: form.control,
@@ -241,7 +339,7 @@ function AdFormContent({ adId, userId, isEditMode }: { adId?: string | null, use
                     description: ad.description,
                     price: ad.price || 0,
                     productCode: ad.productCode || '',
-                    isPromoted: ad.isPromoted,
+                    productCode: ad.productCode || '',
                     market: ad.market,
                     province: ad.province,
                     location: ad.location,
@@ -251,6 +349,13 @@ function AdFormContent({ adId, userId, isEditMode }: { adId?: string | null, use
                     subcategory: ad.subcategory,
                     images: ad.imageUrls.map(url => ({ file: null, url })),
                     condition: ad.condition || 'new',
+                    videoSource: ad.playlistUrl ? 'playlist' : 'single',
+                    videoUrl: ad.videoUrl || '',
+                    playlistUrl: ad.playlistUrl || '',
+                    governorate: ad.governorate || '',
+                    city: ad.city || '',
+                    village: ad.village || '',
+                    isPremium: ad.isPremium || false,
                 });
                 
                 const mainCategory = categories.find(c => c.id === ad.category || c.subcategories?.some(s => s.id === ad.category));
@@ -301,13 +406,7 @@ function AdFormContent({ adId, userId, isEditMode }: { adId?: string | null, use
     }
   };
 
-  const handlePromotionToggle = (checked: boolean) => {
-    if (checked && !hasPaymentMethod) {
-        setShowPaymentDialog(true);
-    } else {
-        form.setValue('isPromoted', checked);
-    }
-  };
+
   
   const handleSuggestion = async () => {
       if (!watchedImages || watchedImages.length === 0) {
@@ -361,6 +460,72 @@ function AdFormContent({ adId, userId, isEditMode }: { adId?: string | null, use
     setIsSubmitting(true);
     
     try {
+        if (data.adType === 'video' && data.playlistUrl) {
+            const playlistResult = await fetchYouTubePlaylistItems(data.playlistUrl);
+            if (playlistResult.success && playlistResult.videos) {
+                toast({ title: `جاري إضافة ${playlistResult.videos.length} فيديوهات من القائمة...` });
+                
+                for (const videoId of playlistResult.videos) {
+                    const videoUrl = `https://www.youtube.com/watch?v=${videoId}`;
+                    
+                    let finalCategory = data.subcategory || data.category || 'education';
+                    if (isStoreProduct) finalCategory = 'store-product';
+
+                    let calculatedGov = '', calculatedCity = '', calculatedVillage = '';
+                    if (data.locationScope === 'village') {
+                        calculatedGov = userProfile?.province || data.governorate || '';
+                        calculatedCity = userProfile?.city || data.city || '';
+                        calculatedVillage = userProfile?.village || data.village || '';
+                    } else if (data.locationScope === 'city') {
+                        calculatedGov = userProfile?.province || data.governorate || '';
+                        calculatedCity = userProfile?.city || data.city || '';
+                    } else if (data.locationScope === 'governorate') {
+                        calculatedGov = userProfile?.province || data.governorate || '';
+                    }
+
+                    const pureLocationName = data.locationScope === 'village' ? (userProfile?.village || data.village || userProfile?.country || '') : 
+                                  data.locationScope === 'city' ? (userProfile?.city || data.city || userProfile?.country || '') : 
+                                  data.locationScope === 'governorate' ? (userProfile?.province || data.governorate || userProfile?.country || '') : 
+                                  (data.market || userProfile?.country || '');
+                                  
+                    const adDataToSave = {
+                        ...data,
+                        title: data.title && data.title.length > 0 ? data.title : `فيديو من قائمة تشغيل`,
+                        description: data.description && data.description.length > 0 ? data.description : `فيديو من قائمة تشغيل`,
+                        videoUrl,
+                        playlistUrl: undefined,
+                        category: finalCategory,
+                        categoryId: finalCategory,
+                        market: data.market,
+                        country: data.market || userProfile?.country || '',
+                        governorate: calculatedGov,
+                        city: calculatedCity,
+                        village: calculatedVillage,
+                        location: pureLocationName,
+                        showCommIcon: data.showCommIcon,
+                        websiteUrl: !data.showCommIcon ? data.websiteUrl : '',
+                    };
+                    await addAd(adDataToSave, [], user, () => {});
+                }
+                
+                toast({ title: "تمت إضافة فيديوهات قائمة التشغيل بنجاح!" });
+                router.push('/dashboard');
+                return;
+            } else if (!playlistResult.success) {
+                toast({ title: playlistResult.error || "فشل جلب قائمة التشغيل", variant: 'destructive' });
+                setIsSubmitting(false);
+                return;
+            }
+        }
+
+        const isCreativeAd = data.adType === 'image' || data.adType === 'video';
+        if (isCreativeAd) {
+            if (!data.title) data.title = `إعلان ${data.adType === 'video' ? 'فيديو' : 'صوري'}`;
+            if (!data.description) data.description = data.title || `تفاصيل إعلان ${data.adType === 'video' ? 'فيديو' : 'صوري'}`;
+            // Set default category to 'education' if the user requested it specifically or 'general'
+            if (!data.category) data.category = 'general';
+        }
+
         let finalCategory = data.subcategory || data.category;
         if (isStoreProduct) {
             finalCategory = 'store-product';
@@ -368,10 +533,45 @@ function AdFormContent({ adId, userId, isEditMode }: { adId?: string | null, use
             
         const newImageFiles = data.images.map(img => img.file).filter(Boolean) as File[];
 
+        let calculatedGov = '', calculatedCity = '', calculatedVillage = '';
+        if (data.locationScope === 'village') {
+            calculatedGov = userProfile?.province || data.governorate || '';
+            calculatedCity = userProfile?.city || data.city || '';
+            calculatedVillage = userProfile?.village || data.village || '';
+        } else if (data.locationScope === 'city') {
+            calculatedGov = userProfile?.province || data.governorate || '';
+            calculatedCity = userProfile?.city || data.city || '';
+            calculatedVillage = ''; 
+        } else if (data.locationScope === 'governorate') {
+            calculatedGov = userProfile?.province || data.governorate || '';
+            calculatedCity = ''; 
+            calculatedVillage = '';
+        } else {
+            // country
+            calculatedGov = ''; calculatedCity = ''; calculatedVillage = '';
+        }
+
+        const pureLocationName = data.locationScope === 'village' ? (userProfile?.village || data.village || userProfile?.country || '') : 
+                      data.locationScope === 'city' ? (userProfile?.city || data.city || userProfile?.country || '') : 
+                      data.locationScope === 'governorate' ? (userProfile?.province || data.governorate || userProfile?.country || '') : 
+                      (data.market || userProfile?.country || '');
+
         const adDataToSave = { 
-            ...data, 
+            ...data,
             category: finalCategory, 
             market: data.market,
+            // Hierarchical location synchronization (Android compatibility)
+            country: data.market || userProfile?.country || '',
+            governorate: calculatedGov,
+            city: calculatedCity,
+            village: calculatedVillage,
+            location: pureLocationName,
+            categoryId: finalCategory,
+            videoUrl: data.videoUrl || '',
+            adType: data.adType,
+            showCommIcon: data.showCommIcon,
+            websiteUrl: !data.showCommIcon ? data.websiteUrl : '',
+            isPremium: data.isPremium || false,
         };
 
         if (isEditMode && adId && userId) {
@@ -410,7 +610,7 @@ function AdFormContent({ adId, userId, isEditMode }: { adId?: string | null, use
     const category = categories.find(c => c.id === categoryId);
     setSelectedCategory(category || null);
     form.setValue('category', categoryId);
-    form.setValue('subcategory', undefined); // Reset subcategory
+    form.setValue('subcategory', undefined); 
   }
 
   if (isLoadingAd) {
@@ -439,56 +639,66 @@ function AdFormContent({ adId, userId, isEditMode }: { adId?: string | null, use
                 <RadioGroup
                   onValueChange={field.onChange}
                   defaultValue={field.value}
-                  className="grid grid-cols-2 sm:grid-cols-3 gap-4"
+                  className="grid grid-cols-2 sm:grid-cols-4 gap-4"
                 >
+
                   <FormItem>
                     <FormControl>
-                      <RadioGroupItem value="sell-item" id="sell-item" className="sr-only" />
-                    </FormControl>
-                    <FormLabel
-                      htmlFor="sell-item"
-                      className={cn("flex flex-col items-center justify-center rounded-md border-2 bg-popover p-4 hover:bg-accent hover:text-accent-foreground h-full cursor-pointer", 
-                        adType === 'sell-item' && "border-primary"
-                      )}
-                    >
-                      <ShoppingBag className="mb-3 h-6 w-6" />
-                      {t.sellItem}
-                    </FormLabel>
-                  </FormItem>
-                  <FormItem>
-                    <FormControl>
-                      <RadioGroupItem
-                        value="sell-service"
-                        id="sell-service"
-                        className="sr-only"
-                      />
+                      <RadioGroupItem value="sell-service" id="sell-service" className="sr-only" />
                     </FormControl>
                     <FormLabel
                       htmlFor="sell-service"
-                      className={cn("flex flex-col items-center justify-center rounded-md border-2 bg-popover p-4 hover:bg-accent hover:text-accent-foreground h-full cursor-pointer", 
-                        adType === 'sell-service' && "border-primary"
+                      className={cn("flex flex-col items-center justify-center rounded-md border-2 bg-popover p-4 hover:bg-accent hover:text-accent-foreground h-full cursor-pointer transition-all", 
+                        field.value === 'sell-service' ? "border-primary bg-accent/50 text-accent-foreground" : "border-muted"
                       )}
                     >
-                      <Wrench className="mb-3 h-6 w-6" />
-                      {t.offerService}
+                      <Wrench className="mb-2 h-6 w-6 text-primary" />
+                      <span className="text-sm font-bold">{t.offerService}</span>
                     </FormLabel>
                   </FormItem>
-                   <FormItem>
+
+                  <FormItem>
                     <FormControl>
-                      <RadioGroupItem
-                        value="request-service"
-                        id="request-service"
-                        className="sr-only"
-                      />
+                      <RadioGroupItem value="request-service" id="request-service" className="sr-only" />
                     </FormControl>
                     <FormLabel
                       htmlFor="request-service"
-                       className={cn("flex flex-col items-center justify-center rounded-md border-2 bg-popover p-4 hover:bg-accent hover:text-accent-foreground h-full cursor-pointer", 
-                        adType === 'request-service' && "border-primary"
+                      className={cn("flex flex-col items-center justify-center rounded-md border-2 bg-popover p-4 hover:bg-accent hover:text-accent-foreground h-full cursor-pointer transition-all", 
+                        field.value === 'request-service' ? "border-primary bg-accent/50 text-accent-foreground" : "border-muted"
                       )}
                     >
-                      <Handshake className="mb-3 h-6 w-6" />
-                      {t.requestService}
+                      <Handshake className="mb-2 h-6 w-6 text-primary" />
+                      <span className="text-sm font-bold">{t.requestService}</span>
+                    </FormLabel>
+                  </FormItem>
+
+                  <FormItem>
+                    <FormControl>
+                      <RadioGroupItem value="video" id="video" className="sr-only" />
+                    </FormControl>
+                    <FormLabel
+                      htmlFor="video"
+                      className={cn("flex flex-col items-center justify-center rounded-md border-2 bg-popover p-4 hover:bg-accent hover:text-accent-foreground h-full cursor-pointer transition-all", 
+                        field.value === 'video' ? "border-primary bg-accent/50 text-accent-foreground" : "border-muted"
+                      )}
+                    >
+                      <Tv className="mb-2 h-6 w-6 text-primary" />
+                      <span className="text-sm font-bold">{t.videoAd}</span>
+                    </FormLabel>
+                  </FormItem>
+
+                  <FormItem>
+                    <FormControl>
+                      <RadioGroupItem value="image" id="image" className="sr-only" />
+                    </FormControl>
+                    <FormLabel
+                      htmlFor="image"
+                      className={cn("flex flex-col items-center justify-center rounded-md border-2 bg-popover p-4 hover:bg-accent hover:text-accent-foreground h-full cursor-pointer transition-all", 
+                        field.value === 'image' ? "border-primary bg-accent/50 text-accent-foreground" : "border-muted"
+                      )}
+                    >
+                      <ImageIcon className="mb-2 h-6 w-6 text-primary" />
+                      <span className="text-sm font-bold">{t.imageAd}</span>
                     </FormLabel>
                   </FormItem>
                 </RadioGroup>
@@ -516,7 +726,7 @@ function AdFormContent({ adId, userId, isEditMode }: { adId?: string | null, use
                             </FormControl>
                             <SelectContent>
                                 {categories.filter(c => c.id !== 'services' && c.id !== 'store-product' && c.id !== 'stores').map(cat => (
-                                <SelectItem key={cat.id} value={cat.id}>{cat.name.ar}</SelectItem>
+                                <SelectItem key={cat.id} value={cat.id}>{cat.name?.ar || cat.id}</SelectItem>
                                 ))}
                             </SelectContent>
                             </Select>
@@ -540,7 +750,7 @@ function AdFormContent({ adId, userId, isEditMode }: { adId?: string | null, use
                                 </FormControl>
                                 <SelectContent>
                                     {selectedCategory.subcategories?.map(sub => (
-                                    <SelectItem key={sub.id} value={sub.id}>{sub.name.ar}</SelectItem>
+                                    <SelectItem key={sub.id} value={sub.id}>{sub.name?.ar || sub.id}</SelectItem>
                                     ))}
                                 </SelectContent>
                             </Select>
@@ -550,9 +760,91 @@ function AdFormContent({ adId, userId, isEditMode }: { adId?: string | null, use
                     />
                 )}
             </div>
-             <FormField control={form.control} name="title" render={({ field }) => ( <FormItem><FormLabel className="text-lg">{isStoreProduct ? t.productName : t.adTitle}</FormLabel><FormControl><Input placeholder={t.adTitlePlaceholder} {...field} /></FormControl><FormMessage /></FormItem> )}/>
-            <FormField control={form.control} name="description" render={({ field }) => ( <FormItem><FormLabel className="text-lg">{t.description}</FormLabel><FormControl><Textarea placeholder={t.descriptionPlaceholder} className="resize-y min-h-[120px]" {...field} /></FormControl><FormMessage /></FormItem> )}/>
             
+            <FormField control={form.control} name="title" render={({ field }) => ( <FormItem><FormLabel className="text-lg">{(adType === 'video' || adType === 'image') ? t.adName : (isStoreProduct ? t.productName : t.adTitle)}</FormLabel><FormControl><Input placeholder={t.adTitlePlaceholder} {...field} /></FormControl><FormMessage /></FormItem> )}/>
+            
+            {(adType !== 'image' && adType !== 'video') ? (
+               <FormField control={form.control} name="description" render={({ field }) => ( <FormItem><FormLabel className="text-lg">{t.description}</FormLabel><FormControl><Textarea placeholder={t.descriptionPlaceholder} className="resize-y min-h-[120px]" {...field} /></FormControl><FormMessage /></FormItem> )}/>
+            ) : (
+                <div className="hidden">
+                     <FormField control={form.control} name="description" render={({ field }) => ( <FormItem><FormControl><Textarea {...field} /></FormControl></FormItem> )}/>
+                </div>
+            )}
+
+            {adType === 'video' && (
+                <div className="space-y-6 p-6 rounded-2xl border bg-secondary/5 shrink-0">
+                    <FormField
+                        control={form.control}
+                        name="videoSource"
+                        render={({ field }) => (
+                            <FormItem className="space-y-3">
+                                <FormLabel className="text-lg font-bold flex items-center gap-2">
+                                    <Hash className="h-5 w-5 text-primary" />
+                                    {t.videoSource}
+                                </FormLabel>
+                                <Select onValueChange={field.onChange} defaultValue={field.value} dir={direction}>
+                                    <FormControl>
+                                        <SelectTrigger className="w-full h-11">
+                                            <SelectValue placeholder={t.videoSource} />
+                                        </SelectTrigger>
+                                    </FormControl>
+                                    <SelectContent>
+                                        <SelectItem value="single">{t.singleVideo}</SelectItem>
+                                        <SelectItem value="playlist">{t.playlistSource}</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                                <FormMessage />
+                            </FormItem>
+                        )}
+                    />
+
+                    {form.watch('videoSource') === 'single' ? (
+                        <FormField
+                            control={form.control}
+                            name="videoUrl"
+                            render={({ field }) => (
+                            <FormItem className="animate-in fade-in slide-in-from-top-2 duration-300">
+                                <FormLabel className="text-sm font-medium">
+                                    {t.videoUrl}
+                                </FormLabel>
+                                <FormControl>
+                                <div className="relative">
+                                    <Input placeholder="https://youtube.com/watch?v=..." {...field} className="pr-10 h-11" />
+                                    <Tv className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-primary/50" />
+                                </div>
+                                </FormControl>
+                                <FormDescription>
+                                    ادعم إعلانك بفيديو احترافي يظهر في صفحة "سوق بلدنا".
+                                </FormDescription>
+                                <FormMessage />
+                            </FormItem>
+                            )}
+                        />
+                    ) : (
+                        <FormField
+                            control={form.control}
+                            name="playlistUrl"
+                            render={({ field }) => (
+                            <FormItem className="animate-in fade-in slide-in-from-top-2 duration-300">
+                                <FormLabel className="text-sm font-medium">
+                                    {t.playlistUrl}
+                                </FormLabel>
+                                <FormControl>
+                                    <div className="relative">
+                                        <Input placeholder="https://youtube.com/playlist?list=..." {...field} className="pr-10 h-11" />
+                                        <Sparkles className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-primary/50" />
+                                    </div>
+                                </FormControl>
+                                <FormDescription>
+                                    سيتم استيراد كافة فيديوهات القائمة دفعة واحدة.
+                                </FormDescription>
+                                <FormMessage />
+                            </FormItem>
+                            )}
+                        />
+                    )}
+                </div>
+            )}
             {adType === 'sell-item' && (
               <FormField
                 control={form.control}
@@ -587,7 +879,7 @@ function AdFormContent({ adId, userId, isEditMode }: { adId?: string | null, use
             )}
             
             <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-              {adType !== 'request-service' && (
+              {(adType !== 'request-service' && adType !== 'image' && adType !== 'video') && (
                   <FormField
                       control={form.control}
                       name="price"
@@ -664,7 +956,7 @@ function AdFormContent({ adId, userId, isEditMode }: { adId?: string | null, use
             )}
         />
         
-        {watchedImages && watchedImages.length > 0 && categoryValue && adType !== 'request-service' && !isStoreProduct && (
+        {watchedImages && watchedImages.length > 0 && categoryValue && adType !== 'request-service' && adType !== 'image' && adType !== 'video' && !isStoreProduct && (
             <div className="flex justify-center">
                 <Button type="button" onClick={handleSuggestion} disabled={isSuggesting} variant="outline" className="gap-2 w-full sm:w-auto">
                     {isSuggesting ? ( <><Loader2 className="h-4 w-4 animate-spin"/>{t.suggesting}</> ) : ( <><Sparkles className="h-4 w-4 text-yellow-500"/>{t.suggestWithAI}</> )}
@@ -672,106 +964,167 @@ function AdFormContent({ adId, userId, isEditMode }: { adId?: string | null, use
             </div>
         )}
 
-      
-        {!isStoreProduct && (
-            <div className="space-y-4">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                    <FormField
-                        control={form.control}
-                        name="market"
-                        render={({ field }) => (
-                            <FormItem>
-                                <FormLabel className="text-lg flex items-center gap-2">
-                                    {t.targetMarket}
-                                    <TooltipProvider>
-                                        <Tooltip>
-                                            <TooltipTrigger asChild>
-                                                <Info className="h-4 w-4 text-muted-foreground cursor-help" />
-                                            </TooltipTrigger>
-                                            <TooltipContent>
-                                                <p>{t.targetMarketTooltip}</p>
-                                            </TooltipContent>
-                                        </Tooltip>
-                                    </TooltipProvider>
-                                </FormLabel>
-                                <Select onValueChange={field.onChange} defaultValue={field.value} dir={direction}>
+        <div className="space-y-6 pt-6 border-t">
+            <h3 className="text-lg font-bold flex items-center gap-2">
+                <Globe className="h-5 w-5 text-primary" />
+                {t.communicationMode || "وسيلة التواصل"}
+            </h3>
+            <FormField
+                control={form.control}
+                name="showCommIcon"
+                render={({ field }) => (
+                    <FormItem className="space-y-3">
+                        <FormControl>
+                            <RadioGroup
+                                onValueChange={(val) => field.onChange(val === 'true')}
+                                defaultValue={field.value ? 'true' : 'false'}
+                                className="flex flex-col gap-4"
+                            >
+                                <FormItem className="flex items-center gap-2 space-y-0">
                                     <FormControl>
-                                        <SelectTrigger>
-                                            <SelectValue placeholder={t.targetMarketPlaceholder} />
-                                        </SelectTrigger>
+                                        <RadioGroupItem value="true" id="comm-app" />
                                     </FormControl>
-                                    <SelectContent>
-                                        {markets.map(m => (
-                                            <SelectItem key={m.id} value={m.id}>{m.name.ar}</SelectItem>
-                                        ))}
-                                    </SelectContent>
-                                </Select>
-                                <FormMessage />
-                            </FormItem>
-                        )}
-                    />
-                    <FormField
-                        control={form.control}
-                        name="province"
-                        render={({ field }) => (
-                            <FormItem>
-                                <FormLabel className="text-lg flex items-center gap-2">
-                                    {t.province}
-                                     <TooltipProvider>
-                                        <Tooltip>
-                                            <TooltipTrigger asChild>
-                                                <Info className="h-4 w-4 text-muted-foreground cursor-help" />
-                                            </TooltipTrigger>
-                                            <TooltipContent>
-                                                <p>{t.provinceTooltip}</p>
-                                            </TooltipContent>
-                                        </Tooltip>
-                                    </TooltipProvider>
-                                </FormLabel>
-                                <Select onValueChange={field.onChange} value={field.value} dir={direction} disabled={!selectedMarket}>
+                                    <FormLabel htmlFor="comm-app" className="font-normal text-md cursor-pointer">
+                                        {t.commApp || "تواصل عبر التطبيق (رسائل/اتصال)"}
+                                    </FormLabel>
+                                </FormItem>
+                                <FormItem className="flex items-center gap-2 space-y-0">
                                     <FormControl>
-                                        <SelectTrigger>
-                                            <SelectValue placeholder={t.provincePlaceholder} />
-                                        </SelectTrigger>
+                                        <RadioGroupItem value="false" id="comm-web" />
                                     </FormControl>
-                                    <SelectContent>
-                                        {selectedMarket?.majorCities?.map(city => (
-                                            <SelectItem key={city} value={city}>{city}</SelectItem>
-                                        ))}
-                                    </SelectContent>
-                                </Select>
-                                <FormMessage />
-                            </FormItem>
-                        )}
-                    />
-                </div>
-                 <FormField
+                                    <FormLabel htmlFor="comm-web" className="font-normal text-md cursor-pointer">
+                                        {t.commWebsite || "رابط موقع إلكتروني خارجي"}
+                                    </FormLabel>
+                                </FormItem>
+                            </RadioGroup>
+                        </FormControl>
+                        <FormMessage />
+                    </FormItem>
+                )}
+            />
+            
+            {form.watch('showCommIcon') === false && (
+                <FormField
                     control={form.control}
-                    name="location"
+                    name="websiteUrl"
                     render={({ field }) => (
                         <FormItem>
-                            <FormLabel className="text-lg flex items-center gap-2">{t.selectLocation}</FormLabel>
-                            <div className="flex gap-2 items-center">
-                                <FormControl>
-                                    <Input {...field} readOnly placeholder="لم يتم تحديد الموقع" />
-                                </FormControl>
-                                <Dialog open={isMapOpen} onOpenChange={setMapOpen}>
-                                    <DialogTrigger asChild>
-                                        <Button type="button" variant="outline" size="icon">
-                                            <MapPin className="h-5 w-5" />
-                                        </Button>
-                                    </DialogTrigger>
-                                    <DialogContent className="max-w-3xl h-[80vh] p-0">
-                                      <DialogHeader>
-                                          <DialogTitle className="sr-only">Location Picker</DialogTitle>
-                                      </DialogHeader>
-                                       <LocationPicker onLocationSelect={(address: string) => {
-                                            form.setValue('location', address);
-                                            setMapOpen(false);
-                                        }} />
-                                    </DialogContent>
-                                </Dialog>
+                            <FormLabel>{t.websiteUrl || "رابط الموقع الإلكتروني الخاص بمشروعك"}</FormLabel>
+                            <FormControl>
+                                <Input placeholder={t.websitePlaceholder || "https://your-site.com"} {...field} dir="ltr" />
+                            </FormControl>
+                            <FormMessage />
+                        </FormItem>
+                    )}
+                />
+            )}
+        </div>
+
+        {/* ========== ADMIN ONLY: PREMIUM AD TOGGLE ========== */}
+        {userProfile?.role === 'admin' && (
+            <div className="space-y-6 pt-6 border-t bg-yellow-500/10 p-4 rounded-xl border border-yellow-500/30">
+                <h3 className="text-lg font-bold flex items-center gap-2 text-yellow-600 dark:text-yellow-400">
+                    <Sparkles className="h-5 w-5" />
+                    صلاحيات الإدارة: ترقية الإعلان
+                </h3>
+                <FormField
+                    control={form.control}
+                    name="isPremium"
+                    render={({ field }) => (
+                        <FormItem className="flex flex-row items-center justify-between rounded-lg border border-yellow-500/20 p-4 bg-background">
+                            <div className="space-y-0.5">
+                                <FormLabel className="text-base font-bold">إعلان ممول (Premium) 👑</FormLabel>
+                                <FormDescription>
+                                    تفعيل هذا الخيار سيجعل الإعلان يظهر باللون الذهبي ويثبته في أعلى نتائج سوق بلدنا.
+                                </FormDescription>
                             </div>
+                            <FormControl>
+                                <Switch
+                                    checked={field.value}
+                                    onCheckedChange={field.onChange}
+                                />
+                            </FormControl>
+                        </FormItem>
+                    )}
+                />
+            </div>
+        )}
+
+        <div className="space-y-6 pt-6 border-t">
+            <h3 className="text-lg font-bold flex items-center gap-2">
+                <Globe className="h-5 w-5 text-primary" />
+                {t.targetCountry}
+            </h3>
+            <FormField
+                control={form.control}
+                name="market"
+                render={({ field }) => (
+                    <FormItem>
+                        <Select onValueChange={field.onChange} value={field.value} dir={direction}>
+                            <FormControl>
+                                <SelectTrigger>
+                                    <SelectValue placeholder="اختر الدولة" />
+                                </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                                {markets.map(m => (
+                                    <SelectItem key={m.id} value={m.id}>
+                                        {m.name.ar}
+                                    </SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+                        <FormMessage />
+                    </FormItem>
+                )}
+            />
+        </div>
+
+        {selectedMarket && userProfile?.country && (
+            selectedMarket.id.toLowerCase() === userProfile.country.toLowerCase() || 
+            selectedMarket.name.ar.trim() === userProfile.country.trim()
+        ) && !isStoreProduct && (
+            <div className="space-y-6 pt-6 border-t">
+                <h3 className="text-lg font-bold flex items-center gap-2">
+                    <MapPin className="h-5 w-5 text-primary" />
+                    {t.locationScope}
+                </h3>
+                <FormField
+                    control={form.control}
+                    name="locationScope"
+                    render={({ field }) => (
+                        <FormItem>
+                            <FormLabel className="flex items-center gap-2">
+                                {t.locationScope || "اختر النطاق المستهدف"}
+                            </FormLabel>
+                            <Select onValueChange={field.onChange} value={field.value || 'city'} dir={direction}>
+                                <FormControl>
+                                    <SelectTrigger>
+                                        <SelectValue placeholder="اختر نطاق الظهور" />
+                                    </SelectTrigger>
+                                </FormControl>
+                                <SelectContent>
+                                    {userProfile?.village && userProfile?.village !== 'غير محدد' && (
+                                        <SelectItem value="village">
+                                            {t.scopeVillage || "القرية فقط"} ({userProfile.village})
+                                        </SelectItem>
+                                    )}
+                                    {(userProfile?.city || userProfile?.village) && userProfile?.city !== 'غير محدد' && (
+                                        <SelectItem value="city">
+                                            {t.scopeCity || "المدينة بالكامل"} ({userProfile?.city || t.city})
+                                        </SelectItem>
+                                    )}
+                                    <SelectItem value="governorate">
+                                        {t.scopeGov || "المحافظة بالكامل"} ({userProfile?.governorate || userProfile?.province || t.governorate})
+                                    </SelectItem>
+                                    <SelectItem value="country">
+                                        {t.scopeCountry || "الدولة بالكامل"} ({userProfile?.country || t.country})
+                                    </SelectItem>
+                                </SelectContent>
+                            </Select>
+                            <FormDescription>
+                                {t.updateLocationInProfile || "يجب تحديث بيانات موقعك من ملفك الشخصي لتوسيع النطاق."}
+                            </FormDescription>
                             <FormMessage />
                         </FormItem>
                     )}
@@ -779,66 +1132,21 @@ function AdFormContent({ adId, userId, isEditMode }: { adId?: string | null, use
             </div>
         )}
 
-        {!isStoreProduct && (
-            <FormField
-            control={form.control}
-            name="isPromoted"
-            render={({ field }) => (
-                <FormItem className="flex flex-col sm:flex-row items-start sm:items-center justify-between rounded-lg border p-4 bg-secondary/50 gap-4">
-                <div className="space-y-0.5">
-                    <FormLabel className="text-lg flex items-center">
-                    <Sparkles className={`h-5 w-5 text-yellow-500 ${direction === 'rtl' ? 'ml-2' : 'mr-2'}`} />
-                    {t.promoteAd}
-                    </FormLabel>
-                    <FormDescription>
-                    {t.promoteAdDesc}
-                    </FormDescription>
-                </div>
-                <FormControl>
-                    <Switch
-                    checked={field.value}
-                    onCheckedChange={handlePromotionToggle}
-                    />
-                </FormControl>
-                </FormItem>
-            )}
-            />
-        )}
-
-
-        <Button type="submit" className="w-full" size="lg" disabled={isSubmitting}>
+        <Button type="submit" className="w-full py-6 text-lg" size="lg" disabled={isSubmitting}>
              {isSubmitting ? (
                 <>
-                    <Loader2 className={`h-4 w-4 animate-spin ${direction === 'rtl' ? 'ml-2' : 'mr-2'}`} />
-                    {isEditMode ? t.saving : t.saving}
+                    <Loader2 className={`h-5 w-5 animate-spin ${direction === 'rtl' ? 'ml-2' : 'mr-2'}`} />
+                    {t.saving}
                 </>
             ) : (
                 <>
-                    <Send className={`h-4 w-4 ${direction === 'rtl' ? 'ml-2' : 'mr-2'}`} />
+                    <Send className={`h-5 w-5 ${direction === 'rtl' ? 'ml-2' : 'mr-2'}`} />
                     {isEditMode ? t.updateAd : t.submitAd}
                 </>
             )}
         </Button>
       </form>
-       <AlertDialog open={showPaymentDialog} onOpenChange={setShowPaymentDialog}>
-            <AlertDialogContent>
-                <AlertDialogHeader>
-                    <AlertDialogTitle className="flex items-center gap-2">
-                        <CreditCard className="h-5 w-5" />
-                        {t.paymentMethodRequired}
-                    </AlertDialogTitle>
-                    <AlertDialogDescription>
-                        {t.paymentMethodRequiredDesc}
-                    </AlertDialogDescription>
-                </AlertDialogHeader>
-                <AlertDialogFooter>
-                    <AlertDialogCancel>{t.cancel}</AlertDialogCancel>
-                    <AlertDialogAction asChild>
-                       <Link href="/wallet">{t.addPaymentMethod}</Link>
-                    </AlertDialogAction>
-                </AlertDialogFooter>
-            </AlertDialogContent>
-        </AlertDialog>
+
     </Form>
   );
 }

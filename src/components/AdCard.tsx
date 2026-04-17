@@ -135,7 +135,7 @@ export default function AdCard({ ad }: AdCardProps) {
                             width={600}
                             height={400}
                             className="w-full h-full object-cover"
-                            data-ai-hint={ad.imageHints ? ad.imageHints[0] : ''}
+                            sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
                         />
                     ) : (
                         <ImageIcon className="h-16 w-16 text-muted-foreground/50" />
@@ -184,12 +184,14 @@ export default function AdCard({ ad }: AdCardProps) {
                             <span className="truncate">{adUser.store.storeName}</span>
                         </div>
                     )}
-                    <div className="flex items-center gap-1">
-                    <Tag className="w-4 h-4 text-primary" />
-                    <span className="text-md font-bold text-primary">
-                        {ad.price !== undefined ? currencyFormatter.format(ad.price) : (ad.adType === 'request-service' ? t.negotiable : t.onDemand)}
-                    </span>
-                    </div>
+                    {!!ad.price && Number(ad.price) > 0 && (
+                        <div className="flex items-center gap-1">
+                            <Tag className="w-4 h-4 text-primary" />
+                            <span className="text-md font-bold text-primary">
+                                {currencyFormatter.format(Number(ad.price))}
+                            </span>
+                        </div>
+                    )}
                 </div>
                 <div className="flex items-center gap-2 mt-3">
                     {isStoreProduct && adUser && (

@@ -28,7 +28,7 @@ export default function StoreSidebarSection() {
     const unsubscribe = getAds(
       { status: 'active', market: market.id, categories: ['store-product'], limit: 10 },
       (fetchedAds) => {
-        const validAds = fetchedAds.filter(ad => ad.imageUrls && ad.imageUrls.length > 0);
+        const validAds = fetchedAds.filter(ad => ad.imageUrls && ad.imageUrls.length > 0 && ad.imageUrls[0]);
         setStoreProducts(validAds.slice(0, 10)); // Ensure we only take 10
         setLoading(false);
       }

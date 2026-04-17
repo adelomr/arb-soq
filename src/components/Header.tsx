@@ -15,7 +15,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription, SheetTrigger } from '@/components/ui/sheet';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Menu, PlusCircle, User, LayoutDashboard, LogOut, Globe, LogIn, Sun, Moon, Minus, Plus, Undo2, Shield, Bell, Trash2, Info, Wallet, Megaphone, X, BadgeDollarSign, Store, Edit, ShoppingCart, MapPin } from 'lucide-react';
+import { Menu, PlusCircle, User, LayoutDashboard, LogOut, Globe, LogIn, Sun, Moon, Minus, Plus, Undo2, Shield, Bell, Trash2, Info, Wallet, Megaphone, X, BadgeDollarSign, Store, Edit, ShoppingCart, MapPin, Tv } from 'lucide-react';
 import { useState, useEffect, useRef } from 'react';
 import { usePathname } from 'next/navigation';
 import { cn } from '@/lib/utils';
@@ -35,17 +35,17 @@ import { appIconUrl } from '@/lib/data';
 
 const FlagIcon = ({ code }: { code: string }) => (
   <Image 
-    src={`https://flagsapi.com/${code}/shiny/64.png`} 
+    src={`https://flagcdn.com/w80/${code.toLowerCase()}.png`} 
     alt={`${code} flag`}
     width={24}
     height={18}
-    className="w-6 h-auto rounded-sm"
+    className="w-6 h-auto rounded-sm border border-border/50"
   />
 );
 
 export const navTranslations = {
     ar: {
-      dashboard: 'لوحة التحكم',
+      dashboard: 'إدارة الإعلانات',
       submitAd: 'إضافة إعلان',
       appName: 'سوق العرب',
       profile: 'الملف الشخصي',
@@ -79,7 +79,8 @@ export const navTranslations = {
       linkCopied: 'تم نسخ الرابط!',
       laborMarket: 'سوق العمال',
       nearestToMe: 'الأقرب مني',
-      blog: 'المنتدى',
+      forum: 'المنتدى',
+      sooqBaladna: 'سوق بلدنا',
     },
 };
 
@@ -235,9 +236,9 @@ export default function Header() {
       <header className="sticky top-0 z-40 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
         <div className="container flex h-20 items-center justify-between gap-2 sm:gap-4">
           <div className="flex items-center gap-2 md:gap-6">
-            <Link href="/" className="flex items-center gap-2 font-bold text-lg font-headline">
-              <Image src={appIconUrl} alt="App Icon" width={64} height={64} className="h-12 w-12 sm:h-16 sm:w-16" />
-              <span className="hidden sm:inline text-xl">{currentLabels.appName}</span>
+            <Link href="/" className="flex items-center gap-2 font-bold text-lg font-headline group/logo">
+              <Image src={appIconUrl} alt="App Icon" width={64} height={64} className="h-12 w-12 sm:h-16 sm:w-16 animate-breath transition-transform" />
+              <span className="hidden sm:inline text-xl group-hover/logo:text-primary transition-colors">{currentLabels.appName}</span>
             </Link>
           </div>
 
@@ -306,6 +307,7 @@ export default function Header() {
               </DropdownMenuContent>
             </DropdownMenu>
 
+
             {isAuthenticated ? (
               <>
                 <Button asChild className="hidden sm:flex h-10">
@@ -338,28 +340,43 @@ export default function Header() {
                       )}
                     </Button>
                   </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end" className="w-80 md:w-96">
+                    <DropdownMenuContent align="end" className="w-80 md:w-96 max-h-[80vh]">
                     <DropdownMenuLabel>{currentLabels.notifications}</DropdownMenuLabel>
                     <DropdownMenuSeparator />
                     <ScrollArea className="h-64">
                       {notifications.length > 0 ? (
-                        notifications.map(notification => (
-                          <DropdownMenuItem key={notification.id} className="flex items-start gap-2 cursor-default">
-                            <div className={`mt-1 p-1.5 rounded-full ${notification.type === 'general' ? 'bg-blue-500/20' : 'bg-primary/20'}`}>
+                        notifications.map(notification => {
+                          const innerContent = (
+                            <>
+                              <div className={`mt-1 p-1.5 rounded-full flex-shrink-0 ${notification.type === 'general' ? 'bg-blue-500/20' : 'bg-primary/20'}`}>
                                   <Info className={`h-4 w-4 ${notification.type === 'general' ? 'text-blue-500' : 'text-primary'}`} />
                               </div>
-                            <div className="flex-1">
-                              <p className="text-sm">{notification.message}</p>
-                              <div className="text-xs text-muted-foreground">
-                                {notification.createdAt ? formatDistanceToNow(notification.createdAt.toDate(), { addSuffix: true, locale: dateLocale }) : ''}
-                                <Badge variant="outline" className="mx-2">{notification.type === 'general' ? currentLabels.generalNotification : currentLabels.privateNotification}</Badge>
+                              <div className="flex-1 min-w-0 pr-2">
+                                <p className="text-sm leading-snug">{notification.message}</p>
+                                <div className="text-xs text-muted-foreground mt-1">
+                                  {notification.createdAt ? formatDistanceToNow(notification.createdAt.toDate(), { addSuffix: true, locale: dateLocale }) : ''}
+                                </div>
                               </div>
+                            </>
+                          );
+
+                          return (
+                            <div key={notification.id} className="flex items-start gap-2 p-2 mx-1 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-md group relative cursor-pointer" dir="rtl">
+                                {notification.link ? (
+                                    <Link href={notification.link} className="flex flex-1 items-start gap-2 outline-none">
+                                        {innerContent}
+                                    </Link>
+                                ) : (
+                                    <div className="flex flex-1 items-start gap-2">
+                                        {innerContent}
+                                    </div>
+                                )}
+                                <Button variant="ghost" size="icon" className="h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity absolute left-2 top-2" onClick={(e) => handleDeleteNotification(e, notification.id)}>
+                                  <Trash2 className="h-4 w-4 text-destructive" />
+                                </Button>
                             </div>
-                            <Button variant="ghost" size="icon" className="h-7 w-7" onClick={(e) => handleDeleteNotification(e, notification.id)}>
-                              <Trash2 className="h-4 w-4 text-destructive" />
-                            </Button>
-                          </DropdownMenuItem>
-                        ))
+                          );
+                        })
                       ) : (
                         <div className="text-center text-sm text-muted-foreground p-4">
                           {currentLabels.noNotifications}
@@ -373,7 +390,7 @@ export default function Header() {
                   <DropdownMenuTrigger asChild>
                     <Button variant="ghost" className="relative h-10 w-10 rounded-full">
                       <Avatar className="h-10 w-10">
-                        <AvatarImage src={userProfile?.avatarUrl || undefined} alt={userProfile?.name} />
+                        <AvatarImage src={userProfile?.avatarUrl || user?.photoURL || undefined} alt={userProfile?.name} />
                         <AvatarFallback>{userProfile?.name?.[0].toUpperCase()}</AvatarFallback>
                       </Avatar>
                     </Button>
@@ -392,7 +409,7 @@ export default function Header() {
                       </DropdownMenuItem>
                     )}
                     <DropdownMenuItem asChild>
-                      <Link href="/dashboard"><LayoutDashboard className={direction === 'rtl' ? 'ml-2 h-4 w-4' : 'mr-2 h-4 w-4'} />{currentLabels.dashboard}</Link>
+                      <Link href="/dashboard"><LayoutDashboard className={direction === 'rtl' ? 'ml-2 h-4 w-4' : 'mr-2 h-4 w-4'} />{isAdmin ? 'لوحة التحكم' : currentLabels.dashboard}</Link>
                     </DropdownMenuItem>
                      {hasStore ? (
                         <DropdownMenuItem asChild>
@@ -468,7 +485,8 @@ export default function Header() {
                   >
                       {currentLabels.pricing}
                   </Link>
-                   <Link
+
+                    <Link
                       href={laborMarketHref}
                       onClick={() => setSheetOpen(false)}
                       className={cn(
@@ -478,16 +496,7 @@ export default function Header() {
                   >
                       {currentLabels.laborMarket}
                   </Link>
-                  <Link
-                      href="/forum"
-                      onClick={() => setSheetOpen(false)}
-                      className={cn(
-                      'font-medium transition-colors hover:text-primary',
-                      pathname.startsWith('/forum') ? 'text-primary' : 'text-muted-foreground'
-                      )}
-                  >
-                      {currentLabels.blog}
-                  </Link>
+
                   <Separator />
                   <Button asChild>
                       <Link href="/submit" onClick={() => setSheetOpen(false)}>

@@ -78,7 +78,7 @@ export default function WorkerPage() {
       const fetchWorkerData = async () => {
         setLoading(true);
         const userProfileData = await getUserById(userId);
-        if (userProfileData && userProfileData.profession) {
+        if (userProfileData && (userProfileData.profession || userProfileData.jobType)) {
           setWorker(userProfileData);
           const fullAddress = [userProfileData.city, userProfileData.country].filter(Boolean).join(', ');
           setLocationInput(fullAddress);
@@ -189,14 +189,17 @@ export default function WorkerPage() {
   }
   
   const handleWhatsAppClick = () => {
-    if (worker.phoneNumber) {
-      const message = `مرحباً ${worker.name}, أنا مهتم بخدماتك كـ ${worker.profession} على سوق العرب.`;
-      const whatsappUrl = `https://api.whatsapp.com/send?phone=${worker.phoneNumber.replace(/\D/g, '')}&text=${encodeURIComponent(message)}`;
+    const phone = worker.phoneNumber || worker.phone;
+    if (phone) {
+      const workerName = worker.name || worker.fullName || '';
+      const workerProfession = professions.find(p => p.id === (worker.profession || worker.jobType))?.name.ar || worker.profession || worker.jobType || '';
+      const message = `مرحباً ${workerName}, أنا مهتم بخدماتك كـ ${workerProfession} على سوق العرب.`;
+      const whatsappUrl = `https://api.whatsapp.com/send?phone=${phone.replace(/\D/g, '')}&text=${encodeURIComponent(message)}`;
       window.open(whatsappUrl, '_blank');
     }
   };
 
-  const professionName = professions.find(p => p.id === worker.profession)?.name.ar || worker.profession;
+  const professionName = professions.find(p => p.id === (worker.profession || worker.jobType))?.name.ar || worker.profession || worker.jobType;
   const fullAddress = worker.city;
 
   return (
@@ -216,11 +219,11 @@ export default function WorkerPage() {
 
                 <div className="flex flex-col sm:flex-row items-center gap-4 sm:gap-8 text-center sm:text-left">
                     <Avatar className="h-24 w-24 sm:h-32 sm:w-32 border-4 border-primary/20 shrink-0">
-                        <AvatarImage src={worker.avatarUrl} alt={worker.name} />
-                        <AvatarFallback className="text-4xl">{worker.name?.[0].toUpperCase()}</AvatarFallback>
+                        <AvatarImage src={worker.avatarUrl} alt={worker.name || worker.fullName} />
+                        <AvatarFallback className="text-4xl">{(worker.name || worker.fullName)?.[0]?.toUpperCase()}</AvatarFallback>
                     </Avatar>
                     <div className="flex-1 space-y-2">
-                        <h1 className="text-3xl font-bold">{worker.name}</h1>
+                        <h1 className="text-3xl font-bold">{worker.name || worker.fullName}</h1>
                         <div className="flex items-center justify-center sm:justify-start gap-2 text-muted-foreground">
                             <Briefcase className="w-5 h-5 text-primary" />
                             <span className="text-xl font-bold">{professionName}</span>
@@ -274,11 +277,11 @@ export default function WorkerPage() {
                                 asChild
                                 className="w-full"
                                 size="lg"
-                                disabled={!worker.phoneNumber}
+                                disabled={!(worker.phoneNumber || worker.phone)}
                             >
-                                <a href={`tel:${worker.phoneNumber}`}>
+                                <a href={`tel:${worker.phoneNumber || worker.phone}`}>
                                     <Phone className="mr-2 h-5 w-5" />
-                                    {worker.phoneNumber ? t.callSeller : t.phoneNotAvailable}
+                                    {(worker.phoneNumber || worker.phone) ? t.callSeller : t.phoneNotAvailable}
                                 </a>
                             </Button>
                             <Button
@@ -286,11 +289,11 @@ export default function WorkerPage() {
                                 className="w-full bg-green-500 text-white hover:bg-green-600 hover:text-white"
                                 size="lg"
                                 onClick={handleWhatsAppClick}
-                                disabled={!worker.phoneNumber}
+                                disabled={!(worker.phoneNumber || worker.phone)}
                             >
                                 <WhatsappIcon />
                                 <span className="mx-2">
-                                    {worker.phoneNumber ? t.messageOnWhatsapp : t.phoneNotAvailable}
+                                    {(worker.phoneNumber || worker.phone) ? t.messageOnWhatsapp : t.phoneNotAvailable}
                                 </span>
                             </Button>
                         </CardContent>

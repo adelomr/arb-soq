@@ -80,12 +80,19 @@ export default function Ads({
       minHeight: isAdVisible ? (type === 'square' ? '250px' : '90px') : '0px',
   };
 
+  const containerStyle: React.CSSProperties = {
+      overflow: 'hidden',
+      transition: 'all 0.3s ease-out',
+      minHeight: style.minHeight,
+      marginBottom: isAdVisible ? '1.5rem' : '0px',
+  };
+
   return (
       <div
         ref={adRef}
         key={slot + type} 
         className={className}
-        style={{ overflow: 'hidden', transition: 'min-height 0.3s ease-out', minHeight: style.minHeight }}
+        style={containerStyle}
       >
         <ins
           className="adsbygoogle"

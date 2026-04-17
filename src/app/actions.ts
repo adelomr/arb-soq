@@ -120,3 +120,35 @@ export async function createPaymobPayment(input: z.infer<typeof PaymobPaymentInp
         return { success: false, error: "خطأ في إنشاء عملية الدفع" };
     }
 }
+
+export async function fetchYouTubePlaylistItems(playlistUrl: string) {
+    const playlistIdMatch = playlistUrl.match(/[&?]list=([^&]+)/);
+    if (!playlistIdMatch) {
+        return { success: false, error: "رابط قائمة تشغيل غير صالح." };
+    }
+    const playlistId = playlistIdMatch[1];
+
+    try {
+        // Warning: This is a best-effort approach without a dedicated API key.
+        // For production, a Google Cloud Project with YouTube Data API v3 is recommended.
+        const response = await axios.get(`https://www.youtube.com/playlist?list=${playlistId}`, {
+            headers: {
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+            }
+        });
+        
+        const html = response.data;
+        // Search for videoIds in the page source (ytInitialData)
+        const videoIds = [...new Set([...html.matchAll(/"videoId":"([^"]+)"/g)].map(m => m[1]))];
+        
+        if (videoIds.length === 0) {
+            return { success: false, error: "لم يتم العثور على فيديوهات في القائمة." };
+        }
+
+        // Limit to first 20 for safety/performance
+        return { success: true, videos: videoIds.slice(0, 20) };
+    } catch (error) {
+        console.error("YouTube parse error:", error);
+        return { success: false, error: "فشل جلب فيديوهات قائمة التشغيل." };
+    }
+}

@@ -28,7 +28,7 @@ export default function RelatedAdsSidebar() {
     const unsubscribe = getAds(
       { status: 'active', market: market.id, limit: 10 },
       (fetchedAds) => {
-        const validAds = fetchedAds.filter(ad => ad.imageUrls && ad.imageUrls.length > 0);
+        const validAds = fetchedAds.filter(ad => ad.imageUrls && ad.imageUrls.length > 0 && ad.imageUrls[0]);
         const sortedByViews = [...validAds].sort((a, b) => (b.views || 0) - (a.views || 0));
         setMostViewedAds(sortedByViews.slice(0, 5));
         setLoading(false);

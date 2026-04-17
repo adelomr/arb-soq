@@ -1,6 +1,6 @@
 
 
-export type AdType = 'sell-item' | 'sell-service' | 'request-service';
+export type AdType = 'sell-item' | 'sell-service' | 'request-service' | 'video' | 'image';
 export type AdStatus = 'pending' | 'active' | 'rejected' | 'sold';
 export type AdCondition = 'new' | 'used';
 
@@ -55,6 +55,20 @@ export type Ad = {
   status: AdStatus;
   condition?: AdCondition;
   store?: Store;
+  // Android synchronization fields
+  videoUrl?: string;
+  categoryId?: string;
+  country?: string;
+  governorate?: string;
+  city?: string;
+  village?: string;
+  showCommIcon?: boolean;
+  websiteUrl?: string;
+  isActive?: boolean; // Android compatibility
+  timestamp?: number; // Android compatibility
+  imageUrl?: string; // Android compatibility
+  isPremium?: boolean; // Premium sponsored ad
+  premiumExpiresAt?: number; // Expiration timestamp for premium status
 };
 
 export type Category = {
@@ -72,6 +86,14 @@ export type Profession = {
         ar: string;
     };
     hasSpecialization: boolean;
+};
+
+export type Specialization = {
+    id: string;
+    name: {
+        ar: string;
+    };
+    professionId: string;
 };
 
 export type PricingPlan = {
@@ -102,6 +124,7 @@ export type Notification = {
     type: 'general' | 'private';
     isRead: boolean;
     createdAt: any; // Firestore Timestamp
+    link?: string;
 }
 
 export type Announcement = {
@@ -138,12 +161,17 @@ export interface UserProfile {
   email: string;
   avatarUrl?: string;
   phoneNumber?: string;
+  phone?: string;
   phoneVerified?: boolean;
+  fullName?: string;
+  jobType?: string;
   country?: string;
   province?: string;
+  governorate?: string;
   city?: string;
   village?: string;
   role: 'user' | 'admin';
+  moderatedCategories?: string[];
   status: 'active' | 'suspended' | 'deleted';
   walletBalance: number;
   rating?: number;
@@ -152,6 +180,8 @@ export interface UserProfile {
   profession?: string;
   specialization?: string;
   portfolioImages?: PortfolioImage[];
+  createdAt?: any;
+  lastForumPostAt?: any;
 }
 
 export type Review = {

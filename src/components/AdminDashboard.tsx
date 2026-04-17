@@ -2,7 +2,8 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useAuth, UserProfile } from '@/context/AuthContext';
+import { useAuth } from '@/context/AuthContext';
+import { UserProfile } from '@/lib/types';
 import Link from 'next/link';
 import {
   Table,
@@ -21,7 +22,7 @@ import {
 } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { MoreHorizontal, Ban, Trash2, UserCheck, Users, Loader2, PlusCircle } from 'lucide-react';
+import { MoreHorizontal, Ban, Trash2, UserCheck, Users, Loader2, PlusCircle, ShieldAlert, ShieldCheck } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -74,6 +75,13 @@ const translations = {
     error: 'خطأ',
     errorOccurred: 'حدث خطأ. الرجاء المحاولة مرة أخرى.',
     loadingUsers: 'جارٍ تحميل المستخدمين...',
+    userMadeAdmin: 'تم ترقية المستخدم إلى مشرف.',
+    userMadeNormal: 'تم إرجاع المستخدم كعضو عادي.',
+    promoteToAdmin: 'ترقية إلى مشرف',
+    demoteToUser: 'إرجاع إلى مستخدم',
+    toggleRoleTitle: 'تغيير صلاحيات المستخدم',
+    toggleRoleDescAdmin: 'هل أنت متأكد من ترقية هذا المستخدم إلى مشرف؟ سيتمكن من الوصول إلى جميع إعدادات لوحة التحكم.',
+    toggleRoleDescUser: 'هل أنت متأكد من سحب صلاحيات الإشراف من هذا المستخدم؟',
   },
 };
 
@@ -81,7 +89,7 @@ type UserWithId = UserProfile & { id: string };
 
 type DialogState = {
   isOpen: boolean;
-  action: 'suspend' | 'delete' | null;
+  action: 'suspend' | 'delete' | 'toggleRole' | null;
   user: UserWithId | null;
 }
 
@@ -134,7 +142,19 @@ export default function AdminDashboard() {
     }
   };
 
-  const openDialog = (action: 'suspend' | 'delete', user: UserWithId) => {
+  const handleToggleRole = async (userToUpdate: UserWithId) => {
+    try {
+      const newRole = userToUpdate.role === 'admin' ? 'user' : 'admin';
+      await updateUserProfile(userToUpdate.id, { role: newRole });
+      toast({ title: newRole === 'admin' ? t.userMadeAdmin : t.userMadeNormal });
+      await fetchUsers(); // Refresh users list
+    } catch (e) {
+      console.error(e);
+      toast({ title: t.error, description: t.errorOccurred, variant: 'destructive' });
+    }
+  };
+
+  const openDialog = (action: 'suspend' | 'delete' | 'toggleRole', user: UserWithId) => {
     setDialogState({ isOpen: true, action, user });
   }
   
@@ -148,8 +168,9 @@ export default function AdminDashboard() {
       handleToggleSuspend(dialogState.user);
     } else if (dialogState.action === 'delete') {
       handleDeleteUser(dialogState.user.id);
+    } else if (dialogState.action === 'toggleRole') {
+      handleToggleRole(dialogState.user);
     }
-    closeDialog();
   }
 
 
@@ -182,6 +203,11 @@ export default function AdminDashboard() {
         title: t.deleteUserTitle,
         description: t.deleteUserDesc,
         confirmVariant: 'destructive' as const
+    },
+    toggleRole: {
+        title: t.toggleRoleTitle,
+        description: dialogState.user?.role === 'admin' ? t.toggleRoleDescUser : t.toggleRoleDescAdmin,
+        confirmVariant: 'default' as const
     }
   }
 
@@ -199,12 +225,6 @@ export default function AdminDashboard() {
           </CardTitle>
           <CardDescription>{t.userManagementDesc}</CardDescription>
         </div>
-        <Button asChild>
-          <Link href="/forum/new">
-            <PlusCircle className="ml-2 h-4 w-4" />
-            إضافة موضوع للمنتدى
-          </Link>
-        </Button>
       </CardHeader>
       <CardContent>
         <div className="w-full overflow-x-auto">
@@ -260,6 +280,12 @@ export default function AdminDashboard() {
                         </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align={'start'}>
+                          <DropdownMenuItem onSelect={() => openDialog('toggleRole', user)}>
+                            {user.role === 'admin' ? 
+                              <><ShieldAlert className={'ml-2 h-4 w-4'} />{t.demoteToUser}</> :
+                              <><ShieldCheck className={'ml-2 h-4 w-4'} />{t.promoteToAdmin}</>
+                            }
+                          </DropdownMenuItem>
                           <DropdownMenuItem onSelect={() => openDialog('suspend', user)}>
                             {user.status === 'active' ? 
                               <><Ban className={'ml-2 h-4 w-4'} />{t.suspend}</> :

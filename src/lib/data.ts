@@ -2,7 +2,7 @@
 import * as lucideIcons from 'lucide-react';
 import { PlaceHolderImages } from './placeholder-images';
 
-export const appIconUrl = "https://c.top4top.io/p_3553vhu5x1.png";
+export const appIconUrl = "/app-logo.png";
 
 const findImage = (id: string) => {
     const img = PlaceHolderImages.find(p => p.id === id);

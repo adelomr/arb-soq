@@ -61,7 +61,7 @@ export default function StoreCard({ store }: StoreCardProps) {
             </div>
           <div className="flex items-center text-sm text-muted-foreground gap-2">
             <MapPin className="w-4 h-4" />
-            <span>{store.address}</span>
+            <span>{[store.village, store.city, store.province, store.country].filter(Boolean).join(', ')}</span>
           </div>
         </CardContent>
         <CardFooter className="p-3 bg-secondary/20 flex items-center justify-between">

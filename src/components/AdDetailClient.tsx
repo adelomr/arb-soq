@@ -26,6 +26,7 @@ import { useToast } from '@/hooks/use-toast';
 import { AdPlaceholder, AdPlaceholderSquare } from './Adsense';
 import { markets } from '@/lib/markets';
 import RelatedAdsSidebar from './RelatedAdsSidebar';
+import { safeParseDate } from '@/lib/utils';
 
 const Header = dynamic(() => import('@/components/Header'), { ssr: false });
 const Footer = dynamic(() => import('@/components/Footer'), { ssr: false });
@@ -146,7 +147,7 @@ export default function AdDetailClient({ initialAd }: { initialAd: Ad }) {
                         <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-sm text-muted-foreground mt-2">
                             <div className="flex items-center gap-1.5">
                                 <Calendar className="h-4 w-4" />
-                                <span>{t.posted} {formatDistanceToNow(new Date(ad.postedAt), { addSuffix: true, locale: dateLocale })}</span>
+                                <span>{t.posted} {formatDistanceToNow(safeParseDate(ad.postedAt), { addSuffix: true, locale: dateLocale })}</span>
                             </div>
                             <div className="flex items-center gap-1.5">
                                 <MapPin className="h-4 w-4" />
@@ -178,7 +179,7 @@ export default function AdDetailClient({ initialAd }: { initialAd: Ad }) {
                         <DialogTrigger asChild>
                             <AspectRatio ratio={16 / 9} className="bg-muted rounded-lg overflow-hidden mb-8 shadow-lg cursor-zoom-in">
                                 <Image
-                                src={ad.imageUrls[0]}
+                                src={ad.imageUrls[0] || '/app-logo.png'}
                                 alt={ad.title}
                                 fill
                                 className="object-contain"

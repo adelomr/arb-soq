@@ -14,7 +14,7 @@ import PricingManager from "@/components/PricingManager";
 import CategoryManager from "@/components/CategoryManager";
 import ProfessionManager from "@/components/ProfessionManager";
 import dynamic from 'next/dynamic';
-import ForumManager from "@/components/ForumManager";
+
 
 const Header = dynamic(() => import('@/components/Header'), { ssr: false });
 
@@ -40,12 +40,11 @@ const t = {
     categoryManagementDesc: "إضافة وتعديل فئات الإعلانات.",
     professionManagement: "إدارة المهن",
     professionManagementDesc: "إضافة وتعديل المهن المتاحة في سوق العمل.",
-    forumManagement: "إدارة المنتدى",
-    forumManagementDesc: "إضافة وتعديل أقسام المنتدى والتحكم بالمواضيع.",
+
     backToDashboard: "العودة إلى لوحة التحكم",
 };
 
-type AdminView = 'dashboard' | 'users' | 'notifications' | 'settings' | 'moderation' | 'announcement' | 'pricing' | 'categories' | 'professions' | 'forum';
+type AdminView = 'dashboard' | 'users' | 'notifications' | 'settings' | 'moderation' | 'announcement' | 'pricing' | 'categories' | 'professions';
 
 export default function AdminPage() {
     const { userProfile, loading } = useAuth();
@@ -102,8 +101,7 @@ export default function AdminPage() {
                 return <ProfessionManager />;
             case 'settings':
                 return <AdModerationList />;
-            case 'forum':
-                return <ForumManager />;
+
             case 'dashboard':
             default:
                 return (
@@ -180,15 +178,7 @@ export default function AdminPage() {
                                 <CardDescription>{t.announcementBarDesc}</CardDescription>
                             </CardHeader>
                         </Card>
-                        <Card onClick={() => setView('forum')} className="cursor-pointer hover:border-primary hover:shadow-lg transition-all bg-card">
-                            <CardHeader>
-                                <CardTitle className="flex items-center gap-3">
-                                    <MessageSquare className="h-6 w-6 text-primary"/>
-                                    {t.forumManagement}
-                                </CardTitle>
-                                <CardDescription>{t.forumManagementDesc}</CardDescription>
-                            </CardHeader>
-                        </Card>
+
                     </div>
                 );
         }
@@ -207,7 +197,9 @@ export default function AdminPage() {
             </div>
             
             {view !== 'dashboard' && (
-                 <button onClick={() => setView('dashboard')} className="mb-8 px-4 py-2 bg-secondary text-secondary-foreground rounded-md">
+                 <button onClick={() => {
+                         setView('dashboard');
+                 }} className="mb-8 px-4 py-2 bg-secondary text-secondary-foreground rounded-md">
                     &larr; {t.backToDashboard}
                 </button>
             )}

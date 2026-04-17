@@ -42,7 +42,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
   return {
     title: `${blog.title} | سوق العرب`,
-    description: blog.content.substring(0, 150).replace(/<[^>]+>/g, ''), // strip HTML
+    description: (blog.content || '').substring(0, 150).replace(/<[^>]+>/g, ''), // strip HTML
     openGraph: {
       images: blog.imageUrl ? [blog.imageUrl] : [],
     },

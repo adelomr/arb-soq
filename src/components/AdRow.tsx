@@ -17,6 +17,7 @@ import { Separator } from './ui/separator';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Button } from './ui/button';
 import { useToast } from '@/hooks/use-toast';
+import { safeParseDate } from '@/lib/utils';
 
 
 const WhatsappIcon = () => (
@@ -75,7 +76,7 @@ export default function AdRow({ ad }: AdRowProps) {
                     alt={ad.title}
                     fill
                     className="object-cover"
-                    data-ai-hint={ad.imageHints ? ad.imageHints[0] : ''}
+                    sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
                 />
               ) : (
                 <div className="w-full h-full flex items-center justify-center">
@@ -107,7 +108,7 @@ export default function AdRow({ ad }: AdRowProps) {
              </div>
              <div className="flex items-center gap-2">
                 <Calendar className="w-4 h-4" />
-                <span>{formatDistanceToNow(new Date(ad.postedAt), { addSuffix: true, locale: dateLocale })}</span>
+                <span>{formatDistanceToNow(safeParseDate(ad.postedAt), { addSuffix: true, locale: dateLocale })}</span>
              </div>
              <div className="flex items-center gap-2">
                  <MapPin className="w-4 h-4" />
@@ -151,12 +152,14 @@ export default function AdRow({ ad }: AdRowProps) {
                     </DropdownMenuItem>
                 </DropdownMenuContent>
              </DropdownMenu>
-            <div className="flex items-center gap-2">
-              <Tag className="w-5 h-5 text-primary" />
-              <span className="text-lg font-bold text-primary">
-                {ad.price !== undefined ? currencyFormatter.format(ad.price) : (ad.adType === 'request-service' ? t.negotiable : t.onDemand)}
-              </span>
-            </div>
+            {!!ad.price && Number(ad.price) > 0 && (
+                <div className="flex items-center gap-2">
+                  <Tag className="w-5 h-5 text-primary" />
+                  <span className="text-lg font-bold text-primary">
+                    {currencyFormatter.format(Number(ad.price))}
+                  </span>
+                </div>
+            )}
           </div>
         </div>
       </Card>

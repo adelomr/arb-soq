@@ -14,7 +14,7 @@
  *  - عند الحذف: استدعي deleteMultipleEntries(user.imageMeta)
  */
 
-import { getStorage, ref, uploadBytes, getDownloadURL, deleteObject, Storage, ref as storageRefResolver } from 'firebase/storage';
+import { getStorage, ref, uploadBytes, getDownloadURL, deleteObject, ref as storageRefResolver } from 'firebase/storage';
 import type { FirebaseStorage, StorageReference } from 'firebase/storage';
 
 /** تأكد من وجود Storage instance */

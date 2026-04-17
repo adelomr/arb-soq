@@ -76,7 +76,7 @@ export default function LaborMarketPage() {
     setLoading(true);
     const fetchWorkers = async () => {
       const allUsers = await getAllUsers();
-      const laborUsers = allUsers.filter(u => u.profession && u.phoneVerified);
+      const laborUsers = allUsers.filter(u => (u.profession || u.jobType) && (u.phoneVerified || u.phoneNumber || u.phone));
       setWorkers(laborUsers);
       setLoading(false);
     }
@@ -84,7 +84,7 @@ export default function LaborMarketPage() {
     fetchWorkers();
   }, [getAllUsers]);
   
-  const isUserQualified = user && userProfile && userProfile.profession && userProfile.phoneVerified;
+  const isUserQualified = user && userProfile && (userProfile.profession || userProfile.jobType) && (userProfile.phoneVerified || userProfile.phoneNumber || userProfile.phone);
   const userCity = userProfile?.city;
   
   const filteredAndSortedWorkers = workers
@@ -97,10 +97,15 @@ export default function LaborMarketPage() {
     return workerCountry.includes(marketNameAr) || workerCountry.includes(marketNameEn);
   })
   .filter(worker => {
-      if (selectedProfessionId !== 'all' && worker.profession !== selectedProfessionId) {
-          return false;
-      }
-      return true;
+      if (selectedProfessionId === 'all') return true;
+      
+      const workerProfession = worker.profession || worker.jobType;
+      if (workerProfession === selectedProfessionId) return true;
+      
+      const prof = professions.find(p => p.id === selectedProfessionId);
+      if (prof && workerProfession === prof.name.ar) return true;
+      
+      return false;
   })
   .sort((a, b) => {
       if (userCity) {

@@ -13,18 +13,10 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Loader2, Save, Shapes, Plus, Trash2, ChevronDown, Search } from 'lucide-react';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
-import * as lucideIcons from 'lucide-react';
 import type { Category } from '@/lib/types';
-import { getCategoryIcon } from '@/lib/data';
-import { ScrollArea } from './ui/scroll-area';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 
 
-const iconNames = Object.keys(lucideIcons).filter(key => 
-    key[0] === key[0].toUpperCase() && 
-    !['createLucideIcon', 'icons', 'LucideIcon', 'Icon'].includes(key) &&
-    typeof (lucideIcons as any)[key] === 'object'
-);
+
 
 
 const translations = {
@@ -78,67 +70,7 @@ const categoriesSchema = z.object({
 type CategoriesFormValues = z.infer<typeof categoriesSchema>;
 
 
-const IconPicker = ({ value, onChange }: { value: string, onChange: (iconName: string) => void }) => {
-    const t = translations.ar;
-    const [search, setSearch] = useState('');
-    const [isOpen, setIsOpen] = useState(false);
 
-    const filteredIcons = iconNames.filter(name => name.toLowerCase().includes(search.toLowerCase()));
-    const CurrentIcon = getCategoryIcon(value);
-
-    return (
-        <div className="space-y-2">
-            <FormLabel>{t.icon}</FormLabel>
-            <div className="flex items-center gap-2">
-                <div className="flex items-center justify-center h-12 w-12 shrink-0 rounded-md border bg-secondary">
-                    <CurrentIcon className="h-6 w-6 text-primary" />
-                </div>
-                <Popover open={isOpen} onOpenChange={setIsOpen}>
-                    <PopoverTrigger asChild>
-                        <Button variant="outline" className="w-full justify-between">
-                            <span>{value}</span>
-                            <ChevronDown className="h-4 w-4 opacity-50" />
-                        </Button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-[320px] p-0" align="start">
-                        <div className="p-2 border-b">
-                             <div className="relative">
-                                <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
-                                <Input 
-                                    placeholder={t.searchIcon} 
-                                    value={search} 
-                                    onChange={e => setSearch(e.target.value)} 
-                                    className="pl-8" 
-                                />
-                            </div>
-                        </div>
-                        <ScrollArea className="h-72">
-                            <div className="grid grid-cols-4 gap-2 p-2">
-                                {filteredIcons.map(iconName => {
-                                    const IconComponent = getCategoryIcon(iconName);
-                                    return (
-                                        <Button
-                                            key={iconName}
-                                            variant={value === iconName ? 'secondary' : 'ghost'}
-                                            className="h-16 flex-col gap-1.5 text-xs"
-                                            onClick={() => {
-                                                onChange(iconName);
-                                                setIsOpen(false);
-                                            }}
-                                        >
-                                            <IconComponent className="h-6 w-6" />
-                                            <span className="truncate w-full">{iconName}</span>
-                                        </Button>
-                                    )
-                                })}
-                            </div>
-                        </ScrollArea>
-                    </PopoverContent>
-                </Popover>
-            </div>
-        </div>
-    )
-}
 
 export default function CategoryManager() {
   const { saveCategories, getCategories, loading: authLoading } = useAuth();
@@ -243,11 +175,8 @@ export default function CategoryManager() {
                         </div>
                         <CollapsibleContent className="space-y-4 pt-4">
                             <FormField control={form.control} name={`categories.${index}.name.ar`} render={({ field }) => ( <FormItem><FormLabel>{t.categoryNameAr}</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem> )} />
-                            <FormField
-                                control={form.control}
-                                name={`categories.${index}.icon`}
-                                render={({ field }) => <IconPicker value={field.value} onChange={field.onChange} />}
-                            />
+                            {/* Icon hidden as requested */}
+                            <input type="hidden" {...form.register(`categories.${index}.icon`)} value={form.watch(`categories.${index}.icon`) || 'Shapes'} />
                             <SubcategoryManager parentIndex={index} form={form} />
                         </CollapsibleContent>
                     </Collapsible>
@@ -299,11 +228,8 @@ function SubcategoryManager({ parentIndex, form }: { parentIndex: number, form: 
                         </Button>
                     </div>
                     <FormField control={form.control} name={`categories.${parentIndex}.subcategories.${index}.name.ar`} render={({ field }) => ( <FormItem><FormLabel>{t.categoryNameAr}</FormLabel><FormControl><Input {...field} /></FormControl></FormItem> )} />
-                    <FormField
-                        control={form.control}
-                        name={`categories.${parentIndex}.subcategories.${index}.icon`}
-                        render={({ field }) => <IconPicker value={field.value} onChange={field.onChange} />}
-                    />
+                    {/* Icon hidden as requested */}
+                    <input type="hidden" {...form.register(`categories.${parentIndex}.subcategories.${index}.icon`)} value={form.watch(`categories.${parentIndex}.subcategories.${index}.icon`) || 'Shapes'} />
                 </div>
             ))}
             <Button type="button" variant="secondary" onClick={addSubcategory}>

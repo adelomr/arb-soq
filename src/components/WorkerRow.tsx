@@ -26,9 +26,9 @@ export default function WorkerRow({ worker }: WorkerRowProps) {
 
   if (!worker) return null;
 
-  const professionName = professions.find(p => p.id === worker.profession)?.name.ar || worker.profession;
+  const professionName = professions.find(p => p.id === (worker.profession || worker.jobType))?.name.ar || worker.profession || worker.jobType;
   const displayAddress = [worker.city, worker.country].filter(Boolean).join(', ');
-  const displayName = worker.name.split(' ').slice(0, 3).join(' ');
+  const displayName = (worker.name || worker.fullName || '').split(' ').slice(0, 3).join(' ');
 
   return (
     <Link href={`/worker/${worker.id}`} className="block group w-full">
@@ -37,8 +37,8 @@ export default function WorkerRow({ worker }: WorkerRowProps) {
           
           <div className="flex items-center gap-4">
             <Avatar className="h-20 w-20 border-2 border-primary/20 shrink-0">
-                <AvatarImage src={worker.avatarUrl} alt={worker.name} />
-                <AvatarFallback className="text-2xl">{worker.name?.[0].toUpperCase()}</AvatarFallback>
+                <AvatarImage src={worker.avatarUrl} alt={worker.name || worker.fullName} />
+                <AvatarFallback className="text-2xl">{(worker.name || worker.fullName)?.[0]?.toUpperCase()}</AvatarFallback>
             </Avatar>
             <div className="space-y-1 text-right">
               <h3 className="text-xl font-bold group-hover:text-primary transition-colors">

@@ -4,7 +4,7 @@
 import Link from 'next/link';
 import { useLanguage } from '@/context/LanguageContext';
 import { Button } from '@/components/ui/button';
-import { Car, Building, Smartphone, Sofa, HardHat, Briefcase, Handshake, Store, PawPrint, Shirt, ChevronDown, Flag, Home, Building2, Hotel, Map, Tv, Laptop, Monitor, Cpu, Headphones, Watch, Gamepad2, Tablet, Music, Camera, Armchair, Palette, Globe, Code, FileSpreadsheet, FileText, Megaphone, User, Stethoscope, GraduationCap, CircleUser, Cat, Dog, Bird, Fish, Glasses, Footprints, Newspaper } from 'lucide-react';
+import { Car, Building, Smartphone, Sofa, HardHat, Briefcase, Handshake, Store, PawPrint, Shirt, ChevronDown, Flag, Home, Building2, Hotel, Map, Tv, Laptop, Monitor, Cpu, Headphones, Watch, Gamepad2, Tablet, Music, Camera, Armchair, Palette, Globe, Code, FileSpreadsheet, FileText, Megaphone, User, Stethoscope, GraduationCap, CircleUser, Cat, Dog, Bird, Fish, Glasses, Footprints, Newspaper, MessageSquare } from 'lucide-react';
 import React, { useState, useEffect } from 'react';
 import {
   Collapsible,
@@ -30,8 +30,6 @@ const translations = {
     stores: "المتاجر",
     pets: "حيوانات",
     fashion: "أزياء",
-    blog: "المنتدى",
-    // Car Brands - Arabic
     toyota: "تويوتا",
     hyundai: "هيونداي",
     ford: "فورد",
@@ -105,8 +103,6 @@ const translations = {
     stores: "Stores",
     pets: "Pets",
     fashion: "Fashion",
-    blog: "Blog",
-    // Car Brands - English
     toyota: "Toyota",
     hyundai: "Hyundai",
     ford: "Ford",
@@ -173,11 +169,11 @@ const translations = {
 
 const FlagIcon = ({ code }: { code: string }) => (
   <Image 
-    src={`https://flagsapi.com/${code}/shiny/64.png`} 
+    src={`https://flagcdn.com/w160/${code.toLowerCase()}.png`} 
     alt={`${code} flag`}
     width={48}
     height={36}
-    className="w-12 h-auto rounded-md"
+    className="w-12 h-auto rounded-md border border-border/50"
   />
 );
 
@@ -313,15 +309,7 @@ export default function QuickOptions() {
     <Collapsible open={anyMenuOpen}>
       <div className="container mx-auto px-4">
         <div className="flex items-center gap-2 overflow-x-auto custom-scrollbar py-2">
-            <Link href="/forum" className="flex-shrink-0">
-                <Button 
-                    variant="ghost" 
-                    className="flex items-center gap-2"
-                >
-                    <Newspaper className="h-4 w-4" />
-                    <span>{t.blog}</span>
-                </Button>
-            </Link>
+
 
             <Button 
                 variant="ghost" 

@@ -65,7 +65,7 @@ export default function Home() {
   }, [incrementSiteVisit]);
 
   const sortAndSetAds = useCallback((allAds: Ad[], location: { latitude: number, longitude: number } | null) => {
-    const validAds = allAds.filter(ad => ad.imageUrls && ad.imageUrls.length > 0 && ad.imageUrls[0]);
+    const validAds = allAds; // Display all ads including video ads
 
     if (location) {
         validAds.sort((a, b) => {

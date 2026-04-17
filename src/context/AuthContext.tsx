@@ -9,8 +9,9 @@ import { ref as dbRef, get, child, set } from "firebase/database";
 import { ref, getStorage } from 'firebase/storage';
 import { auth, firestore, database } from '@/lib/firebase';
 import { useRouter, usePathname } from 'next/navigation';
-import type { Ad, AdSenseSettings, AdStatus, AdType, Notification, Announcement, UserProfile, PricingPlan, Category, SubCategory, Review, Store, SiteStats, Profession, PortfolioImage, AdImageMeta } from '@/lib/types';
+import type { Ad, AdSenseSettings, AdStatus, AdType, Notification, Announcement, UserProfile, PricingPlan, PricingStructure, Category, SubCategory, Review, Store, SiteStats, Profession, Specialization, PortfolioImage, AdImageMeta } from '@/lib/types';
 import { uploadFileAndReturnInfo, deleteMultipleEntries, deleteStorageEntry } from '@/lib/firebase-storage-helpers';
+import { markets } from '@/lib/markets';
 
 
 interface AuthContextType {
@@ -20,17 +21,18 @@ interface AuthContextType {
   loading: boolean;
   categories: Category[];
   professions: Profession[];
+  specializations: Specialization[];
   isPhoneNumberInUse: (phoneNumber: string) => Promise<boolean>;
   sendVerificationCode: (phoneNumber: string) => Promise<ConfirmationResult>;
   confirmVerificationCode: (confirmationResult: ConfirmationResult, code: string) => Promise<void>;
   signIn: (email:string,password:string) => Promise<any>;
   signInWithGoogle: () => Promise<void>;
-  signUp: typeof createUserWithEmailAndPassword;
+  signUp: (email: string, password: string) => Promise<any>;
   signOutUser: () => Promise<void>;
   sendPasswordReset: (email: string) => Promise<void>;
   verifyPasswordResetCode: (code: string) => Promise<string>;
   confirmPasswordReset: (code: string, newPassword: string) => Promise<void>;
-  createUserProfile: (uid: string, data: Partial<Omit<UserProfile, 'id' | 'avatarUrl' | 'phoneVerified' | 'role' | 'status' | 'walletBalance' | 'reviewCount' | 'rating' | 'store' | 'portfolioImages'>>) => Promise<void>;
+  createUserProfile: (uid: string, data: Partial<Omit<UserProfile, 'id' | 'avatarUrl' | 'phoneVerified' | 'role' | 'status' | 'walletBalance' | 'reviewCount' | 'rating' | 'store' | 'portfolioImages'>>, avatarUrl?: string) => Promise<void>;
   updateUserProfile: (uid: string, data: Partial<UserProfile>) => Promise<void>;
   createOrUpdateUserStore: (uid: string, storeData: Omit<Store, 'id'>) => Promise<string>;
   getUserStore: (uid: string) => Promise<Store | null>;
@@ -40,7 +42,7 @@ interface AuthContextType {
   refreshUserProfile: () => Promise<void>;
   getAllUsers: () => Promise<(UserProfile & { id: string })[]>;
   getUsersWithStores: () => Promise<(UserProfile & { id: string })[]>;
-  sendNotification: (userId: string, message: string, type: 'private' | 'general') => Promise<void>;
+  sendNotification: (userId: string, message: string, type: 'private' | 'general', link?: string) => Promise<void>;
   sendGeneralNotification: (message: string) => Promise<void>;
   getUserNotifications: (userId: string, callback: (notifications: Notification[]) => void) => () => void;
   deleteNotification: (notificationId: string) => Promise<void>;
@@ -60,6 +62,8 @@ interface AuthContextType {
   saveCategories: (categories: Category[]) => Promise<void>;
   getProfessions: () => Promise<Profession[]>;
   saveProfessions: (professions: Profession[]) => Promise<void>;
+  getSpecializations: () => Promise<Specialization[]>;
+  saveSpecializations: (specializations: Specialization[]) => Promise<void>;
   getAds: (filters: { status?: AdStatus; userId?: string; market?: string; isPromoted?: boolean; adType?: AdType; categories?: string[]; limit?: number }, callback: (ads: (Ad & { id: string })[]) => void) => () => void;
   getAdById: (userId: string, adId: string, isStoreProduct?: boolean) => Promise<(Ad & { id: string }) | null>;
   getUserById: (userId: string) => Promise<(UserProfile & { id: string }) | null>;
@@ -87,6 +91,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
   const [categories, setCategories] = useState<Category[]>([]);
   const [professions, setProfessions] = useState<Profession[]>([]);
+  const [specializations, setSpecializations] = useState<Specialization[]>([]);
   const [adSenseSettings, setAdSenseSettings] = useState<AdSenseSettings | null>(null);
   const router = useRouter();
   const pathname = usePathname();
@@ -105,7 +110,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const createUserProfile = useCallback(async (uid: string, data: Partial<Omit<UserProfile, 'id' | 'avatarUrl' | 'phoneVerified' | 'role' | 'status' | 'walletBalance' | 'reviewCount' | 'rating' | 'store' | 'portfolioImages'>>, avatarUrl?: string) => {
     const finalAvatarUrl = avatarUrl || user?.photoURL || `https://avatar.vercel.sh/${uid}.png`;
-    const role = data.email === 'adelomr1878@gmail.com' ? 'admin' : 'user';
+    const role = 'user';
     const userProfileData: Omit<UserProfile, 'id' | 'store'> = {
       name: data.name!,
       email: data.email!,
@@ -136,6 +141,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (userDoc.exists()) {
       const profileData = { id: userDoc.id, ...userDoc.data() } as Omit<UserProfile, 'store'>;
       
+      try {
+          const adminDocRef = doc(firestore, 'admins', firebaseUser.uid);
+          const adminDoc = await getDoc(adminDocRef);
+          if (adminDoc.exists()) {
+              profileData.role = 'admin';
+          }
+      } catch (e) {
+          console.error("Failed to check admin status", e);
+      }
+      
       if (profileData.status === 'suspended' || profileData.status === 'deleted') {
         await signOut(auth);
         alert('تم تعليق حسابك أو حذفه.');
@@ -156,15 +171,33 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [router, getUserStore]);
   
   const getCategories = useCallback(async (): Promise<Category[]> => {
-    const dbRootRef = dbRef(database);
-    const snapshot = await get(child(dbRootRef, 'categories'));
-    if (snapshot.exists()) {
-        const categoriesObject = snapshot.val();
-        const categoriesArray = Object.values(categoriesObject);
-        return categoriesArray as Category[];
+    try {
+        const querySnapshot = await getDocs(collection(firestore, 'categories'));
+        const cats = querySnapshot.docs.map(doc => {
+            const data = doc.data();
+            // Handle both old and new data structures for backward compatibility
+            const name = data.nameAr ? { ar: data.nameAr } : (typeof data.name === 'string' ? { ar: data.name } : (data.name || { ar: doc.id }));
+            
+            const subcategories = (data.subcategories || []).map((sub: any) => ({
+                ...sub,
+                name: sub.nameAr ? { ar: sub.nameAr } : (typeof sub.name === 'string' ? { ar: sub.name } : (sub.name || { ar: sub.id }))
+            }));
+
+            return { 
+                id: doc.id, 
+                ...data,
+                name,
+                subcategories
+            } as Category;
+        });
+        
+        // Ensure consistent ordering (e.g., by ID or a 'order' field if exists)
+        return cats.sort((a, b) => a.id.localeCompare(b.id));
+    } catch (e) {
+        console.error("Error fetching categories:", e);
+        return [];
     }
-    return [];
-  }, [database]);
+  }, []);
   
     const getAdSenseSettings = useCallback(async (): Promise<AdSenseSettings | null> => {
         const docRef = doc(firestore, 'settings', 'adsense');
@@ -176,31 +209,38 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }, []);
 
     const getProfessions = useCallback(async (): Promise<Profession[]> => {
-      const dbRootRef = dbRef(database);
-      const snapshot = await get(child(dbRootRef, 'professions'));
-      if (snapshot.exists()) {
-        const professionsObject = snapshot.val();
-        if (Array.isArray(professionsObject)) {
-           // Handle old array of strings format
-           return professionsObject.map((profName, index) => ({
-             id: `prof_${index}`,
-             name: { ar: profName },
-             hasSpecialization: ['طبيب', 'معلم'].includes(profName),
-           }));
-        } else if (typeof professionsObject === 'object') {
-           // Handle new object format
-           return Object.entries(professionsObject).map(([key, value]) => {
-              const profData = value as any;
-              return {
-                 id: profData.id || key, // Use the id field if it exists
-                 name: { ar: profData.name?.ar || key },
-                 hasSpecialization: profData.hasSpecialization === true || ['طبيب', 'معلم'].includes(profData.name?.ar || ''),
-              };
-           });
-        }
+      try {
+          const querySnapshot = await getDocs(collection(firestore, 'professions'));
+          return querySnapshot.docs.map(doc => {
+              const data = doc.data();
+              return { 
+                  id: doc.id, 
+                  ...data,
+                  name: data.nameAr ? { ar: data.nameAr } : (typeof data.name === 'string' ? { ar: data.name } : (data.name || { ar: doc.id }))
+              } as Profession;
+          });
+      } catch (e) {
+          console.error("Error fetching professions:", e);
+          return [];
       }
-      return [];
-    }, [database]);
+    }, []);
+
+    const getSpecializations = useCallback(async (): Promise<Specialization[]> => {
+        try {
+            const querySnapshot = await getDocs(collection(firestore, 'specializations'));
+            return querySnapshot.docs.map(doc => {
+                const data = doc.data();
+                return { 
+                    id: doc.id, 
+                    ...data,
+                    name: data.nameAr ? { ar: data.nameAr } : (typeof data.name === 'string' ? { ar: data.name } : (data.name || { ar: doc.id }))
+                } as Specialization;
+            });
+        } catch (e) {
+            console.error("Error fetching specializations:", e);
+            return [];
+        }
+    }, []);
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
@@ -216,13 +256,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setCategories(fetchedCategories);
       const fetchedProfessions = await getProfessions();
       setProfessions(fetchedProfessions);
+      const fetchedSpecializations = await getSpecializations();
+      setSpecializations(fetchedSpecializations);
       const fetchedAdSenseSettings = await getAdSenseSettings();
       setAdSenseSettings(fetchedAdSenseSettings);
       setLoading(false);
     });
 
     return () => unsubscribe();
-  }, [fetchUserProfile, getCategories, getAdSenseSettings, getProfessions, pathname, router]);
+  }, [fetchUserProfile, getCategories, getAdSenseSettings, getProfessions, getSpecializations]);
   
   const refreshUserProfile = useCallback(async () => {
     if (user) {
@@ -399,15 +441,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [storage]);
 
 
-  const sendNotification = useCallback(async (userId: string, message: string, type: 'private' | 'general' = 'private') => {
+  const sendNotification = useCallback(async (userId: string, message: string, type: 'private' | 'general' = 'private', link?: string) => {
     const notificationsCollection = collection(firestore, 'notifications');
-    await addDoc(notificationsCollection, {
+    const notifData: any = {
       userId,
       message,
       type,
       isRead: false,
       createdAt: serverTimestamp()
-    });
+    };
+    if (link) {
+      notifData.link = link;
+    }
+    await addDoc(notificationsCollection, notifData);
   }, []);
 
   const sendGeneralNotification = useCallback(async (message: string) => {
@@ -497,12 +543,18 @@ const addAd = useCallback(async (adData: any, imageFiles: File[], user: User, pr
             ...adData,
             userId: user.uid,
             postedAt: new Date().toISOString(),
+            timestamp: Date.now(), // Android compatibility
             status: 'active',
             imageUrls: imageMeta.map(meta => meta.url),
             imageMeta: imageMeta,
             imageHints: [], 
             views: 0,
             clicks: 0,
+            // Hierarchical location defaults
+            country: adData.country || userProfile.country || '',
+            governorate: adData.governorate || userProfile.province || '',
+            city: adData.city || userProfile.city || '',
+            village: adData.village || userProfile.village || '',
         };
 
         delete (newAdData as any).images;
@@ -512,7 +564,8 @@ const addAd = useCallback(async (adData: any, imageFiles: File[], user: User, pr
             if (!userProfile.store) return { success: false, error: "المستخدم ليس لديه متجر" };
             collectionRef = collection(firestore, 'users', user.uid, 'store', userProfile.store.id, 'products');
         } else {
-            collectionRef = collection(firestore, 'users', user.uid, 'ads');
+            // Write to top-level 'ads' for Android synchronization
+            collectionRef = collection(firestore, 'ads');
         }
         
         progressCallback("جارٍ حفظ بيانات الإعلان...");
@@ -540,7 +593,15 @@ const addAd = useCallback(async (adData: any, imageFiles: File[], user: User, pr
         if (!userStore) throw new Error("لم يتم العثور على متجر لهذا المستخدم.");
         adRef = doc(firestore, 'users', userId, 'store', userStore.id, 'products', adId);
     } else {
-        adRef = doc(firestore, 'users', userId, 'ads', adId);
+        // First try the top-level 'ads' collection (synchronized with Android)
+        const topLevelRef = doc(firestore, 'ads', adId);
+        const topLevelSnap = await getDoc(topLevelRef);
+        if (topLevelSnap.exists()) {
+            adRef = topLevelRef;
+        } else {
+            // Fallback to sub-collection
+            adRef = doc(firestore, 'users', userId, 'ads', adId);
+        }
     }
 
     const oldDocSnap = await getDoc(adRef);
@@ -590,7 +651,13 @@ const addAd = useCallback(async (adData: any, imageFiles: File[], user: User, pr
         if (!userStore) throw new Error("لم يتم العثور على متجر لهذا المستخدم.");
         adRef = doc(firestore, 'users', userId, 'store', userStore.id, 'products', adId);
     } else {
-        adRef = doc(firestore, 'users', userId, 'ads', adId);
+        const topLevelRef = doc(firestore, 'ads', adId);
+        const topLevelSnap = await getDoc(topLevelRef);
+        if (topLevelSnap.exists()) {
+            adRef = topLevelRef;
+        } else {
+            adRef = doc(firestore, 'users', userId, 'ads', adId);
+        }
     }
 
     if (adData.imageMeta && adData.imageMeta.length > 0) {
@@ -608,7 +675,13 @@ const addAd = useCallback(async (adData: any, imageFiles: File[], user: User, pr
         if (!userStore) throw new Error("تعذر العثور على متجر للمستخدم لتحديث حالة المنتج.");
         adRef = doc(firestore, 'users', userId, 'store', userStore.id, 'products', adId);
     } else {
-        adRef = doc(firestore, 'users', userId, 'ads', adId);
+        const topLevelRef = doc(firestore, 'ads', adId);
+        const topLevelSnap = await getDoc(topLevelRef);
+        if (topLevelSnap.exists()) {
+            adRef = topLevelRef;
+        } else {
+            adRef = doc(firestore, 'users', userId, 'ads', adId);
+        }
     }
     await updateDoc(adRef, { status });
  }, [getUserStore]);
@@ -634,16 +707,49 @@ const addAd = useCallback(async (adData: any, imageFiles: File[], user: User, pr
   }, []);
   
   const saveCategories = useCallback(async (categoriesToSave: Category[]) => {
-    const docRef = doc(firestore, 'settings', 'categories');
-    await setDoc(docRef, { categories: categoriesToSave }, { merge: true });
+    const batch = writeBatch(firestore);
+    
+    // 1. Get existing categories from the collection to determine what to delete
+    const existingSnap = await getDocs(collection(firestore, 'categories'));
+    const existingIds = existingSnap.docs.map(d => d.id);
+    const newIds = categoriesToSave.map(c => c.id);
+
+    // 2. Delete categories that are no longer in the list
+    existingIds.forEach(id => {
+      if (!newIds.includes(id)) {
+        batch.delete(doc(firestore, 'categories', id));
+      }
+    });
+
+    // 3. Save/Update current categories
+    categoriesToSave.forEach(cat => {
+      const docRef = doc(firestore, 'categories', cat.id);
+      batch.set(docRef, cat, { merge: true });
+    });
+
+    // 4. Commit the batch
+    await batch.commit();
     setCategories(categoriesToSave);
   }, []);
 
   const saveProfessions = useCallback(async (professionsToSave: Profession[]) => {
-    const docRef = doc(firestore, 'settings', 'professions');
-    const uniqueProfessions = uniqueByKey(professionsToSave, 'id');
-    await setDoc(docRef, { professions: uniqueProfessions }, { merge: true });
-    setProfessions(uniqueProfessions);
+    const batch = writeBatch(firestore);
+    professionsToSave.forEach(prof => {
+        const docRef = doc(firestore, 'professions', prof.id);
+        batch.set(docRef, prof, { merge: true });
+    });
+    await batch.commit();
+    setProfessions(professionsToSave);
+  }, []);
+
+  const saveSpecializations = useCallback(async (specializationsToSave: Specialization[]) => {
+      const batch = writeBatch(firestore);
+      specializationsToSave.forEach(spec => {
+          const docRef = doc(firestore, 'specializations', spec.id);
+          batch.set(docRef, spec, { merge: true });
+      });
+      await batch.commit();
+      setSpecializations(specializationsToSave);
   }, []);
 
   const getUserById = useCallback(async (userId: string): Promise<(UserProfile & { id: string }) | null> => {
@@ -669,6 +775,12 @@ const getAds = useCallback((
         adType?: AdType;
         categories?: string[];
         limit?: number;
+        // Hierarchical location filters
+        country?: string;
+        governorate?: string;
+        city?: string;
+        village?: string;
+        categoryId?: string;
     },
     callback: (ads: (Ad & { id: string })[]) => void
 ) => {
@@ -684,15 +796,15 @@ const getAds = useCallback((
                 }
             }
             return {
-                id: doc.id,
                 ...adData,
+                id: doc.id,
                 userId: userId,
                 category: collectionName === 'products' ? 'store-product' : adData.category,
             } as Ad & { id: string };
         });
 
         const adsWithUsers = await Promise.all(
-            adsData.map(async (ad) => {
+            adsData.map(async (ad: Ad & { id: string }) => {
                 if (ad.userId && !ad.user) {
                     const userProfileData = await getUserById(ad.userId);
                     if (userProfileData) {
@@ -708,18 +820,39 @@ const getAds = useCallback((
     let allUnsubscribes: (() => void)[] = [];
     let allAds: (Ad & { id: string })[] = [];
 
-    const handleCombinedResult = (newAds: (Ad & { id: string })[], type: 'ads' | 'products') => {
-      if (type === 'ads') {
-        allAds = [...allAds.filter(ad => ad.category === 'store-product'), ...newAds];
-      } else { // products
-        allAds = [...allAds.filter(ad => ad.category !== 'store-product'), ...newAds];
-      }
+    const handleCombinedResult = (newAds: (Ad & { id: string })[], source: string) => {
+      // Remove old ads from this source
+      allAds = allAds.filter(ad => (ad as any)._source !== source);
+      // Add new ads with source tag
+      const taggedAds = newAds.map(ad => ({ ...ad, _source: source }));
+      allAds = [...allAds, ...taggedAds];
       
       let finalAds = uniqueByKey(allAds, 'id');
-      finalAds.sort((a, b) => new Date(b.postedAt).getTime() - new Date(a.postedAt).getTime());
+      finalAds.sort((a, b) => {
+          const dateA = a.postedAt ? new Date(a.postedAt).getTime() : 0;
+          const dateB = b.postedAt ? new Date(b.postedAt).getTime() : 0;
+          return dateB - dateA;
+      });
       
       if (filters.categories && !filters.userId && !filters.categories.includes('store-product')) {
           finalAds = finalAds.filter(ad => filters.categories?.includes(ad.category));
+      }
+
+      // Hierarchical location filtering (matching Android logic)
+      if (filters.country) finalAds = finalAds.filter(ad => ad.country === filters.country);
+      if (filters.governorate) finalAds = finalAds.filter(ad => ad.governorate === filters.governorate);
+      if (filters.city) finalAds = finalAds.filter(ad => ad.city === filters.city);
+      if (filters.village) finalAds = finalAds.filter(ad => ad.village === filters.village);
+      if (filters.categoryId) finalAds = finalAds.filter(ad => ad.categoryId === filters.categoryId);
+      
+      // Status filtering (handling Web "status" and Android "isActive")
+      if (filters.status) {
+          finalAds = finalAds.filter(ad => {
+              if (filters.status === 'active') {
+                  return ad.status === 'active' || ad.isActive === true || (!ad.status && ad.isActive === undefined);
+              }
+              return ad.status === filters.status;
+          });
       }
       
       callback(finalAds);
@@ -741,13 +874,22 @@ const getAds = useCallback((
 
     if (filters.userId) {
         if (!isFetchingOnlyStoreProducts) {
+            // Source 1: User-specific sub-collection (legacy/web-specific)
             const adQuery = collection(firestore, 'users', filters.userId, 'ads');
             const finalAdQuery = query(adQuery, ...adQueryConstraints);
             const unsubAds = onSnapshot(finalAdQuery, async (snapshot) => {
                 const regularAds = await processSnapshot(snapshot, 'ads');
-                handleCombinedResult(regularAds, 'ads');
+                handleCombinedResult(regularAds, 'ads_sub');
             });
-            allUnsubscribes.push(unsubAds);
+            
+            // Source 2: Top-level ads collection (Android synchronization)
+            const topLevelAdsQuery = query(collection(firestore, 'ads'), where('userId', '==', filters.userId), ...adQueryConstraints);
+            const unsubTopLevel = onSnapshot(topLevelAdsQuery, async (snapshot) => {
+                const regularAds = await processSnapshot(snapshot, 'ads');
+                handleCombinedResult(regularAds, 'ads_top');
+            });
+
+            allUnsubscribes.push(unsubAds, unsubTopLevel);
         }
 
         if ((filters.categories && filters.categories.includes('store-product')) || !filters.categories) {
@@ -779,12 +921,20 @@ const getAds = useCallback((
             const unsubAds = onSnapshot(finalQuery, async (snapshot) => {
                 let regularAds = await processSnapshot(snapshot, 'ads');
                 if (filters.market) {
-                  regularAds = regularAds.filter(ad => ad.market === filters.market);
+                  const marketData = markets.find(m => m.id === filters.market);
+                  const marketAr = marketData?.name.ar;
+                  regularAds = regularAds.filter(ad => 
+                      !ad.market && (!ad.country || ad.country.trim() === '') || 
+                      ad.market === filters.market || 
+                      ad.country === filters.market || 
+                      ad.country === filters.market?.toUpperCase() ||
+                      (marketAr && ad.country === marketAr)
+                  );
                 }
                 if (filters.categories) {
                   regularAds = regularAds.filter(ad => filters.categories?.includes(ad.category));
                 }
-                handleCombinedResult(regularAds, 'ads');
+                handleCombinedResult(regularAds, 'ads_global');
             });
             allUnsubscribes.push(unsubAds);
         }
@@ -798,9 +948,17 @@ const getAds = useCallback((
             const unsubProducts = onSnapshot(finalProductQuery, async (snapshot) => {
                 let storeProducts = await processSnapshot(snapshot, 'products');
                 if (filters.market) {
-                    storeProducts = storeProducts.filter(p => p.market === filters.market);
+                  const marketData = markets.find(m => m.id === filters.market);
+                  const marketAr = marketData?.name.ar;
+                  storeProducts = storeProducts.filter(p => 
+                      !p.market && (!p.country || p.country.trim() === '') || 
+                      p.market === filters.market || 
+                      p.country === filters.market || 
+                      p.country === filters.market?.toUpperCase() ||
+                      (marketAr && p.country === marketAr)
+                  );
                 }
-                handleCombinedResult(storeProducts, 'products');
+                handleCombinedResult(storeProducts, 'products_global');
             });
             allUnsubscribes.push(unsubProducts);
         }
@@ -824,8 +982,14 @@ const getAds = useCallback((
               adSnap = await getDoc(productRef);
           }
       } else {
-          const adRef = doc(firestore, 'users', userId, 'ads', adId);
-          adSnap = await getDoc(adRef);
+          // Check top-level first
+          const topLevelRef = doc(firestore, 'ads', adId);
+          adSnap = await getDoc(topLevelRef);
+          if (!adSnap.exists()) {
+              // Fallback to sub-collection
+              const subCollectionRef = doc(firestore, 'users', userId, 'ads', adId);
+              adSnap = await getDoc(subCollectionRef);
+          }
       }
 
 
@@ -849,7 +1013,7 @@ const getAds = useCallback((
               adData.user = userProfileData;
           }
 
-          return { id: adSnap.id, ...adData };
+          return { ...adData, id: adSnap.id };
       }
 
       return null;
@@ -911,6 +1075,11 @@ const getAds = useCallback((
         if (!userStore) throw new Error("تعذر العثور على متجر لهذا المنتج.");
         return doc(firestore, 'users', ad.userId, 'store', userStore.id, 'products', ad.id);
     } else {
+        const topLevelRef = doc(firestore, 'ads', ad.id);
+        const topLevelSnap = await getDoc(topLevelRef);
+        if (topLevelSnap.exists()) {
+            return topLevelRef;
+        }
         return doc(firestore, 'users', ad.userId, 'ads', ad.id);
     }
   }, [getUserStore]);
@@ -1034,6 +1203,7 @@ const getAds = useCallback((
     loading,
     categories,
     professions,
+    specializations,
     isPhoneNumberInUse,
     sendVerificationCode,
     confirmVerificationCode,
@@ -1074,6 +1244,8 @@ const getAds = useCallback((
     saveCategories: saveCategories,
     getProfessions,
     saveProfessions: saveProfessions,
+    getSpecializations,
+    saveSpecializations,
     getAds,
     getAdById,
     getUserById,

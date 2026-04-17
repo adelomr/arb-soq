@@ -14,6 +14,7 @@ import { useLanguage } from '@/context/LanguageContext';
 import { useToast } from '@/hooks/use-toast';
 import { formatDistanceToNow } from 'date-fns';
 import { ar } from 'date-fns/locale';
+import { safeParseDate } from '@/lib/utils';
 
 const translations = {
   ar: {
@@ -152,7 +153,7 @@ export default function AdModerationList() {
             </TableHeader>
             <TableBody>
               {ads.map((ad) => {
-                  const hasImage = ad.imageUrls && ad.imageUrls.length > 0;
+                  const hasImage = ad.imageUrls && ad.imageUrls.length > 0 && ad.imageUrls[0];
                   return (
                     <TableRow key={ad.id}>
                       <TableCell>
@@ -183,7 +184,7 @@ export default function AdModerationList() {
                         {getStatusBadge(ad.status)}
                       </TableCell>
                       <TableCell className="hidden sm:table-cell">
-                        {ad.postedAt ? formatDistanceToNow(new Date(ad.postedAt), { addSuffix: true, locale: dateLocale }) : ''}
+                        {ad.postedAt ? formatDistanceToNow(safeParseDate(ad.postedAt), { addSuffix: true, locale: dateLocale }) : ''}
                       </TableCell>
                       <TableCell className="text-right">
                         <div className="flex gap-2 justify-end">

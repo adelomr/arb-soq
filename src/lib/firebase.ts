@@ -7,12 +7,12 @@ import { getStorage } from "firebase/storage";
 import { getAnalytics, Analytics } from "firebase/analytics";
 
 const firebaseConfig = {
-  apiKey: "AIzaSyDsWvaFXkvlIVAMnpMGxuE8Agde2L2RvVc",
-  authDomain: "arb-sooq.firebaseapp.com",
-  projectId: "arb-sooq",
-  storageBucket: "arb-sooq.firebasestorage.app",
-  messagingSenderId: "950242504248",
-  appId: "1:950242504248:web:8226bf3510954d301200cd",
+  apiKey: "AIzaSyDpWBWFpS7NWvkAGR2FZlrH901qVwB0Iww",
+  authDomain: "arb-soq.firebaseapp.com",
+  projectId: "arb-soq",
+  storageBucket: "arb-soq.firebasestorage.app",
+  messagingSenderId: "264703833176",
+  appId: "1:264703833176:web:a66bad059758a42fc3862d",
 };
 
 // Initialize Firebase
@@ -20,7 +20,8 @@ const app: FirebaseApp = !getApps().length ? initializeApp(firebaseConfig) : get
 
 const auth = getAuth(app);
 const firestore = initializeFirestore(app, {
-  experimentalForceLongPolling: true,
+  experimentalAutoDetectLongPolling: true,
+  ignoreUndefinedProperties: true,
 });
 const database = getDatabase(app);
 const storage = getStorage(app);

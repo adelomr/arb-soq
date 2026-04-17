@@ -145,7 +145,7 @@ export default function SignUpForm() {
           profession: data.profession,
           specialization: data.specialization,
           phoneNumber: fullPhoneNumber,
-      });
+      }, user.photoURL || undefined);
       
       toast({
         title: t.registrationComplete,
