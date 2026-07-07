@@ -46,8 +46,8 @@ export default function Ads({
         if (mutation.type === 'childList' && adElement.hasChildNodes()) {
           // Check if what was added is an actual ad
           const iframe = adElement.querySelector('iframe');
-          const ins = adElement.querySelector('ins.adsbygoogle');
-          if (iframe || (ins && (ins as HTMLElement).dataset.adStatus === 'filled')) {
+          const ins = adElement.querySelector('ins.adsbygoogle') as HTMLElement | null;
+          if (iframe || (ins && ins.dataset.adStatus === 'filled')) {
             setIsAdVisible(true);
             observer.disconnect();
             return;

@@ -3,6 +3,7 @@
 
 import { useState, useEffect, useCallback, FormEvent, useRef } from 'react';
 import { Map, Marker, Point } from "pigeon-maps";
+const MapMarker = Marker as any;
 import { Button } from './ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { Loader2, Check, LocateFixed, Layers, Search, Camera } from 'lucide-react';
@@ -279,8 +280,9 @@ export default function LocationPicker({ onLocationSelect }: LocationPickerProps
           }}
           onClick={({ latLng }) => setMarkerPosition(latLng)}
         >
-          <Marker
+          <MapMarker
             width={40}
+            draggable={true}
             anchor={markerPosition}
             onDragEnd={handleMarkerDragEnd}
             render={() => <CustomMarker />}

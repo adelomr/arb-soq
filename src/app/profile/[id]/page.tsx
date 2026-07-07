@@ -3,17 +3,17 @@
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import { User, MapPin, Target, MessageCircle, StarHalf, Loader2 } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useState, use } from "react";
 import { doc, getDoc } from "firebase/firestore";
 import { firestore } from "@/lib/firebase";
 import { notFound } from "next/navigation";
 
 interface Props {
-  params: { id: string };
+  params: Promise<{ id: string }>;
 }
 
 export default function UserProfilePage({ params }: Props) {
-  const { id } = params;
+  const { id } = use(params);
   const [user, setUser] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
