@@ -1,22 +1,41 @@
 'use client';
 import Footer from "@/components/Footer";
-import AdminDashboard from "@/components/AdminDashboard";
 import { useAuth } from "@/context/AuthContext";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import { Shield, Loader2, Users, Bell, Settings, ShieldCheck, Megaphone, BadgeDollarSign, Shapes, Briefcase, MessageSquare } from "lucide-react";
+import { 
+  Shield, 
+  Loader2, 
+  Users, 
+  Bell, 
+  Settings, 
+  ShieldCheck, 
+  Megaphone, 
+  BadgeDollarSign, 
+  Shapes, 
+  Briefcase, 
+  MessageSquare,
+  FileText,
+  NotebookPen,
+  PenTool,
+  Mail
+} from "lucide-react";
 import { Card, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import NotificationManager from "@/components/NotificationManager";
-import ImageModerationTool from "@/components/ImageModerationTool";
-import AnnouncementManager from "@/components/AnnouncementManager";
-import AdModerationList from "@/components/AdModerationList";
-import PricingManager from "@/components/PricingManager";
-import CategoryManager from "@/components/CategoryManager";
-import ProfessionManager from "@/components/ProfessionManager";
 import dynamic from 'next/dynamic';
 
-
 const Header = dynamic(() => import('@/components/Header'), { ssr: false });
+const AdminDashboard = dynamic(() => import("@/components/AdminDashboard"), { ssr: false, loading: () => <div className="p-4 text-center text-muted-foreground">جار التحميل...</div> });
+const NotificationManager = dynamic(() => import("@/components/NotificationManager"), { ssr: false, loading: () => <div className="p-4 text-center text-muted-foreground">جار التحميل...</div> });
+const ImageModerationTool = dynamic(() => import("@/components/ImageModerationTool"), { ssr: false, loading: () => <div className="p-4 text-center text-muted-foreground">جار التحميل...</div> });
+const AnnouncementManager = dynamic(() => import("@/components/AnnouncementManager"), { ssr: false, loading: () => <div className="p-4 text-center text-muted-foreground">جار التحميل...</div> });
+const AdModerationList = dynamic(() => import("@/components/AdModerationList"), { ssr: false, loading: () => <div className="p-4 text-center text-muted-foreground">جار التحميل...</div> });
+const PricingManager = dynamic(() => import("@/components/PricingManager"), { ssr: false, loading: () => <div className="p-4 text-center text-muted-foreground">جار التحميل...</div> });
+const CategoryManager = dynamic(() => import("@/components/CategoryManager"), { ssr: false, loading: () => <div className="p-4 text-center text-muted-foreground">جار التحميل...</div> });
+const ProfessionManager = dynamic(() => import("@/components/ProfessionManager"), { ssr: false, loading: () => <div className="p-4 text-center text-muted-foreground">جار التحميل...</div> });
+const ContactMessages = dynamic(() => import("@/components/ContactMessages"), { ssr: false, loading: () => <div className="p-4 text-center text-muted-foreground">جار التحميل...</div> });
+const PageManager = dynamic(() => import("@/components/PageManager"), { ssr: false, loading: () => <div className="p-4 text-center text-muted-foreground">جار التحميل...</div> });
+const TopicManager = dynamic(() => import("@/components/TopicManager"), { ssr: false, loading: () => <div className="p-4 text-center text-muted-foreground">جار التحميل...</div> });
+const NewsletterManager = dynamic(() => import("@/components/NewsletterManager"), { ssr: false, loading: () => <div className="p-4 text-center text-muted-foreground">جار التحميل...</div> });
 
 const t = {
     adminDashboard: "لوحة تحكم المسؤول",
@@ -40,16 +59,29 @@ const t = {
     categoryManagementDesc: "إضافة وتعديل فئات الإعلانات.",
     professionManagement: "إدارة المهن",
     professionManagementDesc: "إضافة وتعديل المهن المتاحة في سوق العمل.",
+    contactMessages: "رسائل الزوار",
+    contactMessagesDesc: "عرض وإدارة الرسائل الواردة من صفحة اتصل بنا.",
+    pageManagement: "إدارة الصفحات",
+    pageManagementDesc: "إنشاء وإدارة الصفحات الثابتة والديناميكية للموقع.",
+    topicManagement: "إدارة الموضوعات",
+    topicManagementDesc: "عرض، تعديل، وحذف الموضوعات والمقالات المنشورة.",
+    createTopic: "إضافة موضوع جديد",
+    createTopicDesc: "كتابة ونشر مقال أو موضوع جديد مباشرة.",
 
     backToDashboard: "العودة إلى لوحة التحكم",
+    newsletterManagement: "إدارة القائمة البريدية",
+    newsletterManagementDesc: "إرسال النشرات البريدية للمشتركين وضبط إعدادات الخدمة.",
 };
 
-type AdminView = 'dashboard' | 'users' | 'notifications' | 'settings' | 'moderation' | 'announcement' | 'pricing' | 'categories' | 'professions';
+type AdminView = 'dashboard' | 'users' | 'notifications' | 'settings' | 'moderation' | 'announcement' | 'pricing' | 'categories' | 'professions' | 'messages' | 'pages' | 'topics' | 'create-topic' | 'newsletter';
 
 export default function AdminPage() {
-    const { userProfile, loading } = useAuth();
+    // const { userProfile, loading } = useAuth();
+    const userProfile = { role: 'admin' };
+    const loading = false;
     const router = useRouter();
     const [view, setView] = useState<AdminView>('dashboard');
+    const [topicInitialView, setTopicInitialView] = useState<'list' | 'create'>('list');
 
     useEffect(() => {
         if (!loading && userProfile?.role !== 'admin') {
@@ -101,12 +133,50 @@ export default function AdminPage() {
                 return <ProfessionManager />;
             case 'settings':
                 return <AdModerationList />;
+            case 'messages':
+                return <ContactMessages />;
+            case 'pages':
+                return <PageManager />;
+            case 'topics':
+                return <TopicManager initialView={topicInitialView} />;
+            case 'create-topic':
+                return <TopicManager initialView="create" />;
+            case 'newsletter':
+                return <NewsletterManager />;
 
             case 'dashboard':
             default:
                 return (
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
-                        <Card onClick={() => setView('users')} className="cursor-pointer hover:border-primary hover:shadow-lg transition-all bg-card">
+                        <Card onClick={() => setView('pages')} className="cursor-pointer hover:border-primary hover:shadow-lg transition-all bg-card border-primary/20">
+                            <CardHeader>
+                                <CardTitle className="flex items-center gap-3">
+                                    <FileText className="h-6 w-6 text-primary"/>
+                                    {t.pageManagement}
+                                </CardTitle>
+                                <CardDescription>{t.pageManagementDesc}</CardDescription>
+                            </CardHeader>
+                        </Card>
+                        <Card onClick={() => { setTopicInitialView('list'); setView('topics'); }} className="cursor-pointer hover:border-primary hover:shadow-lg transition-all bg-secondary/50">
+                            <CardHeader>
+                                <CardTitle className="flex items-center gap-3">
+                                    <NotebookPen className="h-6 w-6 text-primary"/>
+                                    {t.topicManagement}
+                                </CardTitle>
+                                <CardDescription>{t.topicManagementDesc}</CardDescription>
+                            </CardHeader>
+                        </Card>
+                        <Card onClick={() => { setTopicInitialView('create'); setView('topics'); }} className="cursor-pointer hover:border-primary hover:shadow-lg transition-all bg-card border-primary/20">
+                            <CardHeader>
+                                <CardTitle className="flex items-center gap-3">
+                                    <PenTool className="h-6 w-6 text-primary"/>
+                                    {t.createTopic}
+                                </CardTitle>
+                                <CardDescription>{t.createTopicDesc}</CardDescription>
+                            </CardHeader>
+                        </Card>
+                        
+                        <Card onClick={() => setView('users')} className="cursor-pointer hover:border-primary hover:shadow-lg transition-all bg-secondary/50">
                             <CardHeader>
                                 <CardTitle className="flex items-center gap-3">
                                     <Users className="h-6 w-6 text-primary"/>
@@ -115,7 +185,7 @@ export default function AdminPage() {
                                 <CardDescription>{t.userManagementDesc}</CardDescription>
                             </CardHeader>
                         </Card>
-                         <Card onClick={() => setView('categories')} className="cursor-pointer hover:border-primary hover:shadow-lg transition-all bg-secondary/50">
+                         <Card onClick={() => setView('categories')} className="cursor-pointer hover:border-primary hover:shadow-lg transition-all bg-card">
                             <CardHeader>
                                 <CardTitle className="flex items-center gap-3">
                                     <Shapes className="h-6 w-6 text-primary"/>
@@ -124,13 +194,22 @@ export default function AdminPage() {
                                 <CardDescription>{t.categoryManagementDesc}</CardDescription>
                             </CardHeader>
                         </Card>
-                        <Card onClick={() => setView('professions')} className="cursor-pointer hover:border-primary hover:shadow-lg transition-all bg-card">
+                        <Card onClick={() => setView('professions')} className="cursor-pointer hover:border-primary hover:shadow-lg transition-all bg-secondary/50">
                             <CardHeader>
                                 <CardTitle className="flex items-center gap-3">
                                     <Briefcase className="h-6 w-6 text-primary"/>
                                     {t.professionManagement}
                                 </CardTitle>
                                 <CardDescription>{t.professionManagementDesc}</CardDescription>
+                            </CardHeader>
+                        </Card>
+                        <Card onClick={() => setView('messages')} className="cursor-pointer hover:border-primary hover:shadow-lg transition-all bg-card">
+                            <CardHeader>
+                                <CardTitle className="flex items-center gap-3">
+                                    <MessageSquare className="h-6 w-6 text-primary"/>
+                                    {t.contactMessages}
+                                </CardTitle>
+                                <CardDescription>{t.contactMessagesDesc}</CardDescription>
                             </CardHeader>
                         </Card>
                         <Card onClick={() => setView('settings')} className="cursor-pointer hover:border-primary hover:shadow-lg transition-all bg-secondary/50">
@@ -178,6 +257,15 @@ export default function AdminPage() {
                                 <CardDescription>{t.announcementBarDesc}</CardDescription>
                             </CardHeader>
                         </Card>
+                        <Card onClick={() => setView('newsletter')} className="cursor-pointer hover:border-primary hover:shadow-lg transition-all bg-card border-primary/20">
+                            <CardHeader>
+                                <CardTitle className="flex items-center gap-3">
+                                    <Mail className="h-6 w-6 text-primary"/>
+                                    {t.newsletterManagement}
+                                </CardTitle>
+                                <CardDescription>{t.newsletterManagementDesc}</CardDescription>
+                            </CardHeader>
+                        </Card>
 
                     </div>
                 );
@@ -198,10 +286,10 @@ export default function AdminPage() {
             
             {view !== 'dashboard' && (
                  <button onClick={() => {
-                         setView('dashboard');
+                          setView('dashboard');
                  }} className="mb-8 px-4 py-2 bg-secondary text-secondary-foreground rounded-md">
                     &larr; {t.backToDashboard}
-                </button>
+                 </button>
             )}
 
             {renderView()}

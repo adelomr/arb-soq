@@ -102,9 +102,9 @@ export default function AdRow({ ad }: AdRowProps) {
              <div className="flex items-center gap-2">
                 <Avatar className="h-6 w-6">
                     <AvatarImage src={ad.user?.avatarUrl} alt={ad.user?.name} />
-                    <AvatarFallback>{ad.user?.name?.[0].toUpperCase()}</AvatarFallback>
+                    <AvatarFallback>{ad.user?.name?.[0]?.toUpperCase() || '؟'}</AvatarFallback>
                 </Avatar>
-                <span className="truncate">{ad.user?.name}</span>
+                <span className="truncate">{ad.user?.name || 'مستخدم سوق العرب'}</span>
              </div>
              <div className="flex items-center gap-2">
                 <Calendar className="w-4 h-4" />

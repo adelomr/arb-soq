@@ -47,7 +47,7 @@ export default function Ads({
           // Check if what was added is an actual ad
           const iframe = adElement.querySelector('iframe');
           const ins = adElement.querySelector('ins.adsbygoogle');
-          if (iframe || (ins && ins.dataset.adStatus === 'filled')) {
+          if (iframe || (ins && (ins as HTMLElement).dataset.adStatus === 'filled')) {
             setIsAdVisible(true);
             observer.disconnect();
             return;

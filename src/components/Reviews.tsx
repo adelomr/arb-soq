@@ -172,7 +172,7 @@ export default function Reviews({ seller }: ReviewsProps) {
               <div key={review.id}>
                 <div className="flex items-start gap-4">
                   <Avatar>
-                    <AvatarFallback>{review.reviewerName?.[0].toUpperCase()}</AvatarFallback>
+                    <AvatarFallback>{review.reviewerName?.[0]?.toUpperCase() || '؟'}</AvatarFallback>
                   </Avatar>
                   <div className="flex-1">
                     <div className="flex items-center justify-between">

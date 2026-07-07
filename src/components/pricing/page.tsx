@@ -9,7 +9,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Check, Loader2, Award, Gem, Star, X } from "lucide-react";
 import { useLanguage } from "@/context/LanguageContext";
 import { useMarket } from '@/context/MarketContext';
-import { useAuth, PricingStructure } from "@/context/AuthContext";
+import { useAuth } from "@/context/AuthContext";
+import type { PricingStructure } from "@/lib/types";
 import { useToast } from "@/hooks/use-toast";
 import { useRouter } from 'next/navigation';
 import { createPaymobPayment } from '@/app/actions';
@@ -171,12 +172,12 @@ export default function PricingPage() {
 
                             {/* Feature Rows */}
                             {featuresOrder.map(featureKey => {
-                                const featureName = {
+                                const featureName = (({
                                   images: "عدد الصور",
                                   search: "الظهور بالبحث",
                                   highlight: "تمييز الإعلان",
                                   extend: "إمكانية التمديد"
-                                }[featureKey];
+                                } as Record<string, string>)[featureKey as string]);
                                 
                                 return (
                                     <React.Fragment key={featureKey}>
@@ -264,7 +265,7 @@ export default function PricingPage() {
                                             <ul className="space-y-3 text-muted-foreground mb-8 text-sm text-left">
                                                 {featuresOrder.map(featureKey => {
                                                     const feature = plan.features[featureKey];
-                                                    const featureName = {images: "عدد الصور", search: "الظهور بالبحث", highlight: "تمييز الإعلان", extend: "إمكانية التمديد"}[featureKey];
+                                                    const featureName = ({images: "عدد الصور", search: "الظهور بالبحث", highlight: "تمييز الإعلان", extend: "إمكانية التمديد"} as Record<string, string>)[featureKey as string];
                                                     
                                                     return (
                                                         <li key={featureKey} className="flex items-center gap-3">

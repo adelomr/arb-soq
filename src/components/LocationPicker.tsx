@@ -281,7 +281,6 @@ export default function LocationPicker({ onLocationSelect }: LocationPickerProps
         >
           <Marker
             width={40}
-            draggable={true}
             anchor={markerPosition}
             onDragEnd={handleMarkerDragEnd}
             render={() => <CustomMarker />}

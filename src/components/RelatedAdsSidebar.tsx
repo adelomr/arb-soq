@@ -17,7 +17,12 @@ const t = {
     loading: 'جارٍ التحميل...',
 };
 
-export default function RelatedAdsSidebar() {
+interface RelatedAdsSidebarProps {
+  category?: string;
+  currentAdId?: string;
+}
+
+export default function RelatedAdsSidebar({ category, currentAdId }: RelatedAdsSidebarProps) {
   const { getAds } = useAuth();
   const { market } = useMarket();
   const [mostViewedAds, setMostViewedAds] = useState<Ad[]>([]);
@@ -28,15 +33,23 @@ export default function RelatedAdsSidebar() {
     const unsubscribe = getAds(
       { status: 'active', market: market.id, limit: 10 },
       (fetchedAds) => {
-        const validAds = fetchedAds.filter(ad => ad.imageUrls && ad.imageUrls.length > 0 && ad.imageUrls[0]);
-        const sortedByViews = [...validAds].sort((a, b) => (b.views || 0) - (a.views || 0));
-        setMostViewedAds(sortedByViews.slice(0, 5));
+        let filtered = fetchedAds.filter(ad => ad.id !== currentAdId && ad.imageUrls && ad.imageUrls.length > 0 && ad.imageUrls[0]);
+        
+        // ترتيب الإعلانات بحيث تظهر إعلانات نفس القسم أولاً ثم الأقسام الأخرى، وكلاهما مرتب بالأكثر مشاهدة
+        const sameCategory = filtered.filter(ad => ad.category === category);
+        const otherCategories = filtered.filter(ad => ad.category !== category);
+        
+        sameCategory.sort((a, b) => (b.views || 0) - (a.views || 0));
+        otherCategories.sort((a, b) => (b.views || 0) - (a.views || 0));
+        
+        const combined = [...sameCategory, ...otherCategories];
+        setMostViewedAds(combined.slice(0, 5));
         setLoading(false);
       }
     );
 
     return () => unsubscribe();
-  }, [getAds, market.id]);
+  }, [getAds, market.id, category, currentAdId]);
 
   const currencyFormatter = new Intl.NumberFormat('ar-SA', {
     style: 'currency',

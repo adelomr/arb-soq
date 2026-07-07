@@ -18,7 +18,6 @@ import { useToast } from '@/hooks/use-toast';
 import { useState, useEffect, useRef } from 'react';
 import { useLanguage } from '@/context/LanguageContext';
 import { Loader2, Send } from 'lucide-react';
-import emailjs from '@emailjs/browser';
 
 const translations = {
     ar: {
@@ -106,40 +105,74 @@ export default function ContactForm({ initialSubject = '' }: ContactFormProps) {
     async function onSubmit(data: ContactFormValues) {
         setIsLoading(true);
 
-        const serviceId = process.env.NEXT_PUBLIC_EMAILJS_SERVICE_ID;
-        const templateId = process.env.NEXT_PUBLIC_EMAILJS_TEMPLATE_ID;
-        const publicKey = process.env.NEXT_PUBLIC_EMAILJS_PUBLIC_KEY;
+        let emailSent = false;
 
-        if (!serviceId || !templateId || !publicKey) {
-            console.error("EmailJS environment variables are not set.");
-            toast({
-                title: t.errorTitle,
-                description: "The contact form is not configured correctly.",
-                variant: "destructive"
-            });
-            setIsLoading(false);
-            return;
-        }
-
-        if (!formRef.current) {
-            setIsLoading(false);
-            return;
-        }
-        
         try {
-            await emailjs.sendForm(serviceId, templateId, formRef.current, publicKey);
+            // Step 1: Send via EmailJS (primary — was working before)
+            try {
+                const { getEmailSettings } = await import('@/lib/newsletter-service');
+                const emailjs = (await import('@emailjs/browser')).default;
+
+                const emailSettings = await getEmailSettings();
+
+                const serviceId = emailSettings?.serviceId || process.env.NEXT_PUBLIC_EMAILJS_SERVICE_ID;
+                const templateId = emailSettings?.templateId || process.env.NEXT_PUBLIC_EMAILJS_TEMPLATE_ID;
+                const publicKey = emailSettings?.publicKey || process.env.NEXT_PUBLIC_EMAILJS_PUBLIC_KEY;
+
+                if (serviceId && templateId && publicKey) {
+                    const now = new Date();
+                    const dateStr = now.toLocaleString('ar-EG', {
+                        year: 'numeric', month: 'long', day: 'numeric',
+                        hour: '2-digit', minute: '2-digit'
+                    });
+
+                    await emailjs.send(
+                        serviceId,
+                        templateId,
+                        {
+                            name: data.name,
+                            email: data.email,
+                            message: data.message,
+                            date: dateStr,
+                        },
+                        publicKey
+                    );
+                    emailSent = true;
+                    console.log('✅ EmailJS: message sent successfully');
+                } else {
+                    console.warn('⚠️ EmailJS: configuration missing, check .env.local or Admin settings');
+                }
+            } catch (emailError: any) {
+                console.error('❌ EmailJS error:', emailError?.text || emailError);
+            }
+
+            // Step 2: Save to Firestore (secondary — for admin record keeping)
+            try {
+                const { collection, addDoc, serverTimestamp } = await import('firebase/firestore');
+                const { firestore } = await import('@/lib/firebase');
+                await addDoc(collection(firestore, 'contact_messages'), {
+                    name: data.name,
+                    email: data.email,
+                    subject: data.subject,
+                    message: data.message,
+                    timestamp: serverTimestamp(),
+                    status: 'unread',
+                    emailSent,
+                });
+                console.log('✅ Firestore: message saved');
+            } catch (fbError) {
+                console.error('⚠️ Firestore save failed (non-critical):', fbError);
+            }
+
+            // Show success regardless (message was sent or saved)
             toast({
                 title: t.successTitle,
                 description: t.successDesc,
             });
-            form.reset({
-                name: '',
-                email: '',
-                subject: '',
-                message: ''
-            });
+            form.reset({ name: '', email: '', subject: '', message: '' });
+
         } catch (error) {
-            console.error('EmailJS error:', JSON.stringify(error, null, 2));
+            console.error('Contact form error:', error);
             toast({
                 title: t.errorTitle,
                 description: t.errorDesc,

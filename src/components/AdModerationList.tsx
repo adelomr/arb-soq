@@ -9,7 +9,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Check, Loader2, X, AlertCircle, ImageIcon } from 'lucide-react';
+import { Check, Loader2, X, AlertCircle, ImageIcon, Play } from 'lucide-react';
 import { useLanguage } from '@/context/LanguageContext';
 import { useToast } from '@/hooks/use-toast';
 import { formatDistanceToNow } from 'date-fns';
@@ -28,23 +28,28 @@ const translations = {
     approve: 'موافقة',
     reject: 'رفض',
     stop: 'إيقاف',
+    activate: 'تفعيل',
     approving: 'جارٍ الموافقة...',
     rejecting: 'جارٍ الرفض...',
     stopping: 'جارٍ الإيقاف...',
+    activating: 'جارٍ التفعيل...',
     noPendingAds: 'لا توجد إعلانات للمراجعة حاليًا.',
     adApproved: 'تمت الموافقة على الإعلان بنجاح.',
     adRejected: 'تم رفض الإعلان بنجاح.',
     adStopped: 'تم إيقاف الإعلان بنجاح.',
+    adActivated: 'تم تفعيل الإعلان بنجاح.',
     errorOccurred: 'حدث خطأ. الرجاء المحاولة مرة أخرى.',
     loading: 'جارٍ تحميل الإعلانات...',
     status: 'الحالة',
     active: 'نشط',
     pending: 'قيد المراجعة',
+    stopped: 'موقوف',
+    rejected: 'مرفوض',
   }
 };
 
 type AdWithId = Ad & { id: string };
-type ActionType = 'approve' | 'reject' | 'stop';
+type ActionType = 'approve' | 'reject' | 'stop' | 'activate';
 
 export default function AdModerationList() {
   const { getAdsForModeration, updateAdStatus } = useAuth();
@@ -70,7 +75,7 @@ export default function AdModerationList() {
     
     try {
       const isStoreProduct = ad.category === 'store-product';
-      await updateAdStatus(ad.user.id, ad.id, status, isStoreProduct);
+      await updateAdStatus(ad.userId, ad.id, status, isStoreProduct);
       toast({
         title: action === 'approve' ? t.adApproved : t.adRejected,
       });
@@ -86,15 +91,37 @@ export default function AdModerationList() {
     }
   };
   
-    const handleStopAd = async (ad: AdWithId) => {
+  const handleStopAd = async (ad: AdWithId) => {
     setUpdatingId(ad.id);
     setCurrentAction('stop');
     
     try {
       const isStoreProduct = ad.category === 'store-product';
-      await updateAdStatus(ad.user.id, ad.id, 'rejected', isStoreProduct);
+      await updateAdStatus(ad.userId, ad.id, 'rejected', isStoreProduct);
       toast({
         title: t.adStopped,
+      });
+    } catch (error) {
+      toast({
+        title: t.errorOccurred,
+        variant: 'destructive',
+      });
+      console.error(error);
+    } finally {
+      setUpdatingId(null);
+      setCurrentAction(null);
+    }
+  };
+
+  const handleActivateAd = async (ad: AdWithId) => {
+    setUpdatingId(ad.id);
+    setCurrentAction('activate');
+    
+    try {
+      const isStoreProduct = ad.category === 'store-product';
+      await updateAdStatus(ad.userId, ad.id, 'active', isStoreProduct);
+      toast({
+        title: t.adActivated,
       });
     } catch (error) {
       toast({
@@ -114,6 +141,8 @@ export default function AdModerationList() {
               return <Badge variant="secondary" className="border-green-500/50 bg-green-500/10 text-green-700">{t.active}</Badge>;
           case 'pending':
               return <Badge variant="secondary" className="border-yellow-500/50 bg-yellow-500/10 text-yellow-700">{t.pending}</Badge>;
+          case 'rejected':
+              return <Badge variant="secondary" className="border-red-500/50 bg-red-500/10 text-red-700">{t.stopped}</Badge>;
           default:
               return <Badge variant="outline">{status}</Badge>;
       }
@@ -176,8 +205,8 @@ export default function AdModerationList() {
                       </TableCell>
                        <TableCell className="hidden md:table-cell">
                          <div className="flex items-center gap-2">
-                            <Image src={ad.user.avatarUrl!} alt={ad.user.name} width={24} height={24} className="rounded-full"/>
-                            <span>{ad.user.name}</span>
+                            {ad.user?.avatarUrl && <Image src={ad.user.avatarUrl} alt={ad.user.name || ''} width={24} height={24} className="rounded-full"/>}
+                            <span>{ad.user?.name || ad.userId}</span>
                         </div>
                        </TableCell>
                       <TableCell className="hidden sm:table-cell">
@@ -220,6 +249,18 @@ export default function AdModerationList() {
                              >
                                 {isLoadingAction(ad.id, 'stop') ? <Loader2 className="h-4 w-4 animate-spin" /> : <X className="h-4 w-4" />}
                                 <span className="hidden lg:inline ml-2">{t.stop}</span>
+                             </Button>
+                          )}
+                          {ad.status === 'rejected' && (
+                             <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => handleActivateAd(ad)}
+                                disabled={updatingId === ad.id}
+                                className="text-green-600 border-green-600 hover:bg-green-50 hover:text-green-700"
+                             >
+                                {isLoadingAction(ad.id, 'activate') ? <Loader2 className="h-4 w-4 animate-spin" /> : <Play className="h-4 w-4" />}
+                                <span className="hidden lg:inline ml-2">{t.activate}</span>
                              </Button>
                           )}
                         </div>

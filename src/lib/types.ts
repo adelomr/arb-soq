@@ -69,6 +69,9 @@ export type Ad = {
   imageUrl?: string; // Android compatibility
   isPremium?: boolean; // Premium sponsored ad
   premiumExpiresAt?: number; // Expiration timestamp for premium status
+  playlistUrl?: string; // YouTube playlist URL for video ads
+  phoneNumber?: string; // Optional phone number for image ads
+  audioUrl?: string; // Optional audio URL for image slideshow ads (max 30 seconds)
 };
 
 export type Category = {
@@ -199,3 +202,53 @@ export type SiteStats = {
     totalVisits: number;
     totalStores: number;
 };
+
+export type PageType = 'system' | 'legal' | 'landing';
+
+export type LandingTheme = 'default' | 'greenery' | 'dark-luxury' | 'corporate-blue';
+
+export interface LandingFeature {
+  title: string;
+  desc: string;
+  iconName?: string;
+}
+
+export interface LandingTestimonial {
+  name: string;
+  review: string;
+  rating?: number;
+}
+
+export interface LandingFaq {
+  question: string;
+  answer: string;
+}
+
+export interface PageData {
+  id?: string;
+  slug: string;
+  title: string;
+  content: string;
+  isPublished: boolean;
+  pageType?: PageType;   // 'system' | 'legal' | 'landing'
+  shortCode?: string;    // رمز قصير للرابط /l/[shortCode] — لصفحات الهبوط فقط
+  description?: string;  // وصف مختصر لصفحة الهبوط (للـ SEO والفوتر)
+  createdAt?: any;
+  updatedAt?: any;
+  countdown?: number;
+  views?: number;
+  // === حقول صفحات الهبوط الاحترافية ===
+  coverImageUrl?: string;      // صورة الغلاف الكبيرة (Hero)
+  logoUrl?: string;            // شعار الجهة أو المنتج
+  subtitle?: string;           // العنوان الفرعي
+  whatsappNumber?: string;     // رقم الواتساب (بدون +)
+  whatsappMessage?: string;    // رسالة الواتساب الجاهزة
+  phoneNumber?: string;        // رقم الاتصال المباشر
+  theme?: LandingTheme;        // ثيم الصفحة البصري
+  features?: LandingFeature[]; // مميزات الخدمة/المنتج
+  gallery?: string[];          // معرض الصور
+  testimonials?: LandingTestimonial[]; // آراء العملاء
+  faqs?: LandingFaq[];         // الأسئلة الشائعة
+  locationEmbed?: string;      // رابط خرائط جوجل المضمّن
+}
+

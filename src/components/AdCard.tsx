@@ -4,7 +4,7 @@ import type { Ad, UserProfile } from '@/lib/types';
 import Image from 'next/image';
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { MapPin, Tag, Star, Wrench, Handshake, ShoppingCart, PlusCircle, Store, Share2, Facebook, Twitter, ImageIcon } from 'lucide-react';
+import { MapPin, Tag, Star, Wrench, Handshake, ShoppingCart, PlusCircle, Store, Share2, Facebook, Twitter, ImageIcon, Eye } from 'lucide-react';
 import Link from 'next/link';
 import { useMarket } from '@/context/MarketContext';
 import { useAuth } from '@/context/AuthContext';
@@ -169,19 +169,31 @@ export default function AdCard({ ad }: AdCardProps) {
                 <div className="flex-grow"></div>
                 <div className="flex items-center justify-between w-full text-xs mt-2 pt-2 border-t">
                     {!isStoreProduct && (
-                        <div className="flex items-center gap-1 text-muted-foreground">
-                            <MapPin className="w-4 h-4" />
-                            <span>{ad.location}</span>
+                        <div className="flex items-center gap-3 text-muted-foreground">
+                            <div className="flex items-center gap-1">
+                                <MapPin className="w-3.5 h-3.5" />
+                                <span>{ad.location}</span>
+                            </div>
+                            <div className="flex items-center gap-1">
+                                <Eye className="w-3.5 h-3.5 text-muted-foreground/75" />
+                                <span>{ad.views || 0}</span>
+                            </div>
                         </div>
                     )}
                     {isStoreProduct && adUser?.store && (
-                        <div 
-                           onClick={handleStoreClick}
-                           className="inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold transition-colors hover:opacity-80 cursor-pointer truncate"
-                           style={storeColorStyle ? { backgroundColor: storeColorStyle.backgroundColor, color: storeColorStyle.textColor, borderColor: storeColorStyle.textColor } : {}}
-                        >
-                            <Store className="h-3 w-3 mr-1"/>
-                            <span className="truncate">{adUser.store.storeName}</span>
+                        <div className="flex items-center gap-3">
+                            <div 
+                               onClick={handleStoreClick}
+                               className="inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold transition-colors hover:opacity-80 cursor-pointer truncate"
+                               style={storeColorStyle ? { backgroundColor: storeColorStyle.backgroundColor, color: storeColorStyle.textColor, borderColor: storeColorStyle.textColor } : {}}
+                            >
+                                <Store className="h-3 w-3 mr-1"/>
+                                <span className="truncate">{adUser.store.storeName}</span>
+                            </div>
+                            <div className="flex items-center gap-1 text-muted-foreground">
+                                <Eye className="w-3.5 h-3.5 text-muted-foreground/75" />
+                                <span>{ad.views || 0}</span>
+                            </div>
                         </div>
                     )}
                     {!!ad.price && Number(ad.price) > 0 && (

@@ -11,8 +11,10 @@ import {
   orderBy, 
   limit, 
   where,
-  serverTimestamp 
+  serverTimestamp,
+  increment
 } from 'firebase/firestore';
+
 
 export interface BlogPost {
   id?: string;
@@ -20,9 +22,43 @@ export interface BlogPost {
   title: string;
   content: string;
   author: string;
+  authorAvatar?: string;
+  authorBio?: string;
   imageUrl?: string;
   tags?: string[];
   createdAt?: any;
+  views?: number;
+}
+
+// Author settings stored in a global settings doc
+export interface AuthorSettings {
+  name: string;
+  avatar: string;
+  bio: string;
+}
+
+export async function getAuthorSettings(): Promise<AuthorSettings | null> {
+  try {
+    const { doc, getDoc } = await import('firebase/firestore');
+    const settingsDoc = await getDoc(doc(firestore, 'settings', 'author'));
+    if (settingsDoc.exists()) {
+      return settingsDoc.data() as AuthorSettings;
+    }
+    return null;
+  } catch (error) {
+    console.error('Error fetching author settings:', error);
+    return null;
+  }
+}
+
+export async function updateAuthorSettings(settings: AuthorSettings): Promise<void> {
+  try {
+    const { doc, setDoc } = await import('firebase/firestore');
+    await setDoc(doc(firestore, 'settings', 'author'), settings);
+  } catch (error) {
+    console.error('Error updating author settings:', error);
+    throw error;
+  }
 }
 
 const BLOGS_COLLECTION = 'blogs';
@@ -107,3 +143,16 @@ export function generateSlug(title: string): string {
     .replace(/[\s_-]+/g, '-')
     .replace(/^-+|-+$/g, '');
 }
+
+// Increment views for a blog post
+export async function incrementBlogViews(id: string): Promise<void> {
+  try {
+    const docRef = doc(firestore, BLOGS_COLLECTION, id);
+    await updateDoc(docRef, {
+      views: increment(1)
+    });
+  } catch (error) {
+    console.error('Error incrementing blog views:', error);
+  }
+}
+

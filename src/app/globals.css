@@ -151,3 +151,191 @@
     height: calc(100vh - 80px);
   }
 }
+
+/* === Professional Download Button Styles === */
+.download-btn-custom {
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 8px !important;
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%) !important;
+  color: #ffffff !important;
+  font-weight: 600 !important;
+  padding: 10px 20px !important;
+  border-radius: 8px !important;
+  text-decoration: none !important;
+  box-shadow: 0 4px 6px -1px rgba(16, 185, 129, 0.2), 0 2px 4px -1px rgba(16, 185, 129, 0.1) !important;
+  transition: all 0.2s ease-in-out !important;
+  margin: 8px 0 !important;
+  cursor: pointer !important;
+  border: none !important;
+  font-size: 14px !important;
+  user-select: none;
+}
+.download-btn-custom:hover {
+  background: linear-gradient(135deg, #059669 0%, #047857 100%) !important;
+  transform: translateY(-1px) !important;
+  box-shadow: 0 10px 15px -3px rgba(16, 185, 129, 0.3), 0 4px 6px -2px rgba(16, 185, 129, 0.05) !important;
+}
+.download-btn-custom:active {
+  transform: translateY(1px) !important;
+}
+.download-btn-custom svg {
+  display: inline-block;
+  vertical-align: middle;
+  flex-shrink: 0;
+}
+
+/* === Professional Contact Button Styles (WhatsApp & Call) === */
+
+/* 1. Editor-generated Buttons (using span.contact-btn-custom inside .contact-btn-wrapper) */
+.contact-btn-wrapper {
+  display: inline-flex !important;
+  text-decoration: none !important;
+  color: inherit !important;
+  border: none !important;
+  padding: 0 !important;
+  background: none !important;
+  box-shadow: none !important;
+  margin: 6px 4px !important;
+}
+
+span.contact-btn-custom {
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 8px !important;
+  color: #ffffff !important;
+  text-decoration: none !important;
+  font-weight: 700 !important;
+  padding: 10px 20px !important;
+  border-radius: 12px !important;
+  font-size: 14px !important;
+  transition: all 0.2s ease-in-out !important;
+  user-select: none !important;
+  cursor: pointer !important;
+  border: none !important;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1) !important;
+}
+
+span.contact-btn-custom[data-contact-btn="whatsapp"] {
+  background: linear-gradient(135deg, #25D366 0%, #128C7E 100%) !important;
+  box-shadow: 0 4px 12px rgba(37, 211, 102, 0.25) !important;
+}
+
+span.contact-btn-custom[data-contact-btn="whatsapp"]:hover {
+  background: linear-gradient(135deg, #20ba5a 0%, #0e7368 100%) !important;
+  transform: translateY(-2px) !important;
+  box-shadow: 0 8px 16px rgba(37, 211, 102, 0.4) !important;
+}
+
+span.contact-btn-custom[data-contact-btn="call"] {
+  background: linear-gradient(135deg, #3B82F6 0%, #1D4ED8 100%) !important;
+  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.25) !important;
+}
+
+span.contact-btn-custom[data-contact-btn="call"]:hover {
+  background: linear-gradient(135deg, #2563EB 0%, #1E40AF 100%) !important;
+  transform: translateY(-2px) !important;
+  box-shadow: 0 8px 16px rgba(59, 130, 246, 0.4) !important;
+}
+
+span.contact-btn-custom:active {
+  transform: translateY(1px) !important;
+}
+
+/* 2. Plain Links (tel: and wa.me) inside rich-text containers that are not wrapped in our custom button classes */
+.custom-page-content a[href^="tel:"]:not(.contact-btn-wrapper),
+.custom-page-content a[href*="wa.me"]:not(.contact-btn-wrapper),
+.custom-page-content a[href*="whatsapp.com"]:not(.contact-btn-wrapper),
+.prose a[href^="tel:"]:not(.contact-btn-wrapper),
+.prose a[href*="wa.me"]:not(.contact-btn-wrapper),
+.prose a[href*="whatsapp.com"]:not(.contact-btn-wrapper),
+.rich-content a[href^="tel:"]:not(.contact-btn-wrapper),
+.rich-content a[href*="wa.me"]:not(.contact-btn-wrapper),
+.rich-content a[href*="whatsapp.com"]:not(.contact-btn-wrapper),
+.dynamic-contact-desc a[href^="tel:"]:not(.contact-btn-wrapper),
+.dynamic-contact-desc a[href*="wa.me"]:not(.contact-btn-wrapper),
+.dynamic-contact-desc a[href*="whatsapp.com"]:not(.contact-btn-wrapper) {
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 8px !important;
+  color: #ffffff !important;
+  text-decoration: none !important;
+  font-weight: 700 !important;
+  padding: 10px 20px !important;
+  border-radius: 12px !important;
+  margin: 6px 4px !important;
+  font-size: 14px !important;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06) !important;
+  transition: all 0.2s ease-in-out !important;
+  vertical-align: middle !important;
+}
+
+/* WhatsApp Plain Link styling */
+.custom-page-content a[href*="wa.me"]:not(.contact-btn-wrapper),
+.custom-page-content a[href*="whatsapp.com"]:not(.contact-btn-wrapper),
+.prose a[href*="wa.me"]:not(.contact-btn-wrapper),
+.prose a[href*="whatsapp.com"]:not(.contact-btn-wrapper),
+.rich-content a[href*="wa.me"]:not(.contact-btn-wrapper),
+.rich-content a[href*="whatsapp.com"]:not(.contact-btn-wrapper),
+.dynamic-contact-desc a[href*="wa.me"]:not(.contact-btn-wrapper),
+.dynamic-contact-desc a[href*="whatsapp.com"]:not(.contact-btn-wrapper) {
+  background: linear-gradient(135deg, #25D366 0%, #128C7E 100%) !important;
+  box-shadow: 0 4px 12px rgba(37, 211, 102, 0.25) !important;
+}
+
+.custom-page-content a[href*="wa.me"]:not(.contact-btn-wrapper):hover,
+.custom-page-content a[href*="whatsapp.com"]:not(.contact-btn-wrapper):hover,
+.prose a[href*="wa.me"]:not(.contact-btn-wrapper):hover,
+.prose a[href*="whatsapp.com"]:not(.contact-btn-wrapper):hover,
+.rich-content a[href*="wa.me"]:not(.contact-btn-wrapper):hover,
+.rich-content a[href*="whatsapp.com"]:not(.contact-btn-wrapper):hover,
+.dynamic-contact-desc a[href*="wa.me"]:not(.contact-btn-wrapper):hover,
+.dynamic-contact-desc a[href*="whatsapp.com"]:not(.contact-btn-wrapper):hover {
+  background: linear-gradient(135deg, #20ba5a 0%, #0e7368 100%) !important;
+  transform: translateY(-2px) !important;
+  box-shadow: 0 8px 16px rgba(37, 211, 102, 0.4) !important;
+}
+
+/* Call Plain Link styling */
+.custom-page-content a[href^="tel:"]:not(.contact-btn-wrapper),
+.prose a[href^="tel:"]:not(.contact-btn-wrapper),
+.rich-content a[href^="tel:"]:not(.contact-btn-wrapper),
+.dynamic-contact-desc a[href^="tel:"]:not(.contact-btn-wrapper) {
+  background: linear-gradient(135deg, #3B82F6 0%, #1D4ED8 100%) !important;
+  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.25) !important;
+}
+
+.custom-page-content a[href^="tel:"]:not(.contact-btn-wrapper):hover,
+.prose a[href^="tel:"]:not(.contact-btn-wrapper):hover,
+.rich-content a[href^="tel:"]:not(.contact-btn-wrapper):hover,
+.dynamic-contact-desc a[href^="tel:"]:not(.contact-btn-wrapper):hover {
+  background: linear-gradient(135deg, #2563EB 0%, #1E40AF 100%) !important;
+  transform: translateY(-2px) !important;
+  box-shadow: 0 8px 16px rgba(59, 130, 246, 0.4) !important;
+}
+
+/* Auto-inject emoji icons to plain links if not already present in text */
+.custom-page-content a[href*="wa.me"]:not(.contact-btn-wrapper)::before,
+.custom-page-content a[href*="whatsapp.com"]:not(.contact-btn-wrapper)::before,
+.prose a[href*="wa.me"]:not(.contact-btn-wrapper)::before,
+.prose a[href*="whatsapp.com"]:not(.contact-btn-wrapper)::before,
+.rich-content a[href*="wa.me"]:not(.contact-btn-wrapper)::before,
+.rich-content a[href*="whatsapp.com"]:not(.contact-btn-wrapper)::before,
+.dynamic-contact-desc a[href*="wa.me"]:not(.contact-btn-wrapper)::before,
+.dynamic-contact-desc a[href*="whatsapp.com"]:not(.contact-btn-wrapper)::before {
+  content: "💬 ";
+  font-size: 1.1em;
+}
+
+.custom-page-content a[href^="tel:"]:not(.contact-btn-wrapper)::before,
+.prose a[href^="tel:"]:not(.contact-btn-wrapper)::before,
+.rich-content a[href^="tel:"]:not(.contact-btn-wrapper)::before,
+.dynamic-contact-desc a[href^="tel:"]:not(.contact-btn-wrapper)::before {
+  content: "📞 ";
+  font-size: 1.1em;
+}
+
+

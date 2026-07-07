@@ -11,7 +11,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
 import Image from 'next/image';
 import { AspectRatio } from '@/components/ui/aspect-ratio';
-import { MapPin, Tag, Calendar, User, Phone, MessageCircle, ZoomIn, ZoomOut, RotateCcw, Star, PlusCircle, ShoppingCart, Globe, Hash, Package } from 'lucide-react';
+import { MapPin, Tag, Calendar, User, Phone, MessageCircle, ZoomIn, ZoomOut, RotateCcw, Star, PlusCircle, ShoppingCart, Globe, Hash, Package, Eye } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { useMarket } from '@/context/MarketContext';
@@ -27,6 +27,7 @@ import { AdPlaceholder, AdPlaceholderSquare } from './Adsense';
 import { markets } from '@/lib/markets';
 import RelatedAdsSidebar from './RelatedAdsSidebar';
 import { safeParseDate } from '@/lib/utils';
+import CommentsSection from '@/components/CommentsSection';
 
 const Header = dynamic(() => import('@/components/Header'), { ssr: false });
 const Footer = dynamic(() => import('@/components/Footer'), { ssr: false });
@@ -171,6 +172,10 @@ export default function AdDetailClient({ initialAd }: { initialAd: Ad }) {
                                 <span>{t.productCode}: {ad.productCode}</span>
                             </div>
                             )}
+                             <div className="flex items-center gap-1.5">
+                                 <Eye className="h-4 w-4 text-primary/70" />
+                                 <span>{ad.views || 0} مشاهدة</span>
+                             </div>
                         </div>
                     </div>
 
@@ -202,14 +207,21 @@ export default function AdDetailClient({ initialAd }: { initialAd: Ad }) {
 
                     {/* Ad Body */}
                     <div className="space-y-8">
-                        <Card>
-                            <CardHeader>
-                                <CardTitle>الوصف</CardTitle>
-                            </CardHeader>
-                            <CardContent>
-                                <p className="text-lg leading-relaxed whitespace-pre-wrap">{ad.description}</p>
-                            </CardContent>
-                        </Card>
+                        {ad.description && 
+                          ad.description !== 'إعلان صوري' && 
+                          ad.description !== 'إعلان فيديو' && 
+                          ad.description !== 'تفاصيل إعلان صوري' && 
+                          ad.description !== 'تفاصيل إعلان فيديو' && 
+                          ad.description !== ad.title && (
+                             <Card>
+                                 <CardHeader>
+                                     <CardTitle>الوصف</CardTitle>
+                                 </CardHeader>
+                                 <CardContent>
+                                     <p className="text-lg leading-relaxed whitespace-pre-wrap">{ad.description}</p>
+                                 </CardContent>
+                             </Card>
+                         )}
                         {seller && (
                             <div className="py-8">
                                 <Reviews seller={seller} />
@@ -218,6 +230,12 @@ export default function AdDetailClient({ initialAd }: { initialAd: Ad }) {
                         <div className="py-8">
                             <AdPlaceholderSquare />
                         </div>
+                        {/* Comments Section */}
+                        {ad.id && (
+                            <div className="py-4">
+                                <CommentsSection entityId={ad.id} entityType="ad" />
+                            </div>
+                        )}
                     </div>
                 </div>
 

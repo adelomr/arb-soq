@@ -41,7 +41,7 @@ export default function WorkerCard({ worker }: WorkerCardProps) {
         <CardContent className="p-0 flex-1 flex flex-col items-center gap-3" dir='rtl'>
           <Avatar className="h-24 w-24 border-4 border-primary/20">
               <AvatarImage src={worker.avatarUrl} alt={worker.name} />
-              <AvatarFallback className="text-3xl">{worker.name?.[0].toUpperCase()}</AvatarFallback>
+              <AvatarFallback className="text-3xl">{worker.name?.[0]?.toUpperCase() || 'م'}</AvatarFallback>
           </Avatar>
           
           <div className="flex flex-col items-center justify-center pt-2">

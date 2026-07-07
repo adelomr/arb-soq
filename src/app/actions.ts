@@ -4,11 +4,11 @@
 import { moderateImageContent } from '@/ai/flows/image-content-moderation';
 import { suggestAdContent } from '@/ai/flows/suggest-ad-content';
 import { findRelevantAds } from '@/ai/flows/semantic-search';
+import { correctText } from '@/ai/flows/correct-text';
 import { firestore } from '@/lib/firebase';
 import { collectionGroup, getDocs, query } from 'firebase/firestore';
 import axios from 'axios';
 import { z } from 'zod';
-import emailjs from '@emailjs/browser';
 
 
 const DataUriSchema = z.string().refine(val => val.startsWith('data:image/'), {
@@ -150,5 +150,15 @@ export async function fetchYouTubePlaylistItems(playlistUrl: string) {
     } catch (error) {
         console.error("YouTube parse error:", error);
         return { success: false, error: "فشل جلب فيديوهات قائمة التشغيل." };
+    }
+}
+
+export async function handleTextCorrection(text: string) {
+    try {
+        const result = await correctText({ text });
+        return { success: true, data: result.errors };
+    } catch (error) {
+        console.error('Text correction failed:', error);
+        return { success: false, error: 'حدث خطأ أثناء تصحيح النص من جوجل.' };
     }
 }

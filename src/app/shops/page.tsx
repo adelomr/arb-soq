@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
-import { useAuth, UserProfile } from "@/context/AuthContext";
+import { useAuth } from "@/context/AuthContext";
+import type { UserProfile } from "@/lib/types";
 import StoreCard from "@/components/StoreCard";
 import Footer from "@/components/Footer";
 import { Skeleton } from "@/components/ui/skeleton";

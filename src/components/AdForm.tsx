@@ -43,7 +43,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
 import { useToast } from '@/hooks/use-toast';
-import { DollarSign, FileUp, Sparkles, Send, MapPin, ShoppingBag, Wrench, Handshake, Loader2, CreditCard, Map, Store, PlusCircle, Trash2, X, Globe, Info, Hash, Package, Tv, ImageIcon } from 'lucide-react';
+import { DollarSign, FileUp, Sparkles, Send, MapPin, ShoppingBag, Wrench, Handshake, Loader2, CreditCard, Map, Store, PlusCircle, Trash2, X, Globe, Info, Hash, Package, Tv, ImageIcon, Phone, Navigation, Music, Volume2, VolumeX, Mic } from 'lucide-react';
 import { useState, useMemo, useEffect, Suspense } from 'react';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import type { AdType, AdCondition, Category } from '@/lib/types';
@@ -156,6 +156,31 @@ const translations = {
         singleVideo: "فيديو واحد",
         playlistSource: "قائمة تشغيل (إضافة جماعية)",
         playlistUrlRequired: "يرجى إضافة رابط قائمة التشغيل",
+        phoneNumber: "رقم الهاتف (اختياري)",
+        phoneNumberPlaceholder: "مثال: 00201234567890",
+        phoneNumberDesc: "سيظهر رقم الهاتف في الإعلان ليتمكن المشترون من التواصل معك مباشرة.",
+        mapLocation: "موقعي على الخريطة",
+        mapLocationDesc: "حدد موقعك على الخريطة لتسهيل وصول المشترين إليك.",
+        openMapPicker: "تحديد على الخريطة",
+        locationSelected: "تم تحديد الموقع",
+        locationCleared: "تم مسح الموقع",
+        scopeVillage: "القرية فقط",
+        scopeCity: "المدينة بالكامل",
+        scopeGov: "المحافظة بالكامل",
+        scopeCountry: "الدولة بالكامل",
+        country: "الدولة",
+        websitePlaceholder: "https://your-site.com",
+        updateLocationInProfile: "يجب تحديث بيانات موقعك من ملفك الشخصي لتوسيع النطاق.",
+        audioTrack: "الملف الصوتي للإعلان (اختياري)",
+        audioTrackDesc: "أضف ملفاً صوتياً يُشغَّل أثناء عرض الإعلان الصوري. سيتم حفظ أول 30 ثانية فقط من الملف.",
+        audioUpload: "اختر ملفاً صوتياً",
+        audioTrimming: "جارٍ معالجة الصوت (30 ثانية)...",
+        audioReady: "الملف الصوتي جاهز",
+        audioRemove: "إزالة الصوت",
+        audioPreview: "استماع",
+        audioFormats: "MP3, WAV, AAC, OGG",
+        audioTrimSuccess: "تم قص الملف الصوتي إلى 30 ثانية بنجاح!",
+        audioTrimError: "فشل معالجة الملف الصوتي. تأكد من صيغة الملف وحاول مرة أخرى.",
     }
 };
 
@@ -187,6 +212,7 @@ const getAdFormSchema = (t: typeof translations.ar, isStoreProduct: boolean) => 
   websiteUrl: z.string().optional(),
   locationScope: z.string().optional(),
   isPremium: z.boolean().default(false),
+  phoneNumber: z.string().optional(),
 }).superRefine((data, ctx) => {
     if (data.videoSource !== 'playlist') {
         if (!data.title || data.title.trim().length < 5) {
@@ -268,6 +294,14 @@ function AdFormContent({ adId, userId, isEditMode }: { adId?: string | null, use
   const [selectedCategory, setSelectedCategory] = useState<Category | null>(null);
   const [isLoadingAd, setIsLoadingAd] = useState(isEditMode);
 
+  // Audio state for image ads
+  const [audioFile, setAudioFile] = useState<File | null>(null);
+  const [audioPreviewUrl, setAudioPreviewUrl] = useState<string | null>(null);
+  const [isTrimmingAudio, setIsTrimmingAudio] = useState(false);
+  const [isAudioPlaying, setIsAudioPlaying] = useState(false);
+  const [existingAudioUrl, setExistingAudioUrl] = useState<string | null>(null);
+  const audioRef = typeof window !== 'undefined' ? new Audio() : null;
+
   const hasPaymentMethod = true;
 
   const { toast } = useToast();
@@ -289,6 +323,7 @@ function AdFormContent({ adId, userId, isEditMode }: { adId?: string | null, use
       videoSource: 'single',
       websiteUrl: '',
       locationScope: 'city',
+      phoneNumber: '',
     },
   });
 
@@ -339,7 +374,6 @@ function AdFormContent({ adId, userId, isEditMode }: { adId?: string | null, use
                     description: ad.description,
                     price: ad.price || 0,
                     productCode: ad.productCode || '',
-                    productCode: ad.productCode || '',
                     market: ad.market,
                     province: ad.province,
                     location: ad.location,
@@ -356,6 +390,7 @@ function AdFormContent({ adId, userId, isEditMode }: { adId?: string | null, use
                     city: ad.city || '',
                     village: ad.village || '',
                     isPremium: ad.isPremium || false,
+                    phoneNumber: ad.phoneNumber || '',
                 });
                 
                 const mainCategory = categories.find(c => c.id === ad.category || c.subcategories?.some(s => s.id === ad.category));
@@ -365,6 +400,10 @@ function AdFormContent({ adId, userId, isEditMode }: { adId?: string | null, use
                     if (mainCategory.subcategories?.some(s => s.id === ad.category)) {
                         form.setValue('subcategory', ad.category);
                     }
+                }
+                // Load existing audio URL if editing an image ad
+                if (ad.adType === 'image' && (ad as any).audioUrl) {
+                    setExistingAudioUrl((ad as any).audioUrl);
                 }
             } else {
                  toast({ title: t.adNotFound, variant: 'destructive' });
@@ -407,7 +446,127 @@ function AdFormContent({ adId, userId, isEditMode }: { adId?: string | null, use
   };
 
 
-  
+  // Trim audio to 30 seconds using Web Audio API
+  const trimAudioTo30Seconds = async (file: File): Promise<File> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = async (e) => {
+        try {
+          const arrayBuffer = e.target?.result as ArrayBuffer;
+          const AudioContext = window.AudioContext || (window as any).webkitAudioContext;
+          const audioCtx = new AudioContext();
+          const audioBuffer = await audioCtx.decodeAudioData(arrayBuffer);
+
+          const maxDuration = 30; // seconds
+          const duration = Math.min(audioBuffer.duration, maxDuration);
+          const sampleRate = audioBuffer.sampleRate;
+          const numChannels = audioBuffer.numberOfChannels;
+          const frameCount = Math.floor(duration * sampleRate);
+
+          const trimmedBuffer = audioCtx.createBuffer(numChannels, frameCount, sampleRate);
+          for (let ch = 0; ch < numChannels; ch++) {
+            const srcData = audioBuffer.getChannelData(ch);
+            trimmedBuffer.copyToChannel(srcData.slice(0, frameCount), ch);
+          }
+
+          // Convert AudioBuffer to WAV blob
+          const wavBlob = audioBufferToWav(trimmedBuffer);
+          const trimmedFile = new File([wavBlob], file.name.replace(/\.[^.]+$/, '') + '_30s.wav', { type: 'audio/wav' });
+          await audioCtx.close();
+          resolve(trimmedFile);
+        } catch (err) {
+          reject(err);
+        }
+      };
+      reader.onerror = reject;
+      reader.readAsArrayBuffer(file);
+    });
+  };
+
+  // Convert AudioBuffer to WAV format
+  const audioBufferToWav = (buffer: AudioBuffer): Blob => {
+    const numChannels = buffer.numberOfChannels;
+    const sampleRate = buffer.sampleRate;
+    const format = 1; // PCM
+    const bitDepth = 16;
+    const bytesPerSample = bitDepth / 8;
+    const blockAlign = numChannels * bytesPerSample;
+    const byteRate = sampleRate * blockAlign;
+    const dataLength = buffer.length * blockAlign;
+    const bufferLength = 44 + dataLength;
+    const arrayBuffer = new ArrayBuffer(bufferLength);
+    const view = new DataView(arrayBuffer);
+
+    const writeString = (offset: number, str: string) => {
+      for (let i = 0; i < str.length; i++) view.setUint8(offset + i, str.charCodeAt(i));
+    };
+
+    writeString(0, 'RIFF');
+    view.setUint32(4, bufferLength - 8, true);
+    writeString(8, 'WAVE');
+    writeString(12, 'fmt ');
+    view.setUint32(16, 16, true);
+    view.setUint16(20, format, true);
+    view.setUint16(22, numChannels, true);
+    view.setUint32(24, sampleRate, true);
+    view.setUint32(28, byteRate, true);
+    view.setUint16(32, blockAlign, true);
+    view.setUint16(34, bitDepth, true);
+    writeString(36, 'data');
+    view.setUint32(40, dataLength, true);
+
+    let offset = 44;
+    for (let i = 0; i < buffer.length; i++) {
+      for (let ch = 0; ch < numChannels; ch++) {
+        const sample = Math.max(-1, Math.min(1, buffer.getChannelData(ch)[i]));
+        view.setInt16(offset, sample < 0 ? sample * 0x8000 : sample * 0x7FFF, true);
+        offset += 2;
+      }
+    }
+
+    return new Blob([arrayBuffer], { type: 'audio/wav' });
+  };
+
+  const handleAudioFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    setIsTrimmingAudio(true);
+    try {
+      const trimmedFile = await trimAudioTo30Seconds(file);
+      setAudioFile(trimmedFile);
+      const url = URL.createObjectURL(trimmedFile);
+      setAudioPreviewUrl(url);
+      setExistingAudioUrl(null);
+      toast({ title: t.audioTrimSuccess });
+    } catch (err) {
+      console.error('Audio trim error:', err);
+      toast({ title: t.audioTrimError, variant: 'destructive' });
+    } finally {
+      setIsTrimmingAudio(false);
+      // Reset input
+      event.target.value = '';
+    }
+  };
+
+  const handleRemoveAudio = () => {
+    setAudioFile(null);
+    if (audioPreviewUrl) URL.revokeObjectURL(audioPreviewUrl);
+    setAudioPreviewUrl(null);
+    setExistingAudioUrl(null);
+    setIsAudioPlaying(false);
+  };
+
+  const handleToggleAudioPreview = () => {
+    const url = audioPreviewUrl || existingAudioUrl;
+    if (!url) return;
+    if (isAudioPlaying) {
+      setIsAudioPlaying(false);
+    } else {
+      setIsAudioPlaying(true);
+    }
+  };
+
   const handleSuggestion = async () => {
       if (!watchedImages || watchedImages.length === 0) {
           toast({ title: t.noImageForAISuggestion, variant: 'destructive' });
@@ -572,6 +731,9 @@ function AdFormContent({ adId, userId, isEditMode }: { adId?: string | null, use
             showCommIcon: data.showCommIcon,
             websiteUrl: !data.showCommIcon ? data.websiteUrl : '',
             isPremium: data.isPremium || false,
+            phoneNumber: data.phoneNumber || '',
+            audioFile: adType === 'image' ? audioFile : null,
+            existingAudioUrl: adType === 'image' ? existingAudioUrl : null,
         };
 
         if (isEditMode && adId && userId) {
@@ -765,6 +927,204 @@ function AdFormContent({ adId, userId, isEditMode }: { adId?: string | null, use
             
             {(adType !== 'image' && adType !== 'video') ? (
                <FormField control={form.control} name="description" render={({ field }) => ( <FormItem><FormLabel className="text-lg">{t.description}</FormLabel><FormControl><Textarea placeholder={t.descriptionPlaceholder} className="resize-y min-h-[120px]" {...field} /></FormControl><FormMessage /></FormItem> )}/>
+            ) : adType === 'image' ? (
+               <>
+               <FormField control={form.control} name="description" render={({ field }) => ( <FormItem><FormLabel className="text-lg">تفاصيل المنتج / الإعلان (اختياري)</FormLabel><FormControl><Textarea placeholder="أضف تفاصيل إضافية للمنتج أو الإعلان هنا..." className="resize-y min-h-[120px]" {...field} /></FormControl><FormMessage /></FormItem> )}/>
+
+               {/* ===== حقول خاصة بالإعلان الصوري ===== */}
+               <div className="space-y-6 p-6 rounded-2xl border bg-secondary/5">
+                 <h3 className="text-lg font-bold flex items-center gap-2">
+                   <Phone className="h-5 w-5 text-primary" />
+                   معلومات التواصل الإضافية للإعلان الصوري
+                 </h3>
+
+                 {/* رقم الهاتف */}
+                 <FormField
+                   control={form.control}
+                   name="phoneNumber"
+                   render={({ field }) => (
+                     <FormItem>
+                       <FormLabel className="flex items-center gap-2">
+                         <Phone className="h-4 w-4 text-primary" />
+                         {t.phoneNumber}
+                       </FormLabel>
+                       <FormControl>
+                         <div className="relative">
+                           <Input
+                             placeholder={t.phoneNumberPlaceholder}
+                             {...field}
+                             dir="ltr"
+                             className="pl-10 h-11"
+                           />
+                           <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                         </div>
+                       </FormControl>
+                       <FormDescription>{t.phoneNumberDesc}</FormDescription>
+                       <FormMessage />
+                     </FormItem>
+                   )}
+                 />
+
+                 {/* موقعي على الخريطة */}
+                 <FormField
+                   control={form.control}
+                   name="location"
+                   render={({ field }) => (
+                     <FormItem>
+                       <FormLabel className="flex items-center gap-2">
+                         <Navigation className="h-4 w-4 text-primary" />
+                         {t.mapLocation}
+                       </FormLabel>
+                       <FormDescription>{t.mapLocationDesc}</FormDescription>
+                       <div className="flex flex-col gap-3">
+                         {field.value && (
+                           <div className="flex items-center gap-2 p-3 rounded-lg bg-primary/10 border border-primary/20">
+                             <MapPin className="h-4 w-4 text-primary shrink-0" />
+                             <span className="text-sm font-medium text-primary flex-1 truncate">{field.value}</span>
+                             <Button
+                               type="button"
+                               variant="ghost"
+                               size="icon"
+                               className="h-6 w-6 shrink-0 text-muted-foreground hover:text-destructive"
+                               onClick={() => {
+                                 field.onChange('');
+                                 form.setValue('latitude', undefined);
+                                 form.setValue('longitude', undefined);
+                               }}
+                             >
+                               <X className="h-4 w-4" />
+                             </Button>
+                           </div>
+                         )}
+                         <Dialog>
+                           <DialogTrigger asChild>
+                             <Button type="button" variant="outline" className="gap-2 w-full sm:w-auto">
+                               <MapPin className="h-4 w-4" />
+                               {field.value ? "تغيير الموقع" : t.openMapPicker}
+                             </Button>
+                           </DialogTrigger>
+                           <DialogContent className="max-w-2xl h-[80vh] flex flex-col p-0">
+                             <DialogHeader className="p-4 pb-2">
+                               <DialogTitle className="flex items-center gap-2">
+                                 <MapPin className="h-5 w-5 text-primary" />
+                                 {t.selectLocation}
+                               </DialogTitle>
+                             </DialogHeader>
+                             <div className="flex-1 relative overflow-hidden rounded-b-lg">
+                               <LocationPicker
+                                 onLocationSelect={(address) => {
+                                   field.onChange(address);
+                                 }}
+                               />
+                             </div>
+                           </DialogContent>
+                         </Dialog>
+                       </div>
+                       <FormMessage />
+                     </FormItem>
+                   )}
+                 />
+               </div>
+
+               {/* ===== قسم الصوت للإعلان الصوري ===== */}
+               <div className="space-y-4 p-6 rounded-2xl border border-primary/20 bg-primary/5">
+                 <h3 className="text-lg font-bold flex items-center gap-2 text-primary">
+                   <Music className="h-5 w-5" />
+                   {t.audioTrack}
+                 </h3>
+                 <p className="text-sm text-muted-foreground">{t.audioTrackDesc}</p>
+
+                 {/* Audio Preview & Controls */}
+                 {(audioPreviewUrl || existingAudioUrl) ? (
+                   <div className="flex flex-col gap-3">
+                     {/* Waveform-style visualizer placeholder */}
+                     <div className="relative flex items-center gap-3 p-4 rounded-xl bg-background border border-primary/30 shadow-sm">
+                       <div className="flex items-center gap-2">
+                         {[...Array(12)].map((_, i) => (
+                           <div
+                             key={i}
+                             className="bg-primary rounded-full transition-all duration-300"
+                             style={{
+                               width: '3px',
+                               height: isAudioPlaying ? `${8 + Math.sin(i * 0.8) * 10 + 8}px` : '6px',
+                               opacity: isAudioPlaying ? 0.7 + Math.sin(i * 0.5) * 0.3 : 0.4,
+                               animation: isAudioPlaying ? `wave-bar ${0.5 + i * 0.05}s ease-in-out infinite alternate` : 'none',
+                             }}
+                           />
+                         ))}
+                       </div>
+                       <div className="flex-1">
+                         <p className="text-sm font-semibold text-foreground">{audioFile?.name || 'ملف صوتي محفوظ'}</p>
+                         <p className="text-xs text-muted-foreground">مدة أقصاها 30 ثانية</p>
+                       </div>
+                       {/* Hidden audio element for preview */}
+                       <audio
+                         src={audioPreviewUrl || existingAudioUrl || ''}
+                         onEnded={() => setIsAudioPlaying(false)}
+                         ref={(el) => {
+                           if (el) {
+                             if (isAudioPlaying) el.play();
+                             else el.pause();
+                           }
+                         }}
+                         className="hidden"
+                       />
+                       <div className="flex items-center gap-2">
+                         <button
+                           type="button"
+                           onClick={handleToggleAudioPreview}
+                           className="p-2.5 rounded-full bg-primary text-primary-foreground hover:bg-primary/90 transition-all active:scale-95 shadow-md"
+                         >
+                           {isAudioPlaying ? <VolumeX className="h-4 w-4" /> : <Volume2 className="h-4 w-4" />}
+                         </button>
+                         <button
+                           type="button"
+                           onClick={handleRemoveAudio}
+                           className="p-2.5 rounded-full bg-destructive/10 text-destructive hover:bg-destructive/20 transition-all active:scale-95"
+                         >
+                           <X className="h-4 w-4" />
+                         </button>
+                       </div>
+                     </div>
+                   </div>
+                 ) : (
+                   <label
+                     htmlFor="audio-upload"
+                     className={cn(
+                       "flex flex-col items-center justify-center gap-3 p-6 border-2 border-dashed rounded-xl cursor-pointer transition-all",
+                       isTrimmingAudio
+                         ? "border-primary/50 bg-primary/5 cursor-not-allowed"
+                         : "border-primary/30 bg-secondary/30 hover:bg-primary/5 hover:border-primary/50"
+                     )}
+                   >
+                     {isTrimmingAudio ? (
+                       <>
+                         <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                         <span className="text-sm font-medium text-primary">{t.audioTrimming}</span>
+                       </>
+                     ) : (
+                       <>
+                         <div className="p-3 rounded-full bg-primary/10">
+                           <Mic className="h-6 w-6 text-primary" />
+                         </div>
+                         <div className="text-center">
+                           <span className="text-sm font-semibold text-primary block">{t.audioUpload}</span>
+                           <span className="text-xs text-muted-foreground">{t.audioFormats}</span>
+                         </div>
+                       </>
+                     )}
+                   </label>
+                 )}
+                 <input
+                   id="audio-upload"
+                   type="file"
+                   className="hidden"
+                   accept="audio/*"
+                   onChange={handleAudioFileChange}
+                   disabled={isTrimmingAudio}
+                 />
+               </div>
+               </>
             ) : (
                 <div className="hidden">
                      <FormField control={form.control} name="description" render={({ field }) => ( <FormItem><FormControl><Textarea {...field} /></FormControl></FormItem> )}/>
@@ -879,7 +1239,7 @@ function AdFormContent({ adId, userId, isEditMode }: { adId?: string | null, use
             )}
             
             <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-              {(adType !== 'request-service' && adType !== 'image' && adType !== 'video') && (
+              {(adType !== 'request-service' && adType !== 'video') && (
                   <FormField
                       control={form.control}
                       name="price"

@@ -7,6 +7,7 @@ import { FontSizeProvider } from '@/context/FontSizeContext';
 import { LanguageProvider, FontSizeApplier } from '@/context/LanguageContext';
 import { MarketProvider } from '@/context/MarketContext';
 import { CartProvider } from '@/context/CartContext';
+import { ViewProvider } from '@/context/ViewContext';
 import Script from 'next/script';
 import CookieConsent from '@/components/CookieConsent';
 import { appIconUrl } from '@/lib/data';
@@ -63,6 +64,7 @@ export const metadata: Metadata = {
 
 
 import AdminNodeInitializer from '@/components/AdminNodeInitializer';
+import LinkInterceptor from '@/components/LinkInterceptor';
 
 export default function RootLayout({
   children,
@@ -87,9 +89,11 @@ export default function RootLayout({
                     <MarketProvider>
                       <AuthProvider>
                         <CartProvider>
+                          <ViewProvider>
                           <FontSizeApplier>
                             <ErrorWatcher />
                             <AdminNodeInitializer />
+                            <LinkInterceptor />
                             <script
                               type="application/ld+json"
                               dangerouslySetInnerHTML={{
@@ -111,6 +115,7 @@ export default function RootLayout({
                             <div id="recaptcha-container"></div>
                             <Toaster />
                           </FontSizeApplier>
+                          </ViewProvider>
                         </CartProvider>
                       </AuthProvider>
                     </MarketProvider>

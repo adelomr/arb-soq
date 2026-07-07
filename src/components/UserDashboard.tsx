@@ -28,7 +28,7 @@ import {
 } from "@/components/ui/alert-dialog"
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { MoreHorizontal, Pencil, Trash2, Loader2, LayoutDashboard, Store, PlusCircle, Building, Edit, Eye, MousePointerClick, RotateCcw } from 'lucide-react';
+import { MoreHorizontal, Pencil, Trash2, Loader2, LayoutDashboard, Store, PlusCircle, Building, Edit, Eye, MousePointerClick, RotateCcw, Users, Bell, Settings, ShieldCheck, Megaphone, BadgeDollarSign, Shapes, Briefcase, ChevronLeft, Shield } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -97,6 +97,25 @@ const translations = {
         createNewStore: "إنشاء متجر جديد",
         editStore: "تعديل المتجر",
         viewStore: "عرض المتجر",
+        adminSection: "أدوات المسؤول",
+        adminSectionDesc: "الوصول السريع إلى أدوات إدارة الموقع.",
+        goToAdminPanel: "الذهاب إلى لوحة التحكم الكاملة",
+        userManagement: "إدارة المستخدمين",
+        userManagementDesc: "عرض، إيقاف، وحذف المستخدمين.",
+        notifications: "إدارة الإشعارات",
+        notificationsDesc: "إرسال إشعارات مخصصة للمستخدمين.",
+        adSettings: "مراجعة الإعلانات",
+        adSettingsDesc: "الموافقة على أو رفض الإعلانات الجديدة.",
+        imageModeration: "الإشراف على الصور",
+        imageModerationDesc: "فحص الصور بحثًا عن محتوى غير لائق.",
+        announcementBar: "إدارة شريط الإعلانات",
+        announcementBarDesc: "التحكم في شريط الإعلانات العلوي.",
+        pricingManagement: "إدارة الأسعار",
+        pricingManagementDesc: "تعديل خطط وباقات الأسعار.",
+        categoryManagement: "إدارة الفئات",
+        categoryManagementDesc: "إضافة وتعديل فئات الإعلانات.",
+        professionManagement: "إدارة المهن",
+        professionManagementDesc: "إضافة وتعديل المهن المتاحة في سوق العمل.",
     }
 }
 
@@ -501,34 +520,93 @@ export default function UserDashboard() {
 
   const effectiveProfile = userProfile || externalProfile;
 
+  const adminCards = [
+    { icon: Users,            label: t.userManagement,     desc: t.userManagementDesc,     href: '/admin#users',          color: 'from-blue-500/20 to-blue-600/10',    iconColor: 'text-blue-500' },
+    { icon: Shapes,           label: t.categoryManagement, desc: t.categoryManagementDesc, href: '/admin#categories',      color: 'from-violet-500/20 to-violet-600/10', iconColor: 'text-violet-500' },
+    { icon: Briefcase,        label: t.professionManagement,desc: t.professionManagementDesc,href: '/admin#professions',   color: 'from-amber-500/20 to-amber-600/10',  iconColor: 'text-amber-500' },
+    { icon: Settings,         label: t.adSettings,         desc: t.adSettingsDesc,         href: '/admin#moderation',      color: 'from-orange-500/20 to-orange-600/10', iconColor: 'text-orange-500' },
+    { icon: BadgeDollarSign,  label: t.pricingManagement,  desc: t.pricingManagementDesc,  href: '/admin#pricing',         color: 'from-green-500/20 to-green-600/10',  iconColor: 'text-green-500' },
+    { icon: Bell,             label: t.notifications,      desc: t.notificationsDesc,      href: '/admin#notifications',   color: 'from-pink-500/20 to-pink-600/10',    iconColor: 'text-pink-500' },
+    { icon: ShieldCheck,      label: t.imageModeration,    desc: t.imageModerationDesc,    href: '/admin#image-mod',       color: 'from-teal-500/20 to-teal-600/10',   iconColor: 'text-teal-500' },
+    { icon: Megaphone,        label: t.announcementBar,    desc: t.announcementBarDesc,    href: '/admin#announcement',    color: 'from-red-500/20 to-red-600/10',     iconColor: 'text-red-500' },
+  ];
+
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="text-2xl md:text-3xl font-headline flex items-center gap-3">
-            <LayoutDashboard className="h-6 w-6 md:h-8 md:w-8" />
-            {isAdmin ? 'لوحة التحكم' : t.dashboardTitle}
-        </CardTitle>
-        <CardDescription>
-            {isAdmin ? t.adminView : t.dashboardDescription}
-            {urlUserId && <Badge variant="outline" className="ml-2">عرض ملف: {effectiveProfile?.name}</Badge>}
-        </CardDescription>
-      </CardHeader>
-      <CardContent>
-          <Tabs defaultValue="ads" className="w-full">
-              <TabsList className={cn("grid w-full", hasStore ? "grid-cols-2" : "grid-cols-1")}>
-                  <TabsTrigger value="ads" className="gap-2"><LayoutDashboard className="h-4 w-4" />{t.myAds}</TabsTrigger>
-                  {hasStore && <TabsTrigger value="store" className="gap-2"><Store className="h-4 w-4" />{t.myStore}</TabsTrigger>}
-              </TabsList>
-              <TabsContent value="ads" className="mt-6">
-                  <AdTable ads={regularAds} isLoading={isLoading} isAdmin={isAdmin} noItemsMessage={t.noAds} />
-              </TabsContent>
-              {hasStore && (
-                <TabsContent value="store" className="mt-6">
-                    <StoreTab user={user} userProfile={userProfile} targetUserId={targetUserId} effectiveProfile={effectiveProfile} />
+    <div className="space-y-8">
+      {/* Main user dashboard card */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-2xl md:text-3xl font-headline flex items-center gap-3">
+              <LayoutDashboard className="h-6 w-6 md:h-8 md:w-8" />
+              {isAdmin ? 'لوحة التحكم' : t.dashboardTitle}
+          </CardTitle>
+          <CardDescription>
+              {isAdmin ? t.adminView : t.dashboardDescription}
+              {urlUserId && <Badge variant="outline" className="ml-2">عرض ملف: {effectiveProfile?.name}</Badge>}
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+            <Tabs defaultValue="ads" className="w-full">
+                <TabsList className={cn("grid w-full", hasStore ? "grid-cols-2" : "grid-cols-1")}>
+                    <TabsTrigger value="ads" className="gap-2"><LayoutDashboard className="h-4 w-4" />{t.myAds}</TabsTrigger>
+                    {hasStore && <TabsTrigger value="store" className="gap-2"><Store className="h-4 w-4" />{t.myStore}</TabsTrigger>}
+                </TabsList>
+                <TabsContent value="ads" className="mt-6">
+                    <AdTable ads={regularAds} isLoading={isLoading} isAdmin={isAdmin} noItemsMessage={t.noAds} />
                 </TabsContent>
-              )}
-          </Tabs>
-      </CardContent>
-    </Card>
+                {hasStore && (
+                  <TabsContent value="store" className="mt-6">
+                      <StoreTab user={user} userProfile={userProfile} targetUserId={targetUserId} effectiveProfile={effectiveProfile} />
+                  </TabsContent>
+                )}
+            </Tabs>
+        </CardContent>
+      </Card>
+
+      {/* Admin tools section - only visible to admins */}
+      {isAdmin && (
+        <Card className="border-primary/30 bg-gradient-to-br from-primary/5 to-background">
+          <CardHeader className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+            <div>
+              <CardTitle className="text-xl md:text-2xl font-headline flex items-center gap-3">
+                <Shield className="h-5 w-5 md:h-6 md:w-6 text-primary" />
+                {t.adminSection}
+              </CardTitle>
+              <CardDescription>{t.adminSectionDesc}</CardDescription>
+            </div>
+            <Link
+              href="/admin"
+              className="flex items-center gap-2 text-sm font-medium text-primary hover:text-primary/80 transition-colors shrink-0 bg-primary/10 hover:bg-primary/20 px-4 py-2 rounded-lg"
+            >
+              {t.goToAdminPanel}
+              <ChevronLeft className="h-4 w-4" />
+            </Link>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+              {adminCards.map((item) => (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  className={cn(
+                    'group relative flex flex-col gap-3 rounded-xl border border-border/50 p-4',
+                    'bg-gradient-to-br', item.color,
+                    'hover:border-primary/50 hover:shadow-md transition-all duration-200 cursor-pointer'
+                  )}
+                >
+                  <div className={cn('flex items-center justify-center w-11 h-11 rounded-lg bg-background/70 shadow-sm transition-transform group-hover:scale-110', item.iconColor)}>
+                    <item.icon className="h-5 w-5" />
+                  </div>
+                  <div>
+                    <p className="font-semibold text-sm leading-tight">{item.label}</p>
+                    <p className="text-xs text-muted-foreground mt-1 leading-relaxed">{item.desc}</p>
+                  </div>
+                </Link>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+    </div>
   );
 }

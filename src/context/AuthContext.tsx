@@ -74,7 +74,7 @@ interface AuthContextType {
   incrementSiteVisit: () => Promise<void>;
   resetAdCounters: (userId: string, adId: string, adData: Ad) => Promise<void>;
   getStats: () => Promise<SiteStats>;
-  addPortfolioImage: (userId: string, image: PortfolioImage) => Promise<void>;
+  addPortfolioImage: (userId: string, image: Omit<PortfolioImage, 'id'>) => Promise<void>;
   deletePortfolioImage: (userId: string, imageId: string) => Promise<void>;
 }
 
@@ -539,13 +539,25 @@ const addAd = useCallback(async (adData: any, imageFiles: File[], user: User, pr
             progressCallback("اكتمل رفع الصور بنجاح!");
         }
 
+        // Upload audio file if present (for image slideshow ads)
+        let audioUrl: string | undefined = adData.existingAudioUrl || undefined;
+        const audioFileToUpload: File | null = adData.audioFile || null;
+        if (audioFileToUpload && adData.adType === 'image') {
+            progressCallback('جارٍ رفع الملف الصوتي...');
+            const audioMeta = await uploadFileAndReturnInfo(audioFileToUpload, `ads/${user.uid}/audio`, storage);
+            audioUrl = audioMeta.url;
+            progressCallback('اكتمل رفع الملف الصوتي!');
+        }
+
         const newAdData: Partial<Ad> = {
             ...adData,
             userId: user.uid,
             postedAt: new Date().toISOString(),
             timestamp: Date.now(), // Android compatibility
             status: 'active',
+            isActive: true, // Android compatibility
             imageUrls: imageMeta.map(meta => meta.url),
+            imageUrl: imageMeta[0]?.url || '', // Android compatibility
             imageMeta: imageMeta,
             imageHints: [], 
             views: 0,
@@ -555,9 +567,12 @@ const addAd = useCallback(async (adData: any, imageFiles: File[], user: User, pr
             governorate: adData.governorate || userProfile.province || '',
             city: adData.city || userProfile.city || '',
             village: adData.village || userProfile.village || '',
+            ...(audioUrl ? { audioUrl } : {}),
         };
 
         delete (newAdData as any).images;
+        delete (newAdData as any).audioFile;
+        delete (newAdData as any).existingAudioUrl;
         
         let collectionRef;
         if (newAdData.category === 'store-product') {
@@ -583,6 +598,12 @@ const addAd = useCallback(async (adData: any, imageFiles: File[], user: User, pr
   const updateAd = useCallback(async (userId: string, adId: string, adData: Partial<Ad>, newImageFiles: File[], progressCallback: (message: string) => void) => {
     const dataForUpdate: { [key: string]: any } = { ...adData };
     delete dataForUpdate.images;
+
+    // Extract audio info before sending to Firestore
+    const audioFileToUpload: File | null = (dataForUpdate as any).audioFile || null;
+    const existingAudioUrl: string | null = (dataForUpdate as any).existingAudioUrl || null;
+    delete dataForUpdate.audioFile;
+    delete dataForUpdate.existingAudioUrl;
 
     let adRef;
     let oldAdData: Ad | null = null;
@@ -623,14 +644,35 @@ const addAd = useCallback(async (adData: any, imageFiles: File[], user: User, pr
         
         progressCallback("اكتمل رفع الصور الجديدة!");
         dataForUpdate.imageUrls = newImageMeta.map(meta => meta.url);
+        dataForUpdate.imageUrl = newImageMeta[0]?.url || ''; // Android compatibility
         dataForUpdate.imageMeta = newImageMeta;
     } else if (oldAdData) {
         // If no new files, keep old images
         dataForUpdate.imageUrls = oldAdData.imageUrls;
+        dataForUpdate.imageUrl = oldAdData.imageUrl || oldAdData.imageUrls?.[0] || ''; // Android compatibility
         dataForUpdate.imageMeta = oldAdData.imageMeta;
+    }
+
+    // Handle audio upload for image ads
+    const resolvedAdType = (dataForUpdate.adType || adData.adType || '').toString().trim();
+    if (resolvedAdType === 'image') {
+        if (audioFileToUpload) {
+            // New audio file uploaded - trim + upload
+            progressCallback('جارٍ رفع الملف الصوتي...');
+            const audioMeta = await uploadFileAndReturnInfo(audioFileToUpload, `ads/${userId}/audio`, storage);
+            dataForUpdate.audioUrl = audioMeta.url;
+            progressCallback('اكتمل رفع الملف الصوتي!');
+        } else if (existingAudioUrl) {
+            // Keep the old audio URL unchanged
+            dataForUpdate.audioUrl = existingAudioUrl;
+        } else {
+            // Audio was removed or never existed - set to null to delete/clear from Firestore
+            dataForUpdate.audioUrl = null;
+        }
     }
     
     dataForUpdate.status = 'active'; // Reset status to active on edit
+    dataForUpdate.isActive = true; // Android compatibility
     
     // Clean out undefined values before sending to Firestore
     Object.keys(dataForUpdate).forEach(key => {

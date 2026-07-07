@@ -7,6 +7,29 @@ export default {
     './src/components/**/*.{js,ts,jsx,tsx,mdx}',
     './src/app/**/*.{js,ts,jsx,tsx,mdx}',
   ],
+  safelist: [
+    // sectionBg dark variants
+    'dark:from-slate-950',
+    'dark:to-emerald-950/20',
+    'dark:to-blue-950/20',
+    'dark:to-teal-950/20',
+    'dark:to-violet-950/20',
+    // cardBg dark variants
+    'dark:bg-slate-900',
+    'dark:border-emerald-900/40',
+    'dark:border-blue-900/40',
+    'dark:border-teal-900/40',
+    'dark:border-violet-900/40',
+    // featureIcon dark variants
+    'dark:bg-emerald-900/40',
+    'dark:text-emerald-400',
+    'dark:bg-blue-900/40',
+    'dark:text-blue-400',
+    'dark:bg-teal-900/40',
+    'dark:text-teal-400',
+    'dark:bg-violet-900/40',
+    'dark:text-violet-400',
+  ],
   theme: {
     container: {
       center: true,

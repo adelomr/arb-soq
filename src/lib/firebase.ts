@@ -9,10 +9,12 @@ import { getAnalytics, Analytics } from "firebase/analytics";
 const firebaseConfig = {
   apiKey: "AIzaSyDpWBWFpS7NWvkAGR2FZlrH901qVwB0Iww",
   authDomain: "arb-soq.firebaseapp.com",
+  databaseURL: "https://arb-soq-default-rtdb.firebaseio.com",
   projectId: "arb-soq",
   storageBucket: "arb-soq.firebasestorage.app",
   messagingSenderId: "264703833176",
   appId: "1:264703833176:web:a66bad059758a42fc3862d",
+  measurementId: "G-SDQSLPKMGN"
 };
 
 // Initialize Firebase

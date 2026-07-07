@@ -15,7 +15,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription, SheetTrigger } from '@/components/ui/sheet';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Menu, PlusCircle, User, LayoutDashboard, LogOut, Globe, LogIn, Sun, Moon, Minus, Plus, Undo2, Shield, Bell, Trash2, Info, Wallet, Megaphone, X, BadgeDollarSign, Store, Edit, ShoppingCart, MapPin, Tv } from 'lucide-react';
+import { Menu, PlusCircle, User, LayoutDashboard, LogOut, Globe, LogIn, Sun, Moon, Minus, Plus, Undo2, Shield, Bell, Trash2, Info, Wallet, Megaphone, X, BadgeDollarSign, Store, Edit, ShoppingCart, MapPin, Tv, Grid, List } from 'lucide-react';
 import { useState, useEffect, useRef } from 'react';
 import { usePathname } from 'next/navigation';
 import { cn } from '@/lib/utils';
@@ -24,6 +24,7 @@ import { useAuth } from '@/context/AuthContext';
 import type { Notification, Announcement } from '@/lib/types';
 import { useTheme } from '@/context/ThemeContext';
 import { useFontSize } from '@/context/FontSizeContext';
+import { useView } from '@/context/ViewContext';
 import { useMarket } from '@/context/MarketContext';
 import { markets } from '@/lib/markets';
 import { useCart } from '@/context/CartContext';
@@ -165,6 +166,7 @@ export default function Header() {
   const { user, userProfile, signOutUser, getUserNotifications, deleteNotification, markNotificationsAsRead } = useAuth();
   const { theme, setTheme } = useTheme();
   const { increase: increaseFontSize, decrease: decreaseFontSize, reset: resetFontSize } = useFontSize();
+  const { view, setView } = useView();
   const { market, setMarket, sortAdsByDistance } = useMarket();
   const { cart } = useCart();
 
@@ -274,6 +276,28 @@ export default function Header() {
                       >
                       <Plus className="h-4 w-4" />
                       <span className="sr-only">{currentLabels.increaseFont}</span>
+                  </Button>
+              </div>
+
+              {/* View Toggle: Grid / List */}
+              <div className="hidden sm:flex items-center gap-1 bg-secondary/50 border p-1 rounded-lg">
+                  <Button
+                      variant={view === 'grid' ? 'secondary' : 'ghost'}
+                      size="icon"
+                      onClick={() => setView('grid')}
+                      className="h-8 w-8"
+                      aria-label="عرض الشبكة"
+                  >
+                      <Grid className="h-4 w-4" />
+                  </Button>
+                  <Button
+                      variant={view === 'list' ? 'secondary' : 'ghost'}
+                      size="icon"
+                      onClick={() => setView('list')}
+                      className="h-8 w-8"
+                      aria-label="عرض القائمة"
+                  >
+                      <List className="h-4 w-4" />
                   </Button>
               </div>
 
@@ -391,7 +415,7 @@ export default function Header() {
                     <Button variant="ghost" className="relative h-10 w-10 rounded-full">
                       <Avatar className="h-10 w-10">
                         <AvatarImage src={userProfile?.avatarUrl || user?.photoURL || undefined} alt={userProfile?.name} />
-                        <AvatarFallback>{userProfile?.name?.[0].toUpperCase()}</AvatarFallback>
+                        <AvatarFallback>{userProfile?.name?.[0]?.toUpperCase() || 'م'}</AvatarFallback>
                       </Avatar>
                     </Button>
                   </DropdownMenuTrigger>

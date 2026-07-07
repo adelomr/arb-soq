@@ -50,7 +50,7 @@ export default function StoreCard({ store }: StoreCardProps) {
             <div className="flex items-center gap-3 mb-3">
                  <Avatar className="h-12 w-12 border-2 border-primary/20">
                     <AvatarImage src={store.avatarUrl} alt={store.store.storeName} />
-                    <AvatarFallback>{store.store.storeName?.[0].toUpperCase()}</AvatarFallback>
+                    <AvatarFallback>{store.store.storeName?.[0]?.toUpperCase() || 'م'}</AvatarFallback>
                 </Avatar>
                 <div>
                     <h3 className="text-lg font-bold group-hover:text-primary transition-colors">

@@ -3,7 +3,8 @@
 'use client';
 
 import { useState } from 'react';
-import { useAuth, UserProfile } from '@/context/AuthContext';
+import { useAuth } from '@/context/AuthContext';
+import type { UserProfile, PortfolioImage } from '@/lib/types';
 import { useLanguage } from '@/context/LanguageContext';
 import { useToast } from '@/hooks/use-toast';
 import { Button } from '@/components/ui/button';
@@ -101,9 +102,11 @@ export default function PortfolioManager({ worker, isOwner, onUpdate }: Portfoli
       
       toast({ title: "اكتمل الرفع", description: "جارٍ تحديث ملفك الشخصي..." });
       
-      const newImage = {
-        id: uuidv4(),
+      const newImage: Omit<PortfolioImage, 'id'> = {
         url: imageUrl,
+        path: `portfolio/${worker.id}/${imageFile.name}`,
+        name: imageFile.name,
+        size: imageFile.size,
       };
 
       await addPortfolioImage(worker.id, newImage);

@@ -3,12 +3,13 @@
 
 import Link from 'next/link';
 import Image from 'next/image';
-import { Twitter, Facebook, Instagram, Users, Megaphone, Eye, Store } from 'lucide-react';
+import { Twitter, Facebook, Instagram, Users, Megaphone, Eye, Store, Rocket, ChevronDown, ExternalLink } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { useEffect, useState } from 'react';
-import type { SiteStats } from '@/lib/types';
+import type { SiteStats, PageData } from '@/lib/types';
 import { Skeleton } from './ui/skeleton';
 import { appIconUrl } from '@/lib/data';
+import { getPublishedPages, getPublishedLandingPages } from '@/lib/page-service';
 
 const translations = {
     ar: {
@@ -27,6 +28,7 @@ const translations = {
         ads: "الإعلانات المنشورة",
         visitors: "زيارات الموقع",
         stores: "المتاجر",
+        landingPages: "صفحات الهبوط",
     }
 }
 
@@ -35,6 +37,9 @@ export default function Footer() {
     const t = translations.ar;
     const [stats, setStats] = useState<SiteStats | null>(null);
     const [loading, setLoading] = useState(true);
+    const [dynamicPages, setDynamicPages] = useState<PageData[]>([]);
+    const [landingPages, setLandingPages] = useState<PageData[]>();
+    const [drawerOpen, setDrawerOpen] = useState(false);
 
     useEffect(() => {
         const fetchStats = async () => {
@@ -51,14 +56,30 @@ export default function Footer() {
         fetchStats();
     }, [getStats]);
 
+    useEffect(() => {
+        const fetchPages = async () => {
+            try {
+                const pages = await getPublishedPages();
+                setDynamicPages(pages);
+            } catch (error) {
+                console.error("Failed to fetch dynamic pages for footer:", error);
+            }
+        };
+        fetchPages();
+    }, []);
+
+    useEffect(() => {
+        getPublishedLandingPages().then(setLandingPages).catch(() => setLandingPages([]));
+    }, []);
+
     const formatNumber = (num: number) => {
         return new Intl.NumberFormat('en-US', { numberingSystem: 'latn' }).format(num);
     }
 
   return (
-    <footer className="bg-secondary/80 dark:bg-card border-t">
+    <footer className="bg-secondary/80 dark:bg-card border-t" dir="rtl">
       <div className="container mx-auto px-4 py-12">
-        <div className="grid grid-cols-2 md:grid-cols-5 gap-8">
+        <div className="grid grid-cols-2 md:grid-cols-6 gap-8">
             {/* About Section */}
             <div className="flex flex-col items-start col-span-2 md:col-span-2">
                  <Link href="/" className="flex items-center gap-2 font-bold text-lg font-headline mb-4">
@@ -84,14 +105,64 @@ export default function Footer() {
                 </div>
             </div>
 
+            {/* Landing Pages Column (Collapsible Drawer in Grid) */}
+            <div>
+                {landingPages && landingPages.length > 0 ? (
+                  <>
+                    <button
+                      onClick={() => setDrawerOpen(o => !o)}
+                      className="flex items-center gap-2 font-semibold text-foreground mb-4 group hover:text-primary transition-colors text-right"
+                    >
+                      <span>{t.landingPages}</span>
+                      <span className="inline-flex items-center justify-center h-4.5 min-w-4.5 px-1 rounded-full bg-primary/10 text-primary text-2xs font-bold">
+                        {landingPages.length}
+                      </span>
+                      <ChevronDown className={`h-4 w-4 text-muted-foreground group-hover:text-primary transition-transform duration-200 ${drawerOpen ? 'rotate-180' : 'rotate-0'}`} />
+                    </button>
+                    <nav 
+                      className="flex flex-col gap-2.5 overflow-hidden transition-all duration-300"
+                      style={{
+                        maxHeight: drawerOpen ? '350px' : '0px',
+                        opacity: drawerOpen ? 1 : 0,
+                      }}
+                    >
+                      {landingPages.map((page) => (
+                        <Link
+                          key={page.id}
+                          href={page.shortCode ? `/l/${page.shortCode}` : `/p/${page.slug}`}
+                          className="text-sm text-muted-foreground hover:text-primary transition-colors flex items-center gap-1.5"
+                        >
+                          <span className="w-1.5 h-1.5 rounded-full bg-primary/30 flex-shrink-0" />
+                          <span className="truncate">{page.title}</span>
+                        </Link>
+                      ))}
+                    </nav>
+                  </>
+                ) : (
+                  <div className="h-full" />
+                )}
+            </div>
+
             {/* Company Links */}
             <div>
                 <h3 className="font-semibold text-foreground mb-4">{t.company}</h3>
                 <nav className="flex flex-col gap-3">
-                    <Link href="/about" className="text-muted-foreground hover:text-primary transition-colors">{t.aboutUs}</Link>
+                    {dynamicPages
+                        .filter(page => {
+                            const COMPANY_SLUGS = ['about', 'faq', 'contact'];
+                            return COMPANY_SLUGS.includes(page.slug) && page.pageType !== 'landing';
+                        })
+                        .map((page) => (
+                            <Link 
+                                key={page.id} 
+                                href={`/p/${page.slug}`} 
+                                className="text-muted-foreground hover:text-primary transition-colors"
+                            >
+                                {page.title}
+                            </Link>
+                        ))
+                    }
                     <Link href="/pricing" className="text-muted-foreground hover:text-primary transition-colors">{t.pricing}</Link>
-                    <Link href="/faq" className="text-muted-foreground hover:text-primary transition-colors">{t.faq}</Link>
-                    <Link href="/contact" className="text-muted-foreground hover:text-primary transition-colors">{t.contactUs}</Link>
                 </nav>
             </div>
 
@@ -99,8 +170,22 @@ export default function Footer() {
             <div>
                 <h3 className="font-semibold text-foreground mb-4">{t.legal}</h3>
                 <nav className="flex flex-col gap-3">
-                    <Link href="/terms" className="text-muted-foreground hover:text-primary transition-colors">{t.termsOfUse}</Link>
-                    <Link href="/privacy" className="text-muted-foreground hover:text-primary transition-colors">{t.privacyPolicy}</Link>
+                    {dynamicPages
+                        .filter(page => {
+                            // Show legal system pages (terms, privacy) and any custom non-system pages, excluding landing pages
+                            const COMPANY_SLUGS = ['about', 'faq', 'contact'];
+                            return !COMPANY_SLUGS.includes(page.slug) && page.pageType !== 'landing';
+                        })
+                        .map((page) => (
+                            <Link 
+                                key={page.id} 
+                                href={`/p/${page.slug}`} 
+                                className="text-muted-foreground hover:text-primary transition-colors"
+                            >
+                                {page.title}
+                            </Link>
+                        ))
+                    }
                 </nav>
             </div>
             
@@ -137,7 +222,8 @@ export default function Footer() {
                     )}
                 </div>
             </div>
-        </div>
+
+            </div>
 
         <div className="mt-12 border-t pt-8 text-center text-sm text-muted-foreground">
             &copy; {new Date().getFullYear()} {t.rightsReserved}
@@ -146,3 +232,4 @@ export default function Footer() {
     </footer>
   );
 }
+

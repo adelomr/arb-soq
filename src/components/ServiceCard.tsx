@@ -33,7 +33,7 @@ export default function ServiceCard({ service }: ServiceCardProps) {
   const hasImage = service.imageUrls && service.imageUrls.length > 0 && service.imageUrls[0];
 
   return (
-    <Link href={`/ad/${service.user.id}/${service.id}`} className="block group">
+    <Link href={`/ad/${service.userId}/${service.id}`} className="block group">
       <Card className="overflow-hidden h-full flex flex-col transition-all duration-300 hover:shadow-xl hover:-translate-y-1">
         <div className="relative bg-muted">
           {hasImage ? (
@@ -70,12 +70,12 @@ export default function ServiceCard({ service }: ServiceCardProps) {
         <CardFooter className="p-3 bg-secondary/20 flex flex-col items-start gap-3">
              <div className="flex items-center gap-2 text-sm w-full">
                 <Avatar className="h-8 w-8">
-                    <AvatarImage src={service.user.avatarUrl} alt={service.user.name} />
-                    <AvatarFallback>{service.user.name?.[0].toUpperCase()}</AvatarFallback>
+                    <AvatarImage src={service.user?.avatarUrl} alt={service.user?.name} />
+                    <AvatarFallback>{service.user?.name?.[0]?.toUpperCase() || 'م'}</AvatarFallback>
                 </Avatar>
                 <div className="flex-1">
-                    <p className="font-semibold truncate">{service.user.name}</p>
-                    {service.user.rating && (
+                    <p className="font-semibold truncate">{service.user?.name || 'مستخدم سوق العرب'}</p>
+                    {service.user?.rating && (
                         <div className="flex items-center gap-1 text-xs text-muted-foreground">
                             <Star className="w-3 h-3 fill-yellow-500 text-yellow-500"/>
                             <span className="font-bold">{service.user.rating.toFixed(1)}</span>
