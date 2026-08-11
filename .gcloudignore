@@ -7,6 +7,9 @@
 .github/
 .vscode/
 .idea/
+PROJECT_MEMORY/
+scripts/
+src/scripts/
 *.md
 *.log
 *.test.*
@@ -18,12 +21,14 @@ coverage/
 # ملفات البناء والتطوير المحلي
 node_modules/.cache/
 .next/cache/
+*.tsbuildinfo
 temp_puppeteer/
 scratch/
 debug_*.js
 inspect_*.js
 find_*.js
 test_*.js
+test-*.js
 sooq-page-live.js
 fetchAds.mjs
 parse.js
