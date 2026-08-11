@@ -39,53 +39,53 @@ final_body.html
 live_sooq.html
 
 # حزم TipTap - محرر نصوص Client-Only
-node_modules/@tiptap/
-node_modules/prosemirror-commands/
-node_modules/prosemirror-dropcursor/
-node_modules/prosemirror-gapcursor/
-node_modules/prosemirror-history/
-node_modules/prosemirror-inputrules/
-node_modules/prosemirror-keymap/
-node_modules/prosemirror-model/
-node_modules/prosemirror-schema-list/
-node_modules/prosemirror-state/
-node_modules/prosemirror-tables/
-node_modules/prosemirror-transform/
-node_modules/prosemirror-view/
-node_modules/prosemirror-changeset/
-node_modules/orderedmap/
-node_modules/rope-sequence/
-node_modules/w3c-keyname/
+**/node_modules/@tiptap/
+**/node_modules/prosemirror-commands/
+**/node_modules/prosemirror-dropcursor/
+**/node_modules/prosemirror-gapcursor/
+**/node_modules/prosemirror-history/
+**/node_modules/prosemirror-inputrules/
+**/node_modules/prosemirror-keymap/
+**/node_modules/prosemirror-model/
+**/node_modules/prosemirror-schema-list/
+**/node_modules/prosemirror-state/
+**/node_modules/prosemirror-tables/
+**/node_modules/prosemirror-transform/
+**/node_modules/prosemirror-view/
+**/node_modules/prosemirror-changeset/
+**/node_modules/orderedmap/
+**/node_modules/rope-sequence/
+**/node_modules/w3c-keyname/
 
 # حزم Radix UI - واجهة مستخدم Client-Only
-node_modules/@radix-ui/
+**/node_modules/@radix-ui/
 
 # أدوات UI Client-Only
-node_modules/embla-carousel-react/
-node_modules/embla-carousel/
-node_modules/html2canvas/
-node_modules/react-quill/
-node_modules/react-day-picker/
-node_modules/pigeon-maps/
-node_modules/@emailjs/
+**/node_modules/embla-carousel-react/
+**/node_modules/embla-carousel/
+**/node_modules/html2canvas/
+**/node_modules/react-quill/
+**/node_modules/react-day-picker/
+**/node_modules/pigeon-maps/
+**/node_modules/@emailjs/
 
 # أدوات التطوير فقط
-node_modules/genkit-cli/
-node_modules/tailwindcss/
-node_modules/postcss/
-node_modules/autoprefixer/
-node_modules/typescript/
-node_modules/eslint/
-node_modules/eslint-*/
-node_modules/@typescript-eslint/
-node_modules/patch-package/
-node_modules/prettier/
+**/node_modules/genkit-cli/
+**/node_modules/tailwindcss/
+**/node_modules/postcss/
+**/node_modules/autoprefixer/
+**/node_modules/typescript/
+**/node_modules/eslint/
+**/node_modules/eslint-*/
+**/node_modules/@typescript-eslint/
+**/node_modules/patch-package/
+**/node_modules/prettier/
 
 # حزم أنواع TypeScript - غير مطلوبة في الإنتاج
-node_modules/@types/
+**/node_modules/@types/
 
 # أدوات اختبار
-node_modules/jest/
-node_modules/@jest/
-node_modules/mocha/
-node_modules/chai/
+**/node_modules/jest/
+**/node_modules/@jest/
+**/node_modules/mocha/
+**/node_modules/chai/
