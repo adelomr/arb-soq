@@ -12,6 +12,7 @@ import { useRouter, usePathname } from 'next/navigation';
 import type { Ad, AdSenseSettings, AdStatus, AdType, Notification, Announcement, UserProfile, PricingPlan, PricingStructure, Category, SubCategory, Review, Store, SiteStats, Profession, Specialization, PortfolioImage, AdImageMeta } from '@/lib/types';
 import { uploadFileAndReturnInfo, deleteMultipleEntries, deleteStorageEntry } from '@/lib/firebase-storage-helpers';
 import { markets } from '@/lib/markets';
+import { DEFAULT_ORGANIZED_CATEGORIES } from '@/lib/default-categories';
 
 
 interface AuthContextType {
@@ -67,8 +68,8 @@ interface AuthContextType {
   getAds: (filters: { status?: AdStatus; userId?: string; market?: string; isPromoted?: boolean; adType?: AdType; categories?: string[]; limit?: number }, callback: (ads: (Ad & { id: string })[]) => void) => () => void;
   getAdById: (userId: string, adId: string, isStoreProduct?: boolean) => Promise<(Ad & { id: string }) | null>;
   getUserById: (userId: string) => Promise<(UserProfile & { id: string }) | null>;
-  addReview: (sellerId: string, review: Omit<Review, 'id' | 'createdAt'>) => Promise<void>;
-  getReviews: (sellerId: string, callback: (reviews: Review[]) => void) => () => void;
+  addReview: (sellerId: string, review: Omit<Review, 'id' | 'createdAt'>, ad?: Ad) => Promise<void>;
+  getReviews: (sellerId: string, callback: (reviews: Review[]) => void, adId?: string) => () => void;
   incrementAdView: (ad: Ad) => Promise<void>;
   incrementAdClick: (ad: Ad) => Promise<void>;
   incrementSiteVisit: () => Promise<void>;
@@ -166,10 +167,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     } else {
       // New user, redirect to signup to complete profile
       router.push('/signup');
-      return null;
     }
   }, [router, getUserStore]);
-  
+
   const getCategories = useCallback(async (): Promise<Category[]> => {
     try {
         const querySnapshot = await getDocs(collection(firestore, 'categories'));
@@ -191,19 +191,40 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             } as Category;
         });
         
-        // Ensure consistent ordering (e.g., by ID or a 'order' field if exists)
-        return cats.sort((a, b) => a.id.localeCompare(b.id));
+        // Ensure consistent ordering by user order field
+        const sortedCats = cats.sort((a, b) => ((a as any).order ?? 0) - ((b as any).order ?? 0));
+
+        // Merge fetched categories with DEFAULT_ORGANIZED_CATEGORIES so missing categories (like services, crafts, etc.) are always present
+        const merged: Category[] = [...sortedCats];
+        for (const defCat of DEFAULT_ORGANIZED_CATEGORIES) {
+          const existsIndex = merged.findIndex(c => c.id === defCat.id || c.name?.ar === defCat.name?.ar);
+          if (existsIndex === -1) {
+            merged.push(defCat);
+          } else {
+            if (!merged[existsIndex].subcategories || merged[existsIndex].subcategories!.length === 0) {
+              merged[existsIndex] = {
+                ...merged[existsIndex],
+                subcategories: defCat.subcategories
+              };
+            }
+          }
+        }
+        return merged;
     } catch (e) {
         console.error("Error fetching categories:", e);
-        return [];
+        return DEFAULT_ORGANIZED_CATEGORIES;
     }
   }, []);
   
     const getAdSenseSettings = useCallback(async (): Promise<AdSenseSettings | null> => {
-        const docRef = doc(firestore, 'settings', 'adsense');
-        const docSnap = await getDoc(docRef);
-        if (docSnap.exists()) {
-            return docSnap.data() as AdSenseSettings;
+        try {
+            const docRef = doc(firestore, 'settings', 'adsense');
+            const docSnap = await getDoc(docRef);
+            if (docSnap.exists()) {
+                return docSnap.data() as AdSenseSettings;
+            }
+        } catch (e) {
+            console.warn("Could not fetch AdSense settings:", e);
         }
         return { adsEnabled: true, autoAdsEnabled: false };
     }, []);
@@ -532,22 +553,29 @@ const addAd = useCallback(async (adData: any, imageFiles: File[], user: User, pr
     try {
         let imageMeta: AdImageMeta[] = [];
         if (imageFiles.length > 0) {
-            progressCallback(`جارٍ رفع ${imageFiles.length} صورة...`);
+            progressCallback(`جارىٍ رفع ${imageFiles.length} صورة...`);
             imageMeta = await Promise.all(
                 imageFiles.map(file => uploadFileAndReturnInfo(file, `ads/${user.uid}`, storage))
             );
             progressCallback("اكتمل رفع الصور بنجاح!");
         }
 
-        // Upload audio file if present (for image slideshow ads)
-        let audioUrl: string | undefined = adData.existingAudioUrl || undefined;
-        const audioFileToUpload: File | null = adData.audioFile || null;
-        if (audioFileToUpload && adData.adType === 'image') {
-            progressCallback('جارٍ رفع الملف الصوتي...');
-            const audioMeta = await uploadFileAndReturnInfo(audioFileToUpload, `ads/${user.uid}/audio`, storage);
-            audioUrl = audioMeta.url;
-            progressCallback('اكتمل رفع الملف الصوتي!');
-        }
+        // حماية إضافية: تحويل معرّف السوق إلى اسم الدولة العربي إن كان لا يزال كمعرّف
+        // التطبيق يبحث بـ "مصر" وليس بـ "eg"
+        const resolvedCountry = (() => {
+            const raw = adData.country || userProfile.country || '';
+            const found = markets.find(m => m.id === raw);
+            return found ? found.name.ar : raw;
+        })();
+
+        // تحويل نوع الإعلان إلى العربي لتوافق التطبيق
+        const adTypeArMap: Record<string, string> = {
+            'sell-service': 'بيع خدمة',
+            'sell-item': 'بيع منتج',
+            'request-service': 'طلب خدمة',
+            'video': 'فيديو',
+            'image': 'صوري',
+        };
 
         const newAdData: Partial<Ad> = {
             ...adData,
@@ -562,17 +590,16 @@ const addAd = useCallback(async (adData: any, imageFiles: File[], user: User, pr
             imageHints: [], 
             views: 0,
             clicks: 0,
-            // Hierarchical location defaults
-            country: adData.country || userProfile.country || '',
+            // حقل country يحتوي على اسم الدولة بالعربي دائماً (مصر، السعودية،...) وليس كمعرّف (eg, sa, ...)
+            country: resolvedCountry,
             governorate: adData.governorate || userProfile.province || '',
             city: adData.city || userProfile.city || '',
             village: adData.village || userProfile.village || '',
-            ...(audioUrl ? { audioUrl } : {}),
+            // حقل التوافق مع التطبيق: نوع الإعلان بالعربي
+            ...(adData.adType ? { adTypeAr: adTypeArMap[adData.adType] || adData.adType } : {}),
         };
 
         delete (newAdData as any).images;
-        delete (newAdData as any).audioFile;
-        delete (newAdData as any).existingAudioUrl;
         
         let collectionRef;
         if (newAdData.category === 'store-product') {
@@ -583,7 +610,7 @@ const addAd = useCallback(async (adData: any, imageFiles: File[], user: User, pr
             collectionRef = collection(firestore, 'ads');
         }
         
-        progressCallback("جارٍ حفظ بيانات الإعلان...");
+        progressCallback("جارىٍ حفظ بيانات الإعلان...");
         await addDoc(collectionRef, newAdData);
 
         return { success: true };
@@ -598,12 +625,6 @@ const addAd = useCallback(async (adData: any, imageFiles: File[], user: User, pr
   const updateAd = useCallback(async (userId: string, adId: string, adData: Partial<Ad>, newImageFiles: File[], progressCallback: (message: string) => void) => {
     const dataForUpdate: { [key: string]: any } = { ...adData };
     delete dataForUpdate.images;
-
-    // Extract audio info before sending to Firestore
-    const audioFileToUpload: File | null = (dataForUpdate as any).audioFile || null;
-    const existingAudioUrl: string | null = (dataForUpdate as any).existingAudioUrl || null;
-    delete dataForUpdate.audioFile;
-    delete dataForUpdate.existingAudioUrl;
 
     let adRef;
     let oldAdData: Ad | null = null;
@@ -647,32 +668,47 @@ const addAd = useCallback(async (adData: any, imageFiles: File[], user: User, pr
         dataForUpdate.imageUrl = newImageMeta[0]?.url || ''; // Android compatibility
         dataForUpdate.imageMeta = newImageMeta;
     } else if (oldAdData) {
-        // If no new files, keep old images
-        dataForUpdate.imageUrls = oldAdData.imageUrls;
-        dataForUpdate.imageUrl = oldAdData.imageUrl || oldAdData.imageUrls?.[0] || ''; // Android compatibility
-        dataForUpdate.imageMeta = oldAdData.imageMeta;
-    }
-
-    // Handle audio upload for image ads
-    const resolvedAdType = (dataForUpdate.adType || adData.adType || '').toString().trim();
-    if (resolvedAdType === 'image') {
-        if (audioFileToUpload) {
-            // New audio file uploaded - trim + upload
-            progressCallback('جارٍ رفع الملف الصوتي...');
-            const audioMeta = await uploadFileAndReturnInfo(audioFileToUpload, `ads/${userId}/audio`, storage);
-            dataForUpdate.audioUrl = audioMeta.url;
-            progressCallback('اكتمل رفع الملف الصوتي!');
-        } else if (existingAudioUrl) {
-            // Keep the old audio URL unchanged
-            dataForUpdate.audioUrl = existingAudioUrl;
+        // إذا لم تكن هناك ملفات جديدة، تحقق إذا كان المستخدم قد أعاد ترتيب الصور
+        if (dataForUpdate.imageUrls && dataForUpdate.imageUrls.length > 0) {
+            // استخدام الترتيب الجديد الذي اختاره المستخدم (مثلاً تغيير صورة الغلاف)
+            dataForUpdate.imageUrl = dataForUpdate.imageUrls[0]; // Android compatibility
+            // إعادة ترتيب imageMeta لتتوافق مع الترتيب الجديد
+            if (oldAdData.imageMeta && oldAdData.imageMeta.length > 0) {
+                dataForUpdate.imageMeta = dataForUpdate.imageUrls
+                    .map((url: string) => oldAdData.imageMeta?.find((m: any) => m.url === url))
+                    .filter(Boolean);
+            }
         } else {
-            // Audio was removed or never existed - set to null to delete/clear from Firestore
-            dataForUpdate.audioUrl = null;
+            // لا يوجد ترتيب جديد، احتفظ بالصور القديمة كما هي
+            dataForUpdate.imageUrls = oldAdData.imageUrls;
+            dataForUpdate.imageUrl = oldAdData.imageUrl || oldAdData.imageUrls?.[0] || ''; // Android compatibility
+            dataForUpdate.imageMeta = oldAdData.imageMeta;
         }
     }
-    
+
     dataForUpdate.status = 'active'; // Reset status to active on edit
     dataForUpdate.isActive = true; // Android compatibility
+
+    // حماية إضافية: تحويل معرّف السوق إلى اسم الدولة العربي إن كان لا يزال كمعرّف
+    // التطبيق يبحث بـ "مصر" وليس بـ "eg"
+    if (dataForUpdate.country) {
+        const foundMarket = markets.find((m: { id: string; name: { ar: string } }) => m.id === dataForUpdate.country);
+        if (foundMarket) {
+            dataForUpdate.country = foundMarket.name.ar;
+        }
+    }
+
+    // تحديث adTypeAr لتوافق التطبيق (نوع الإعلان بالعربي)
+    if (dataForUpdate.adType) {
+        const adTypeArMap: Record<string, string> = {
+            'sell-service': 'بيع خدمة',
+            'sell-item': 'بيع منتج',
+            'request-service': 'طلب خدمة',
+            'video': 'فيديو',
+            'image': 'صوري',
+        };
+        dataForUpdate.adTypeAr = adTypeArMap[dataForUpdate.adType as string] || dataForUpdate.adType;
+    }
     
     // Clean out undefined values before sending to Firestore
     Object.keys(dataForUpdate).forEach(key => {
@@ -763,15 +799,20 @@ const addAd = useCallback(async (adData: any, imageFiles: File[], user: User, pr
       }
     });
 
-    // 3. Save/Update current categories
-    categoriesToSave.forEach(cat => {
+    // 3. Save/Update current categories with explicit order index
+    const orderedCategories = categoriesToSave.map((cat, index) => ({
+      ...cat,
+      order: index,
+    }));
+
+    orderedCategories.forEach(cat => {
       const docRef = doc(firestore, 'categories', cat.id);
-      batch.set(docRef, cat, { merge: true });
+      batch.set(docRef, cat);
     });
 
     // 4. Commit the batch
     await batch.commit();
-    setCategories(categoriesToSave);
+    setCategories(orderedCategories);
   }, []);
 
   const saveProfessions = useCallback(async (professionsToSave: Profession[]) => {
@@ -922,14 +963,14 @@ const getAds = useCallback((
             const unsubAds = onSnapshot(finalAdQuery, async (snapshot) => {
                 const regularAds = await processSnapshot(snapshot, 'ads');
                 handleCombinedResult(regularAds, 'ads_sub');
-            });
+            }, (err) => console.warn("onSnapshot sub error:", err));
             
             // Source 2: Top-level ads collection (Android synchronization)
             const topLevelAdsQuery = query(collection(firestore, 'ads'), where('userId', '==', filters.userId), ...adQueryConstraints);
             const unsubTopLevel = onSnapshot(topLevelAdsQuery, async (snapshot) => {
                 const regularAds = await processSnapshot(snapshot, 'ads');
                 handleCombinedResult(regularAds, 'ads_top');
-            });
+            }, (err) => console.warn("onSnapshot top error:", err));
 
             allUnsubscribes.push(unsubAds, unsubTopLevel);
         }
@@ -946,7 +987,7 @@ const getAds = useCallback((
                     return onSnapshot(finalProductQuery, async (snapshot) => {
                         const storeProducts = await processSnapshot(snapshot, 'products');
                         handleCombinedResult(storeProducts, 'products');
-                    });
+                    }, (err) => console.warn("onSnapshot products error:", err));
                 }
                 return () => {};
             });
@@ -977,7 +1018,7 @@ const getAds = useCallback((
                   regularAds = regularAds.filter(ad => filters.categories?.includes(ad.category));
                 }
                 handleCombinedResult(regularAds, 'ads_global');
-            });
+            }, (err) => console.warn("onSnapshot global ads error:", err));
             allUnsubscribes.push(unsubAds);
         }
         
@@ -1001,7 +1042,7 @@ const getAds = useCallback((
                   );
                 }
                 handleCombinedResult(storeProducts, 'products_global');
-            });
+            }, (err) => console.warn("onSnapshot global products error:", err));
             allUnsubscribes.push(unsubProducts);
         }
     }
@@ -1061,55 +1102,6 @@ const getAds = useCallback((
       return null;
   }, [getUserStore, getUserById]);
 
-  const addReview = useCallback(async (sellerId: string, review: Omit<Review, 'id' | 'createdAt'>) => {
-    const sellerRef = doc(firestore, 'users', sellerId);
-    const reviewCollection = collection(sellerRef, 'reviews');
-
-    await runTransaction(firestore, async (transaction) => {
-        const sellerDoc = await transaction.get(sellerRef);
-        if (!sellerDoc.exists()) {
-            throw "البائع غير موجود!";
-        }
-
-        const newReviewRef = doc(reviewCollection);
-        transaction.set(newReviewRef, { ...review, createdAt: serverTimestamp() });
-
-        const currentData = sellerDoc.data() as UserProfile;
-        const currentRating = currentData.rating || 0;
-        const currentReviewCount = currentData.reviewCount || 0;
-        
-        const newReviewCount = currentReviewCount + 1;
-        const newTotalRating = (currentRating * currentReviewCount) + review.rating;
-        const newAverageRating = newTotalRating / newReviewCount;
-        
-        transaction.update(sellerRef, {
-            reviewCount: newReviewCount,
-            rating: newAverageRating
-        });
-    });
-
-    if (userProfile) {
-        sendNotification(sellerId, `لقد تلقيت تقييمًا جديدًا من ${userProfile.name}`, 'private');
-    }
-    
-    if (userProfile && userProfile.id === sellerId) {
-        refreshUserProfile();
-    }
-  }, [sendNotification, userProfile, refreshUserProfile]);
-
-  const getReviews = useCallback((sellerId: string, callback: (reviews: Review[]) => void) => {
-    const reviewsQuery = query(collection(firestore, 'users', sellerId, 'reviews'), orderBy('createdAt', 'desc'));
-    
-    const unsubscribe = onSnapshot(reviewsQuery, (querySnapshot) => {
-        const reviews = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Review));
-        callback(reviews);
-    }, (error) => {
-        console.error("خطأ في جلب المراجعات:", error);
-    });
-
-    return unsubscribe;
-  }, []);
-
   const getAdRef = useCallback(async (ad: Ad) => {
     const isStoreProduct = ad.category === 'store-product';
     if (isStoreProduct) {
@@ -1126,21 +1118,113 @@ const getAds = useCallback((
     }
   }, [getUserStore]);
 
+  const addReview = useCallback(async (sellerId: string, review: Omit<Review, 'id' | 'createdAt'>, ad?: Ad) => {
+    const sellerRef = doc(firestore, 'users', sellerId);
+    const reviewCollection = collection(sellerRef, 'reviews');
+
+    const reviewData = {
+      ...review,
+      adId: ad?.id || review.adId || null,
+    };
+
+    await runTransaction(firestore, async (transaction) => {
+        const sellerDoc = await transaction.get(sellerRef);
+        if (!sellerDoc.exists()) {
+            throw "البائع غير موجود!";
+        }
+
+        const newReviewRef = doc(reviewCollection);
+        transaction.set(newReviewRef, { ...reviewData, createdAt: serverTimestamp() });
+
+        const currentData = sellerDoc.data() as UserProfile;
+        const currentRating = currentData.rating || 0;
+        const currentReviewCount = currentData.reviewCount || 0;
+        
+        const newReviewCount = currentReviewCount + 1;
+        const newTotalRating = (currentRating * currentReviewCount) + review.rating;
+        const newAverageRating = newTotalRating / newReviewCount;
+        
+        transaction.update(sellerRef, {
+            reviewCount: newReviewCount,
+            rating: newAverageRating
+        });
+    });
+
+    if (ad && ad.id) {
+      try {
+        const adRef = await getAdRef(ad);
+        const adSnap = await getDoc(adRef);
+        if (adSnap.exists()) {
+          const currentAdData = adSnap.data() as Ad;
+          const currentAdRating = currentAdData.rating || 0;
+          const currentAdReviewCount = currentAdData.reviewCount || 0;
+
+          const newAdReviewCount = currentAdReviewCount + 1;
+          const newAdTotalRating = (currentAdRating * currentAdReviewCount) + review.rating;
+          const newAdAverageRating = newAdTotalRating / newAdReviewCount;
+
+          await updateDoc(adRef, {
+            reviewCount: newAdReviewCount,
+            rating: newAdAverageRating,
+          });
+        }
+      } catch (e) {
+        console.warn("Could not update ad rating:", e);
+      }
+    }
+
+    if (userProfile) {
+        sendNotification(sellerId, `لقد تلقيت تقييمًا جديدًا من ${userProfile.name}`, 'private');
+    }
+    
+    if (userProfile && userProfile.id === sellerId) {
+        refreshUserProfile();
+    }
+  }, [sendNotification, userProfile, refreshUserProfile, getAdRef]);
+
+  const getReviews = useCallback((sellerId: string, callback: (reviews: Review[]) => void, adId?: string) => {
+    const reviewsQuery = query(collection(firestore, 'users', sellerId, 'reviews'), orderBy('createdAt', 'desc'));
+    
+    const unsubscribe = onSnapshot(reviewsQuery, (querySnapshot) => {
+        let reviews = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Review));
+        if (adId) {
+            reviews = reviews.filter(r => r.adId === adId);
+        }
+        callback(reviews);
+    }, (error) => {
+        console.error("خطأ في جلب المراجعات:", error);
+    });
+
+    return unsubscribe;
+  }, []);
+
   const incrementAdView = useCallback(async (ad: Ad) => {
-      if (!ad || !ad.userId || !ad.id) return;
-      const adRef = await getAdRef(ad);
-      await updateDoc(adRef, { views: increment(1) });
+      try {
+        if (!ad || !ad.userId || !ad.id) return;
+        const adRef = await getAdRef(ad);
+        await updateDoc(adRef, { views: increment(1) });
+      } catch (e) {
+        console.warn("Could not increment ad view:", e);
+      }
   }, [getAdRef]);
   
   const incrementAdClick = useCallback(async (ad: Ad) => {
-      if (!ad || !ad.userId || !ad.id) return;
-      const adRef = await getAdRef(ad);
-      await updateDoc(adRef, { clicks: increment(1) });
+      try {
+        if (!ad || !ad.userId || !ad.id) return;
+        const adRef = await getAdRef(ad);
+        await updateDoc(adRef, { clicks: increment(1) });
+      } catch (e) {
+        console.warn("Could not increment ad click:", e);
+      }
   }, [getAdRef]);
 
   const incrementSiteVisit = useCallback(async () => {
-    const statsRef = doc(firestore, 'settings', 'stats');
-    await setDoc(statsRef, { totalVisits: increment(1) }, { merge: true });
+    try {
+      const statsRef = doc(firestore, 'settings', 'stats');
+      await setDoc(statsRef, { totalVisits: increment(1) }, { merge: true });
+    } catch (e) {
+      console.warn("Could not increment site visit:", e);
+    }
   }, []);
 
   const resetAdCounters = useCallback(async (userId: string, adId: string, adData: Ad) => {

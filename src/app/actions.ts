@@ -9,6 +9,7 @@ import { firestore } from '@/lib/firebase';
 import { collectionGroup, getDocs, query } from 'firebase/firestore';
 import axios from 'axios';
 import { z } from 'zod';
+import { incrementPageViews } from '@/lib/page-service';
 
 
 const DataUriSchema = z.string().refine(val => val.startsWith('data:image/'), {
@@ -162,3 +163,31 @@ export async function handleTextCorrection(text: string) {
         return { success: false, error: 'حدث خطأ أثناء تصحيح النص من جوجل.' };
     }
 }
+
+import { revalidatePath } from 'next/cache';
+
+export async function handleIncrementPageViews(id: string) {
+    try {
+        await incrementPageViews(id);
+        return { success: true };
+    } catch (error) {
+        console.error('Error in handleIncrementPageViews:', error);
+        return { success: false, error: 'Failed to increment page views' };
+    }
+}
+
+export async function handleRevalidatePage(slug?: string) {
+    try {
+        if (slug) {
+            revalidatePath(`/p/${slug}`);
+        }
+        revalidatePath('/p/[slug]', 'page');
+        revalidatePath('/landing-sections');
+        revalidatePath('/');
+        return { success: true };
+    } catch (error) {
+        console.error('Error revalidating page cache:', error);
+        return { success: false, error: 'فشل إخلاء ذاكرة التخزين المؤقت' };
+    }
+}
+

@@ -15,7 +15,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription, SheetTrigger } from '@/components/ui/sheet';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Menu, PlusCircle, User, LayoutDashboard, LogOut, Globe, LogIn, Sun, Moon, Minus, Plus, Undo2, Shield, Bell, Trash2, Info, Wallet, Megaphone, X, BadgeDollarSign, Store, Edit, ShoppingCart, MapPin, Tv, Grid, List } from 'lucide-react';
+import { Menu, PlusCircle, User, LayoutDashboard, LogOut, Globe, LogIn, Sun, Moon, Minus, Plus, Undo2, Shield, Bell, Trash2, Info, Wallet, Megaphone, X, BadgeDollarSign, Store, Edit, ShoppingCart, MapPin, Tv, Grid, List, Smartphone } from 'lucide-react';
 import { useState, useEffect, useRef } from 'react';
 import { usePathname } from 'next/navigation';
 import { cn } from '@/lib/utils';
@@ -28,6 +28,7 @@ import { useView } from '@/context/ViewContext';
 import { useMarket } from '@/context/MarketContext';
 import { markets } from '@/lib/markets';
 import { useCart } from '@/context/CartContext';
+import AppDownloadButton from './AppDownloadButton';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Badge } from '@/components/ui/badge';
 import { formatDistanceToNow } from 'date-fns';
@@ -242,6 +243,15 @@ export default function Header() {
               <Image src={appIconUrl} alt="App Icon" width={64} height={64} className="h-12 w-12 sm:h-16 sm:w-16 animate-breath transition-transform" />
               <span className="hidden sm:inline text-xl group-hover/logo:text-primary transition-colors">{currentLabels.appName}</span>
             </Link>
+
+            {pathname === '/' && (
+              <Button asChild className="h-9 sm:h-10 px-3 text-xs sm:text-sm font-bold bg-primary hover:bg-primary/90 text-primary-foreground shadow-sm">
+                <Link href="/submit">
+                  <PlusCircle className={direction === 'rtl' ? 'ml-1.5 h-4 w-4' : 'mr-1.5 h-4 w-4'} />
+                  {currentLabels.submitAd}
+                </Link>
+              </Button>
+            )}
           </div>
 
           <div className="flex items-center gap-1 sm:gap-2">
@@ -332,14 +342,12 @@ export default function Header() {
             </DropdownMenu>
 
 
+            <div className="hidden lg:block">
+              <AppDownloadButton variant="compact" />
+            </div>
+
             {isAuthenticated ? (
               <>
-                <Button asChild className="hidden sm:flex h-10">
-                  <Link href="/submit">
-                    <PlusCircle className={direction === 'rtl' ? 'ml-2 h-4 w-4' : 'mr-2 h-4 w-4'} />
-                    {currentLabels.submitAd}
-                  </Link>
-                </Button>
 
                 <Link href="/cart" passHref>
                   <Button variant="ghost" size="icon" className="relative h-9 w-9 sm:h-10 sm:w-10 rounded-full border">
@@ -433,7 +441,7 @@ export default function Header() {
                       </DropdownMenuItem>
                     )}
                     <DropdownMenuItem asChild>
-                      <Link href="/dashboard"><LayoutDashboard className={direction === 'rtl' ? 'ml-2 h-4 w-4' : 'mr-2 h-4 w-4'} />{isAdmin ? 'لوحة التحكم' : currentLabels.dashboard}</Link>
+                      <Link href="/dashboard"><LayoutDashboard className={direction === 'rtl' ? 'ml-2 h-4 w-4' : 'mr-2 h-4 w-4'} />{currentLabels.dashboard}</Link>
                     </DropdownMenuItem>
                      {hasStore ? (
                         <DropdownMenuItem asChild>
@@ -521,13 +529,27 @@ export default function Header() {
                       {currentLabels.laborMarket}
                   </Link>
 
+                  <Link
+                      href="/landing-sections"
+                      onClick={() => setSheetOpen(false)}
+                      className={cn(
+                      'font-medium transition-colors hover:text-primary',
+                      pathname === '/landing-sections' ? 'text-primary' : 'text-muted-foreground'
+                      )}
+                  >
+                      أقسام صفحات الهبوط
+                  </Link>
+
                   <Separator />
-                  <Button asChild>
-                      <Link href="/submit" onClick={() => setSheetOpen(false)}>
-                          <PlusCircle className={direction === 'rtl' ? 'ml-2 h-4 w-4' : 'mr-2 h-4 w-4'} />
-                          {currentLabels.submitAd}
-                      </Link>
-                  </Button>
+                  <AppDownloadButton variant="default" className="w-full justify-center" onClick={() => setSheetOpen(false)} />
+                  {pathname === '/' && (
+                    <Button asChild>
+                        <Link href="/submit" onClick={() => setSheetOpen(false)}>
+                            <PlusCircle className={direction === 'rtl' ? 'ml-2 h-4 w-4' : 'mr-2 h-4 w-4'} />
+                            {currentLabels.submitAd}
+                        </Link>
+                    </Button>
+                  )}
                 </div>
               </SheetContent>
             </Sheet>

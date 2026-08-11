@@ -95,8 +95,8 @@ export default function NotificationManager() {
   }, [getAllUsers, t.error, t.errorDesc, toast]);
   
   const filteredUsers = users.filter(user => 
-      user.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
-      user.email.toLowerCase().includes(searchQuery.toLowerCase())
+      (user.name || '').toLowerCase().includes(searchQuery.toLowerCase()) || 
+      (user.email || '').toLowerCase().includes(searchQuery.toLowerCase())
   );
 
   const handleSubmit = async () => {
@@ -194,15 +194,15 @@ export default function NotificationManager() {
                         >
                             <div className="flex items-center gap-3">
                                 <Image
-                                    alt={user.name}
+                                    alt={user.name || user.id}
                                     className="aspect-square rounded-full object-cover"
-                                    height="32"
+                                    height={32}
                                     src={user.avatarUrl || `https://avatar.vercel.sh/${user.id}.png`}
-                                    width="32"
+                                    width={32}
                                 />
                                 <div>
-                                    <div className="font-medium">{user.name}</div>
-                                    <div className={selectedUser === user.id ? 'text-primary-foreground/80' : 'text-muted-foreground'}>{user.email}</div>
+                                    <div className="font-medium">{user.name || '—'}</div>
+                                    <div className={selectedUser === user.id ? 'text-primary-foreground/80' : 'text-muted-foreground'}>{user.email || '—'}</div>
                                 </div>
                             </div>
                             {selectedUser === user.id && <CheckCircle className="h-5 w-5" />}
@@ -218,7 +218,7 @@ export default function NotificationManager() {
              )}
             {selectedUserInfo && (
                 <div className="text-sm p-2 bg-secondary rounded-md text-secondary-foreground">
-                    <span className="font-semibold">{t.selectedUser}</span> {selectedUserInfo.name} ({selectedUserInfo.email})
+                    <span className="font-semibold">{t.selectedUser}</span> {selectedUserInfo.name || '—'} ({selectedUserInfo.email || '—'})
                 </div>
             )}
           </div>

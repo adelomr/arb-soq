@@ -15,35 +15,13 @@ import {
   FormLabel,
   FormMessage,
 } from '@/components/ui/form';
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog"
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip"
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
+
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Switch } from '@/components/ui/switch';
+
 import { useToast } from '@/hooks/use-toast';
-import { DollarSign, FileUp, Sparkles, Send, MapPin, ShoppingBag, Wrench, Handshake, Loader2, CreditCard, Map, Store, PlusCircle, Trash2, X, Globe, Info, Hash, Package, Tv, ImageIcon, Phone, Navigation, Music, Volume2, VolumeX, Mic } from 'lucide-react';
+import { DollarSign, FileUp, Sparkles, Send, MapPin, ShoppingBag, Wrench, Handshake, Loader2, CreditCard, Map, Store, PlusCircle, Trash2, X, Globe, Info, Hash, Package, Tv, ImageIcon, Phone } from 'lucide-react';
 import { useState, useMemo, useEffect, Suspense } from 'react';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import type { AdType, AdCondition, Category } from '@/lib/types';
@@ -61,10 +39,10 @@ import { markets } from '@/lib/markets';
 
 const translations = {
     ar: {
-        adSent: "تم إرسال الإعلان للمراجعة!",
-        adSentDesc: "سيقوم فريقنا بمراجعة إعلانك وسيتم نشره قريباً.",
+        adSent: "تم نشر الإعلان بنجاح!",
+        adSentDesc: "تم نشر إعلانك بنجاح على منصة سوق العرب.",
         adUpdated: "تم تحديث الإعلان!",
-        adUpdatedDesc: "تم حفظ تغييراتك بنجاح وسيتم مراجعتها.",
+        adUpdatedDesc: "تم حفظ تغييراتك بنجاح.",
         whatToDo: "ماذا تريد أن تفعل؟",
         sellItem: "بيع منتج",
         offerService: "بيع خدمة",
@@ -76,6 +54,10 @@ const translations = {
         subcategory: "الفئة الفرعية",
         categoryPlaceholder: "اختر فئة لإعلانك",
         subcategoryPlaceholder: "اختر فئة فرعية",
+        categoryMode: "نوع التصنيف",
+        categoryModeCategory: "فئة",
+        categoryModeProfession: "مهنة",
+        professionPlaceholder: "اختر مهنة",
         price: "السعر",
         productCode: "كود المنتج (SKU)",
         productCodePlaceholder: "مثال: SOFA-00123",
@@ -96,11 +78,12 @@ const translations = {
         imageFormats: "PNG, JPG, or GIF",
         promoteAd: "تمييز إعلانك",
         promoteAdDesc: "الإعلانات المميزة تحصل على مشاهدات تصل إلى 10 أضعاف.",
-        submitAd: "إرسال للمراجعة",
+        submitAd: "نشر الإعلان",
         updateAd: "تحديث الإعلان",
         saving: "جارٍ الحفظ...",
         adTypeRequired: "الرجاء تحديد نوع الإجراء.",
         titleMin: "يجب أن يكون العنوان 5 أحرف على الأقل.",
+        titleMax: "يجب ألا يتجاوز العنوان 50 حرفاً.",
         categoryRequired: "الرجاء اختيار فئة.",
         subcategoryRequired: "الرجاء اختيار فئة فرعية.",
         descriptionMin: "يجب أن يكون الوصف 20 حرفًا على الأقل.",
@@ -141,7 +124,7 @@ const translations = {
         videoUrl: "رابط الفيديو (يوتيوب أو MP4)",
         playlistUrl: "رابط قائمة تشغيل يوتيوب (إضافة جماعية)",
         education: "تعليم",
-        communicationMode: "تفعيل الوسائل التواصل",
+        communicationMode: "اختار وسيلة التواصل",
         commApp: "تواصل عبر التطبيق (رسائل/اتصال)",
         commWebsite: "رابط موقع إلكتروني خارجي",
         targetCountry: "الدولة المستهدفة",
@@ -171,35 +154,47 @@ const translations = {
         country: "الدولة",
         websitePlaceholder: "https://your-site.com",
         updateLocationInProfile: "يجب تحديث بيانات موقعك من ملفك الشخصي لتوسيع النطاق.",
-        audioTrack: "الملف الصوتي للإعلان (اختياري)",
-        audioTrackDesc: "أضف ملفاً صوتياً يُشغَّل أثناء عرض الإعلان الصوري. سيتم حفظ أول 30 ثانية فقط من الملف.",
-        audioUpload: "اختر ملفاً صوتياً",
-        audioTrimming: "جارٍ معالجة الصوت (30 ثانية)...",
-        audioReady: "الملف الصوتي جاهز",
-        audioRemove: "إزالة الصوت",
-        audioPreview: "استماع",
-        audioFormats: "MP3, WAV, AAC, OGG",
-        audioTrimSuccess: "تم قص الملف الصوتي إلى 30 ثانية بنجاح!",
-        audioTrimError: "فشل معالجة الملف الصوتي. تأكد من صيغة الملف وحاول مرة أخرى.",
     }
 };
+
+const CURRENCIES = [
+  { code: 'EGP', symbol: 'ج.م', name: 'جنيه مصري' },
+  { code: 'SAR', symbol: 'ر.س', name: 'ريال سعودي' },
+  { code: 'AED', symbol: 'د.إ', name: 'درهم إماراتي' },
+  { code: 'KWD', symbol: 'د.ك', name: 'دينار كويتي' },
+  { code: 'JOD', symbol: 'د.أ', name: 'دينار أردني' },
+  { code: 'IQD', symbol: 'د.ع', name: 'دينار عراقي' },
+  { code: 'BHD', symbol: 'د.ب', name: 'دينار بحريني' },
+  { code: 'QAR', symbol: 'ر.ق', name: 'ريال قطري' },
+  { code: 'OMR', symbol: 'ر.ع', name: 'ريال عُماني' },
+  { code: 'LBP', symbol: 'ل.ل', name: 'ليرة لبنانية' },
+  { code: 'SYP', symbol: 'ل.س', name: 'ليرة سورية' },
+  { code: 'MAD', symbol: 'د.م', name: 'درهم مغربي' },
+  { code: 'DZD', symbol: 'د.ج', name: 'دينار جزائري' },
+  { code: 'TND', symbol: 'د.ت', name: 'دينار تونسي' },
+  { code: 'LYD', symbol: 'د.ل', name: 'دينار ليبي' },
+  { code: 'SDG', symbol: 'ج.س', name: 'جنيه سوداني' },
+  { code: 'YER', symbol: 'ر.ي', name: 'ريال يمني' },
+  { code: 'USD', symbol: '$', name: 'دولار أمريكي' },
+];
 
 const getAdFormSchema = (t: typeof translations.ar, isStoreProduct: boolean) => z.object({
   adType: z.enum(['sell-item', 'sell-service', 'request-service', 'video', 'image'], {
     required_error: t.adTypeRequired
-  }),
-  title: z.string().max(100).optional(),
+  }).default('sell-item'),
+  title: z.string().min(5, t.titleMin).max(50, t.titleMax),
   category: z.string().optional(),
   subcategory: z.string().optional(),
-  description: z.string().max(1000),
+  description: z.string().min(10, 'يرجى كتابة وصف مناسب للإعلان').max(1000),
   price: z.coerce.number().optional(),
+  currency: z.string().optional(),
   productCode: z.string().optional(),
   market: z.string().optional(),
   province: z.string().optional(),
   location: z.string().optional(),
   latitude: z.number().optional(),
   longitude: z.number().optional(),
-  images: z.array(z.object({ file: z.any().nullable(), url: z.string() })).min(0, t.imageRequired), // Changed to 0 temporarily
+  images: z.array(z.object({ file: z.any().nullable(), url: z.string() })).min(0, t.imageRequired),
   condition: z.enum(['new', 'used']).optional(),
   videoSource: z.enum(['single', 'playlist']).default('single'),
   videoUrl: z.string().optional(),
@@ -211,44 +206,8 @@ const getAdFormSchema = (t: typeof translations.ar, isStoreProduct: boolean) => 
   showCommIcon: z.boolean().default(true),
   websiteUrl: z.string().optional(),
   locationScope: z.string().optional(),
-  isPremium: z.boolean().default(false),
   phoneNumber: z.string().optional(),
 }).superRefine((data, ctx) => {
-    if (data.videoSource !== 'playlist') {
-        if (!data.title || data.title.trim().length < 5) {
-            ctx.addIssue({
-                code: z.ZodIssueCode.custom,
-                message: t.titleMin,
-                path: ['title'],
-            });
-        }
-    }
-
-    if (data.adType !== 'video' && data.adType !== 'image') {
-        if (!data.description || data.description.trim().length < 20) {
-            ctx.addIssue({
-                code: z.ZodIssueCode.custom,
-                message: t.descriptionMin,
-                path: ['description'],
-            });
-        }
-    }
-    
-    if (data.adType === 'video') {
-        if (data.videoSource === 'single' && !data.videoUrl) {
-            ctx.addIssue({
-                code: z.ZodIssueCode.custom,
-                message: t.videoUrlRequired,
-                path: ['videoUrl'],
-            });
-        } else if (data.videoSource === 'playlist' && !data.playlistUrl) {
-            ctx.addIssue({
-                code: z.ZodIssueCode.custom,
-                message: t.playlistUrlRequired,
-                path: ['playlistUrl'],
-            });
-        }
-    }
     if (data.adType === 'sell-item' && data.category !== 'store-product') {
         if (!data.category) {
             ctx.addIssue({
@@ -273,9 +232,9 @@ const LocationPicker = dynamic(() => import('./LocationPicker'), {
   loading: () => <div className="h-96 flex items-center justify-center"><Loader2 className="h-8 w-8 animate-spin" /></div>
 });
 
-function AdFormContent({ adId, userId, isEditMode }: { adId?: string | null, userId?: string | null, isEditMode: boolean }) {
+function AdFormContent({ adId, userId, isEditMode, onSuccess }: { adId?: string | null, userId?: string | null, isEditMode: boolean, onSuccess?: () => void }) {
   const { market } = useMarket();
-  const { user, userProfile, addAd, updateAd, getAdById, categories } = useAuth();
+  const { user, userProfile, addAd, updateAd, getAdById, categories, professions } = useAuth();
   const t = translations.ar;
   const direction = 'rtl';
   
@@ -293,14 +252,7 @@ function AdFormContent({ adId, userId, isEditMode }: { adId?: string | null, use
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState<Category | null>(null);
   const [isLoadingAd, setIsLoadingAd] = useState(isEditMode);
-
-  // Audio state for image ads
-  const [audioFile, setAudioFile] = useState<File | null>(null);
-  const [audioPreviewUrl, setAudioPreviewUrl] = useState<string | null>(null);
-  const [isTrimmingAudio, setIsTrimmingAudio] = useState(false);
-  const [isAudioPlaying, setIsAudioPlaying] = useState(false);
-  const [existingAudioUrl, setExistingAudioUrl] = useState<string | null>(null);
-  const audioRef = typeof window !== 'undefined' ? new Audio() : null;
+  const [categoryMode, setCategoryMode] = useState<'category' | 'profession'>('category');
 
   const hasPaymentMethod = true;
 
@@ -308,7 +260,7 @@ function AdFormContent({ adId, userId, isEditMode }: { adId?: string | null, use
   const form = useForm<AdFormValues>({
     resolver: zodResolver(adFormSchema),
     defaultValues: {
-      adType: isStoreProduct ? 'sell-item' : 'sell-service',
+      adType: isStoreProduct ? 'sell-item' : 'image',
       title: '',
       description: '',
       price: 0,
@@ -324,6 +276,7 @@ function AdFormContent({ adId, userId, isEditMode }: { adId?: string | null, use
       websiteUrl: '',
       locationScope: 'city',
       phoneNumber: '',
+      currency: markets.find(m => m.id === (userProfile?.country || market.id))?.currency || 'EGP',
     },
   });
 
@@ -389,7 +342,7 @@ function AdFormContent({ adId, userId, isEditMode }: { adId?: string | null, use
                     governorate: ad.governorate || '',
                     city: ad.city || '',
                     village: ad.village || '',
-                    isPremium: ad.isPremium || false,
+                    currency: ad.currency || 'EGP',
                     phoneNumber: ad.phoneNumber || '',
                 });
                 
@@ -400,10 +353,6 @@ function AdFormContent({ adId, userId, isEditMode }: { adId?: string | null, use
                     if (mainCategory.subcategories?.some(s => s.id === ad.category)) {
                         form.setValue('subcategory', ad.category);
                     }
-                }
-                // Load existing audio URL if editing an image ad
-                if (ad.adType === 'image' && (ad as any).audioUrl) {
-                    setExistingAudioUrl((ad as any).audioUrl);
                 }
             } else {
                  toast({ title: t.adNotFound, variant: 'destructive' });
@@ -420,7 +369,40 @@ function AdFormContent({ adId, userId, isEditMode }: { adId?: string | null, use
   const categoryValue = form.watch('category');
   const subcategoryValue = form.watch('subcategory');
   const marketValue = form.watch('market');
+  const locationScope = form.watch('locationScope');
   const selectedMarket = useMemo(() => markets.find(m => m.id === marketValue), [marketValue]);
+
+  // معرف بلد المستخدم الأصلي
+  const userHomeCountryId = useMemo(() => {
+    if (!userProfile?.country) return market.id;
+    const found = markets.find(m => m.id === userProfile.country || m.name.ar === userProfile.country);
+    return found ? found.id : userProfile.country;
+  }, [userProfile, market.id]);
+
+  const userGovName = useMemo(() => userProfile?.province || userProfile?.governorate || '', [userProfile]);
+  const userCityName = useMemo(() => userProfile?.city || '', [userProfile]);
+  const userVillageName = useMemo(() => userProfile?.village || '', [userProfile]);
+
+  const isHomeCountryTarget = useMemo(() => {
+    return !marketValue || marketValue === userHomeCountryId;
+  }, [marketValue, userHomeCountryId]);
+
+  // ضبط التحديد الافتراضي لبلد المستخدم الأصلي
+  useEffect(() => {
+    if (!isEditMode && userProfile?.country) {
+      const userHome = markets.find(m => m.id === userProfile.country || m.name.ar === userProfile.country)?.id || userProfile.country;
+      if (userHome && markets.some(m => m.id === userHome)) {
+        form.setValue('market', userHome);
+      }
+    }
+  }, [userProfile, isEditMode, form]);
+
+  // اختيار العملة تلقائياً عند تغيير الدولة المستهدفة
+  useEffect(() => {
+    if (selectedMarket?.currency) {
+      form.setValue('currency', selectedMarket.currency);
+    }
+  }, [selectedMarket, form]);
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const files = event.target.files;
@@ -442,128 +424,6 @@ function AdFormContent({ adId, userId, isEditMode }: { adId?: string | null, use
           addFileToForm(file);
         }
       }
-    }
-  };
-
-
-  // Trim audio to 30 seconds using Web Audio API
-  const trimAudioTo30Seconds = async (file: File): Promise<File> => {
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onload = async (e) => {
-        try {
-          const arrayBuffer = e.target?.result as ArrayBuffer;
-          const AudioContext = window.AudioContext || (window as any).webkitAudioContext;
-          const audioCtx = new AudioContext();
-          const audioBuffer = await audioCtx.decodeAudioData(arrayBuffer);
-
-          const maxDuration = 30; // seconds
-          const duration = Math.min(audioBuffer.duration, maxDuration);
-          const sampleRate = audioBuffer.sampleRate;
-          const numChannels = audioBuffer.numberOfChannels;
-          const frameCount = Math.floor(duration * sampleRate);
-
-          const trimmedBuffer = audioCtx.createBuffer(numChannels, frameCount, sampleRate);
-          for (let ch = 0; ch < numChannels; ch++) {
-            const srcData = audioBuffer.getChannelData(ch);
-            trimmedBuffer.copyToChannel(srcData.slice(0, frameCount), ch);
-          }
-
-          // Convert AudioBuffer to WAV blob
-          const wavBlob = audioBufferToWav(trimmedBuffer);
-          const trimmedFile = new File([wavBlob], file.name.replace(/\.[^.]+$/, '') + '_30s.wav', { type: 'audio/wav' });
-          await audioCtx.close();
-          resolve(trimmedFile);
-        } catch (err) {
-          reject(err);
-        }
-      };
-      reader.onerror = reject;
-      reader.readAsArrayBuffer(file);
-    });
-  };
-
-  // Convert AudioBuffer to WAV format
-  const audioBufferToWav = (buffer: AudioBuffer): Blob => {
-    const numChannels = buffer.numberOfChannels;
-    const sampleRate = buffer.sampleRate;
-    const format = 1; // PCM
-    const bitDepth = 16;
-    const bytesPerSample = bitDepth / 8;
-    const blockAlign = numChannels * bytesPerSample;
-    const byteRate = sampleRate * blockAlign;
-    const dataLength = buffer.length * blockAlign;
-    const bufferLength = 44 + dataLength;
-    const arrayBuffer = new ArrayBuffer(bufferLength);
-    const view = new DataView(arrayBuffer);
-
-    const writeString = (offset: number, str: string) => {
-      for (let i = 0; i < str.length; i++) view.setUint8(offset + i, str.charCodeAt(i));
-    };
-
-    writeString(0, 'RIFF');
-    view.setUint32(4, bufferLength - 8, true);
-    writeString(8, 'WAVE');
-    writeString(12, 'fmt ');
-    view.setUint32(16, 16, true);
-    view.setUint16(20, format, true);
-    view.setUint16(22, numChannels, true);
-    view.setUint32(24, sampleRate, true);
-    view.setUint32(28, byteRate, true);
-    view.setUint16(32, blockAlign, true);
-    view.setUint16(34, bitDepth, true);
-    writeString(36, 'data');
-    view.setUint32(40, dataLength, true);
-
-    let offset = 44;
-    for (let i = 0; i < buffer.length; i++) {
-      for (let ch = 0; ch < numChannels; ch++) {
-        const sample = Math.max(-1, Math.min(1, buffer.getChannelData(ch)[i]));
-        view.setInt16(offset, sample < 0 ? sample * 0x8000 : sample * 0x7FFF, true);
-        offset += 2;
-      }
-    }
-
-    return new Blob([arrayBuffer], { type: 'audio/wav' });
-  };
-
-  const handleAudioFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (!file) return;
-
-    setIsTrimmingAudio(true);
-    try {
-      const trimmedFile = await trimAudioTo30Seconds(file);
-      setAudioFile(trimmedFile);
-      const url = URL.createObjectURL(trimmedFile);
-      setAudioPreviewUrl(url);
-      setExistingAudioUrl(null);
-      toast({ title: t.audioTrimSuccess });
-    } catch (err) {
-      console.error('Audio trim error:', err);
-      toast({ title: t.audioTrimError, variant: 'destructive' });
-    } finally {
-      setIsTrimmingAudio(false);
-      // Reset input
-      event.target.value = '';
-    }
-  };
-
-  const handleRemoveAudio = () => {
-    setAudioFile(null);
-    if (audioPreviewUrl) URL.revokeObjectURL(audioPreviewUrl);
-    setAudioPreviewUrl(null);
-    setExistingAudioUrl(null);
-    setIsAudioPlaying(false);
-  };
-
-  const handleToggleAudioPreview = () => {
-    const url = audioPreviewUrl || existingAudioUrl;
-    if (!url) return;
-    if (isAudioPlaying) {
-      setIsAudioPlaying(false);
-    } else {
-      setIsAudioPlaying(true);
     }
   };
 
@@ -631,22 +491,44 @@ function AdFormContent({ adId, userId, isEditMode }: { adId?: string | null, use
                     if (isStoreProduct) finalCategory = 'store-product';
 
                     let calculatedGov = '', calculatedCity = '', calculatedVillage = '';
-                    if (data.locationScope === 'village') {
-                        calculatedGov = userProfile?.province || data.governorate || '';
-                        calculatedCity = userProfile?.city || data.city || '';
-                        calculatedVillage = userProfile?.village || data.village || '';
-                    } else if (data.locationScope === 'city') {
-                        calculatedGov = userProfile?.province || data.governorate || '';
-                        calculatedCity = userProfile?.city || data.city || '';
-                    } else if (data.locationScope === 'governorate') {
-                        calculatedGov = userProfile?.province || data.governorate || '';
+                    const isHomeTarget = (data.market || userHomeCountryId) === userHomeCountryId;
+
+                    if (isHomeTarget) {
+                        if (data.locationScope === 'village') {
+                            calculatedGov = userGovName || data.governorate || '';
+                            calculatedCity = userCityName || data.city || '';
+                            calculatedVillage = userVillageName || data.village || '';
+                        } else if (data.locationScope === 'city') {
+                            calculatedGov = userGovName || data.governorate || '';
+                            calculatedCity = userCityName || data.city || '';
+                        } else if (data.locationScope === 'governorate') {
+                            calculatedGov = userGovName || data.governorate || '';
+                        }
+                    } else {
+                        if (data.governorate && data.governorate !== 'country') {
+                            calculatedGov = data.governorate;
+                        }
                     }
 
-                    const pureLocationName = data.locationScope === 'village' ? (userProfile?.village || data.village || userProfile?.country || '') : 
-                                  data.locationScope === 'city' ? (userProfile?.city || data.city || userProfile?.country || '') : 
-                                  data.locationScope === 'governorate' ? (userProfile?.province || data.governorate || userProfile?.country || '') : 
-                                  (data.market || userProfile?.country || '');
+                    const marketArabicName = markets.find(m => m.id === data.market)?.name.ar || userProfile?.country || '';
+                    const pureLocationName = isHomeTarget ? (
+                        data.locationScope === 'village' ? (calculatedVillage || calculatedCity || calculatedGov || marketArabicName) : 
+                        data.locationScope === 'city' ? (calculatedCity || calculatedGov || marketArabicName) : 
+                        data.locationScope === 'governorate' ? (calculatedGov || marketArabicName) : 
+                        marketArabicName
+                    ) : (
+                        calculatedGov || marketArabicName
+                    );
                                   
+                    // تحويل نوع الإعلان إلى العربي للتوافق مع التطبيق
+                    const adTypeArMap: Record<string, string> = {
+                        'sell-service': 'بيع خدمة',
+                        'sell-item': 'بيع منتج',
+                        'request-service': 'طلب خدمة',
+                        'video': 'فيديو',
+                        'image': 'صوري',
+                    };
+
                     const adDataToSave = {
                         ...data,
                         title: data.title && data.title.length > 0 ? data.title : `فيديو من قائمة تشغيل`,
@@ -656,13 +538,16 @@ function AdFormContent({ adId, userId, isEditMode }: { adId?: string | null, use
                         category: finalCategory,
                         categoryId: finalCategory,
                         market: data.market,
-                        country: data.market || userProfile?.country || '',
+                        // حفظ اسم الدولة بالعربي وليس معرّف السوق حتى يتعرف عليه التطبيق
+                        country: marketArabicName,
                         governorate: calculatedGov,
                         city: calculatedCity,
                         village: calculatedVillage,
                         location: pureLocationName,
                         showCommIcon: data.showCommIcon,
                         websiteUrl: !data.showCommIcon ? data.websiteUrl : '',
+                        // حقل التوافق مع التطبيق: نوع الإعلان بالعربي
+                        adTypeAr: adTypeArMap[data.adType] || data.adType,
                     };
                     await addAd(adDataToSave, [], user, () => {});
                 }
@@ -685,55 +570,102 @@ function AdFormContent({ adId, userId, isEditMode }: { adId?: string | null, use
             if (!data.category) data.category = 'general';
         }
 
-        let finalCategory = data.subcategory || data.category;
-        if (isStoreProduct) {
-            finalCategory = 'store-product';
+        const mainCatId = isStoreProduct ? 'store-product' : (data.category || 'general');
+        const subCatId = isStoreProduct ? '' : (data.subcategory || '');
+
+        const selectedMainCategory = categories.find(c => c.id === mainCatId);
+        const mainCategoryName = selectedMainCategory?.name?.ar || mainCatId;
+        let subCategoryName = '';
+        if (selectedMainCategory && selectedMainCategory.subcategories && subCatId) {
+            const subObj = selectedMainCategory.subcategories.find(s => s.id === subCatId);
+            if (subObj) subCategoryName = subObj.name?.ar || '';
         }
             
         const newImageFiles = data.images.map(img => img.file).filter(Boolean) as File[];
 
+        // اسخراج URLs الصور الموجودة (بدون ملف جديد) بالترتيب الجديد الذي اختاره المستخدم
+        const orderedExistingUrls = data.images
+            .filter(img => img.file === null || img.file === undefined)
+            .map(img => img.url);
+
         let calculatedGov = '', calculatedCity = '', calculatedVillage = '';
-        if (data.locationScope === 'village') {
-            calculatedGov = userProfile?.province || data.governorate || '';
-            calculatedCity = userProfile?.city || data.city || '';
-            calculatedVillage = userProfile?.village || data.village || '';
-        } else if (data.locationScope === 'city') {
-            calculatedGov = userProfile?.province || data.governorate || '';
-            calculatedCity = userProfile?.city || data.city || '';
-            calculatedVillage = ''; 
-        } else if (data.locationScope === 'governorate') {
-            calculatedGov = userProfile?.province || data.governorate || '';
-            calculatedCity = ''; 
-            calculatedVillage = '';
+        const isHomeTarget = (data.market || userHomeCountryId) === userHomeCountryId;
+
+        if (isHomeTarget) {
+            if (data.locationScope === 'village') {
+                calculatedGov = userGovName || data.governorate || '';
+                calculatedCity = userCityName || data.city || '';
+                calculatedVillage = userVillageName || data.village || '';
+            } else if (data.locationScope === 'city') {
+                calculatedGov = userGovName || data.governorate || '';
+                calculatedCity = userCityName || data.city || '';
+                calculatedVillage = ''; 
+            } else if (data.locationScope === 'governorate') {
+                calculatedGov = userGovName || data.governorate || '';
+                calculatedCity = ''; 
+                calculatedVillage = '';
+            } else {
+                calculatedGov = ''; calculatedCity = ''; calculatedVillage = '';
+            }
         } else {
-            // country
-            calculatedGov = ''; calculatedCity = ''; calculatedVillage = '';
+            if (data.governorate && data.governorate !== 'country') {
+                calculatedGov = data.governorate;
+                calculatedCity = '';
+                calculatedVillage = '';
+            } else {
+                calculatedGov = ''; calculatedCity = ''; calculatedVillage = '';
+            }
         }
 
-        const pureLocationName = data.locationScope === 'village' ? (userProfile?.village || data.village || userProfile?.country || '') : 
-                      data.locationScope === 'city' ? (userProfile?.city || data.city || userProfile?.country || '') : 
-                      data.locationScope === 'governorate' ? (userProfile?.province || data.governorate || userProfile?.country || '') : 
-                      (data.market || userProfile?.country || '');
+        const marketArabicName = markets.find(m => m.id === data.market)?.name.ar || userProfile?.country || '';
+
+        const pureLocationName = isHomeTarget ? (
+            data.locationScope === 'village' ? (calculatedVillage || calculatedCity || calculatedGov || marketArabicName) : 
+            data.locationScope === 'city' ? (calculatedCity || calculatedGov || marketArabicName) : 
+            data.locationScope === 'governorate' ? (calculatedGov || marketArabicName) : 
+            marketArabicName
+        ) : (
+            calculatedGov || marketArabicName
+        );
+
+        // تحويل نوع الإعلان إلى العربي للتوافق مع التطبيق
+        const adTypeArMap: Record<string, string> = {
+            'sell-service': 'بيع خدمة',
+            'sell-item': 'بيع منتج',
+            'request-service': 'طلب خدمة',
+            'video': 'فيديو',
+            'image': 'صوري',
+        };
 
         const adDataToSave = { 
             ...data,
-            category: finalCategory, 
+            category: mainCatId, 
+            categoryId: mainCatId,
+            subcategory: subCatId,
+            subcategoryId: subCatId,
+            categoryName: mainCategoryName,
+            subcategoryName: subCategoryName,
             market: data.market,
             // Hierarchical location synchronization (Android compatibility)
-            country: data.market || userProfile?.country || '',
+            // حفظ اسم الدولة بالعربي وليس معرّف السوق حتى يتعرف عليه التطبيق
+            country: marketArabicName,
             governorate: calculatedGov,
             city: calculatedCity,
             village: calculatedVillage,
             location: pureLocationName,
-            categoryId: finalCategory,
             videoUrl: data.videoUrl || '',
             adType: data.adType,
+            // حقل التوافق مع التطبيق: نوع الإعلان بالعربي
+            adTypeAr: adTypeArMap[data.adType] || data.adType,
             showCommIcon: data.showCommIcon,
             websiteUrl: !data.showCommIcon ? data.websiteUrl : '',
-            isPremium: data.isPremium || false,
+            currency: data.currency || 'EGP',
             phoneNumber: data.phoneNumber || '',
-            audioFile: adType === 'image' ? audioFile : null,
-            existingAudioUrl: adType === 'image' ? existingAudioUrl : null,
+            // تمرير ترتيب الصور الجديد عند التعديل حتى تحترم صورة الغلاف الجديدة
+            ...(isEditMode && newImageFiles.length === 0 && orderedExistingUrls.length > 0 ? {
+                imageUrls: orderedExistingUrls,
+                imageUrl: orderedExistingUrls[0],
+            } : {}),
         };
 
         if (isEditMode && adId && userId) {
@@ -752,7 +684,11 @@ function AdFormContent({ adId, userId, isEditMode }: { adId?: string | null, use
             form.setValue('images', []);
             setSelectedCategory(null);
         }
-        router.push('/dashboard');
+        if (onSuccess) {
+            onSuccess();
+        } else {
+            router.push('/dashboard');
+        }
     } catch(error: any) {
         console.error("Submission error:", error);
         toast({ title: t.submissionFailed, description: t.submissionError, variant: 'destructive' });
@@ -790,112 +726,34 @@ function AdFormContent({ adId, userId, isEditMode }: { adId?: string | null, use
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
-        {!isEditMode && !isStoreProduct && (
-        <FormField
-          control={form.control}
-          name="adType"
-          render={({ field }) => (
-            <FormItem className="space-y-3">
-              <FormLabel className="text-lg">{t.whatToDo}</FormLabel>
-              <FormControl>
-                <RadioGroup
-                  onValueChange={field.onChange}
-                  defaultValue={field.value}
-                  className="grid grid-cols-2 sm:grid-cols-4 gap-4"
-                >
-
-                  <FormItem>
-                    <FormControl>
-                      <RadioGroupItem value="sell-service" id="sell-service" className="sr-only" />
-                    </FormControl>
-                    <FormLabel
-                      htmlFor="sell-service"
-                      className={cn("flex flex-col items-center justify-center rounded-md border-2 bg-popover p-4 hover:bg-accent hover:text-accent-foreground h-full cursor-pointer transition-all", 
-                        field.value === 'sell-service' ? "border-primary bg-accent/50 text-accent-foreground" : "border-muted"
-                      )}
-                    >
-                      <Wrench className="mb-2 h-6 w-6 text-primary" />
-                      <span className="text-sm font-bold">{t.offerService}</span>
-                    </FormLabel>
-                  </FormItem>
-
-                  <FormItem>
-                    <FormControl>
-                      <RadioGroupItem value="request-service" id="request-service" className="sr-only" />
-                    </FormControl>
-                    <FormLabel
-                      htmlFor="request-service"
-                      className={cn("flex flex-col items-center justify-center rounded-md border-2 bg-popover p-4 hover:bg-accent hover:text-accent-foreground h-full cursor-pointer transition-all", 
-                        field.value === 'request-service' ? "border-primary bg-accent/50 text-accent-foreground" : "border-muted"
-                      )}
-                    >
-                      <Handshake className="mb-2 h-6 w-6 text-primary" />
-                      <span className="text-sm font-bold">{t.requestService}</span>
-                    </FormLabel>
-                  </FormItem>
-
-                  <FormItem>
-                    <FormControl>
-                      <RadioGroupItem value="video" id="video" className="sr-only" />
-                    </FormControl>
-                    <FormLabel
-                      htmlFor="video"
-                      className={cn("flex flex-col items-center justify-center rounded-md border-2 bg-popover p-4 hover:bg-accent hover:text-accent-foreground h-full cursor-pointer transition-all", 
-                        field.value === 'video' ? "border-primary bg-accent/50 text-accent-foreground" : "border-muted"
-                      )}
-                    >
-                      <Tv className="mb-2 h-6 w-6 text-primary" />
-                      <span className="text-sm font-bold">{t.videoAd}</span>
-                    </FormLabel>
-                  </FormItem>
-
-                  <FormItem>
-                    <FormControl>
-                      <RadioGroupItem value="image" id="image" className="sr-only" />
-                    </FormControl>
-                    <FormLabel
-                      htmlFor="image"
-                      className={cn("flex flex-col items-center justify-center rounded-md border-2 bg-popover p-4 hover:bg-accent hover:text-accent-foreground h-full cursor-pointer transition-all", 
-                        field.value === 'image' ? "border-primary bg-accent/50 text-accent-foreground" : "border-muted"
-                      )}
-                    >
-                      <ImageIcon className="mb-2 h-6 w-6 text-primary" />
-                      <span className="text-sm font-bold">{t.imageAd}</span>
-                    </FormLabel>
-                  </FormItem>
-                </RadioGroup>
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-        )}
-        
         <>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                 {(adType !== 'request-service' && !isStoreProduct) && (
-                    <FormField
-                        control={form.control}
-                        name="category"
-                        render={({ field }) => (
-                        <FormItem>
-                            <FormLabel className="text-lg">{t.category}</FormLabel>
-                            <Select onValueChange={handleCategoryChange} value={field.value} dir={direction}>
-                            <FormControl>
-                                <SelectTrigger>
-                                <SelectValue placeholder={t.categoryPlaceholder} />
-                                </SelectTrigger>
-                            </FormControl>
-                            <SelectContent>
-                                {categories.filter(c => c.id !== 'services' && c.id !== 'store-product' && c.id !== 'stores').map(cat => (
-                                <SelectItem key={cat.id} value={cat.id}>{cat.name?.ar || cat.id}</SelectItem>
-                                ))}
-                            </SelectContent>
-                            </Select>
-                            <FormMessage />
-                        </FormItem>
-                        )}
-                    />
+                    <div className="space-y-3 md:col-span-2">
+                        {/* Unified Category Select */}
+                        <FormField
+                            control={form.control}
+                            name="category"
+                            render={({ field }) => (
+                            <FormItem>
+                                <FormLabel className="text-lg">{t.category}</FormLabel>
+                                <Select onValueChange={handleCategoryChange} value={field.value} dir={direction}>
+                                <FormControl>
+                                    <SelectTrigger>
+                                    <SelectValue placeholder={t.categoryPlaceholder} />
+                                    </SelectTrigger>
+                                </FormControl>
+                                <SelectContent>
+                                    {categories.filter(c => c.id !== 'store-product' && c.id !== 'stores').map(cat => (
+                                    <SelectItem key={cat.id} value={cat.id}>{cat.name?.ar || cat.id}</SelectItem>
+                                    ))}
+                                </SelectContent>
+                                </Select>
+                                <FormMessage />
+                            </FormItem>
+                            )}
+                        />
+                    </div>
                 )}
                 {selectedCategory && selectedCategory.subcategories && selectedCategory.subcategories.length > 0 && adType !== 'request-service' && !isStoreProduct && (
                     <FormField
@@ -923,288 +781,76 @@ function AdFormContent({ adId, userId, isEditMode }: { adId?: string | null, use
                 )}
             </div>
             
-            <FormField control={form.control} name="title" render={({ field }) => ( <FormItem><FormLabel className="text-lg">{(adType === 'video' || adType === 'image') ? t.adName : (isStoreProduct ? t.productName : t.adTitle)}</FormLabel><FormControl><Input placeholder={t.adTitlePlaceholder} {...field} /></FormControl><FormMessage /></FormItem> )}/>
-            
-            {(adType !== 'image' && adType !== 'video') ? (
-               <FormField control={form.control} name="description" render={({ field }) => ( <FormItem><FormLabel className="text-lg">{t.description}</FormLabel><FormControl><Textarea placeholder={t.descriptionPlaceholder} className="resize-y min-h-[120px]" {...field} /></FormControl><FormMessage /></FormItem> )}/>
-            ) : adType === 'image' ? (
-               <>
-               <FormField control={form.control} name="description" render={({ field }) => ( <FormItem><FormLabel className="text-lg">تفاصيل المنتج / الإعلان (اختياري)</FormLabel><FormControl><Textarea placeholder="أضف تفاصيل إضافية للمنتج أو الإعلان هنا..." className="resize-y min-h-[120px]" {...field} /></FormControl><FormMessage /></FormItem> )}/>
-
-               {/* ===== حقول خاصة بالإعلان الصوري ===== */}
-               <div className="space-y-6 p-6 rounded-2xl border bg-secondary/5">
-                 <h3 className="text-lg font-bold flex items-center gap-2">
-                   <Phone className="h-5 w-5 text-primary" />
-                   معلومات التواصل الإضافية للإعلان الصوري
-                 </h3>
-
-                 {/* رقم الهاتف */}
-                 <FormField
-                   control={form.control}
-                   name="phoneNumber"
-                   render={({ field }) => (
-                     <FormItem>
-                       <FormLabel className="flex items-center gap-2">
-                         <Phone className="h-4 w-4 text-primary" />
-                         {t.phoneNumber}
-                       </FormLabel>
-                       <FormControl>
-                         <div className="relative">
-                           <Input
-                             placeholder={t.phoneNumberPlaceholder}
-                             {...field}
-                             dir="ltr"
-                             className="pl-10 h-11"
-                           />
-                           <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                         </div>
-                       </FormControl>
-                       <FormDescription>{t.phoneNumberDesc}</FormDescription>
-                       <FormMessage />
-                     </FormItem>
-                   )}
-                 />
-
-                 {/* موقعي على الخريطة */}
-                 <FormField
-                   control={form.control}
-                   name="location"
-                   render={({ field }) => (
-                     <FormItem>
-                       <FormLabel className="flex items-center gap-2">
-                         <Navigation className="h-4 w-4 text-primary" />
-                         {t.mapLocation}
-                       </FormLabel>
-                       <FormDescription>{t.mapLocationDesc}</FormDescription>
-                       <div className="flex flex-col gap-3">
-                         {field.value && (
-                           <div className="flex items-center gap-2 p-3 rounded-lg bg-primary/10 border border-primary/20">
-                             <MapPin className="h-4 w-4 text-primary shrink-0" />
-                             <span className="text-sm font-medium text-primary flex-1 truncate">{field.value}</span>
-                             <Button
-                               type="button"
-                               variant="ghost"
-                               size="icon"
-                               className="h-6 w-6 shrink-0 text-muted-foreground hover:text-destructive"
-                               onClick={() => {
-                                 field.onChange('');
-                                 form.setValue('latitude', undefined);
-                                 form.setValue('longitude', undefined);
-                               }}
-                             >
-                               <X className="h-4 w-4" />
-                             </Button>
-                           </div>
-                         )}
-                         <Dialog>
-                           <DialogTrigger asChild>
-                             <Button type="button" variant="outline" className="gap-2 w-full sm:w-auto">
-                               <MapPin className="h-4 w-4" />
-                               {field.value ? "تغيير الموقع" : t.openMapPicker}
-                             </Button>
-                           </DialogTrigger>
-                           <DialogContent className="max-w-2xl h-[80vh] flex flex-col p-0">
-                             <DialogHeader className="p-4 pb-2">
-                               <DialogTitle className="flex items-center gap-2">
-                                 <MapPin className="h-5 w-5 text-primary" />
-                                 {t.selectLocation}
-                               </DialogTitle>
-                             </DialogHeader>
-                             <div className="flex-1 relative overflow-hidden rounded-b-lg">
-                               <LocationPicker
-                                 onLocationSelect={(address) => {
-                                   field.onChange(address);
-                                 }}
-                               />
-                             </div>
-                           </DialogContent>
-                         </Dialog>
-                       </div>
-                       <FormMessage />
-                     </FormItem>
-                   )}
-                 />
-               </div>
-
-               {/* ===== قسم الصوت للإعلان الصوري ===== */}
-               <div className="space-y-4 p-6 rounded-2xl border border-primary/20 bg-primary/5">
-                 <h3 className="text-lg font-bold flex items-center gap-2 text-primary">
-                   <Music className="h-5 w-5" />
-                   {t.audioTrack}
-                 </h3>
-                 <p className="text-sm text-muted-foreground">{t.audioTrackDesc}</p>
-
-                 {/* Audio Preview & Controls */}
-                 {(audioPreviewUrl || existingAudioUrl) ? (
-                   <div className="flex flex-col gap-3">
-                     {/* Waveform-style visualizer placeholder */}
-                     <div className="relative flex items-center gap-3 p-4 rounded-xl bg-background border border-primary/30 shadow-sm">
-                       <div className="flex items-center gap-2">
-                         {[...Array(12)].map((_, i) => (
-                           <div
-                             key={i}
-                             className="bg-primary rounded-full transition-all duration-300"
-                             style={{
-                               width: '3px',
-                               height: isAudioPlaying ? `${8 + Math.sin(i * 0.8) * 10 + 8}px` : '6px',
-                               opacity: isAudioPlaying ? 0.7 + Math.sin(i * 0.5) * 0.3 : 0.4,
-                               animation: isAudioPlaying ? `wave-bar ${0.5 + i * 0.05}s ease-in-out infinite alternate` : 'none',
-                             }}
-                           />
-                         ))}
-                       </div>
-                       <div className="flex-1">
-                         <p className="text-sm font-semibold text-foreground">{audioFile?.name || 'ملف صوتي محفوظ'}</p>
-                         <p className="text-xs text-muted-foreground">مدة أقصاها 30 ثانية</p>
-                       </div>
-                       {/* Hidden audio element for preview */}
-                       <audio
-                         src={audioPreviewUrl || existingAudioUrl || ''}
-                         onEnded={() => setIsAudioPlaying(false)}
-                         ref={(el) => {
-                           if (el) {
-                             if (isAudioPlaying) el.play();
-                             else el.pause();
-                           }
-                         }}
-                         className="hidden"
-                       />
-                       <div className="flex items-center gap-2">
-                         <button
-                           type="button"
-                           onClick={handleToggleAudioPreview}
-                           className="p-2.5 rounded-full bg-primary text-primary-foreground hover:bg-primary/90 transition-all active:scale-95 shadow-md"
-                         >
-                           {isAudioPlaying ? <VolumeX className="h-4 w-4" /> : <Volume2 className="h-4 w-4" />}
-                         </button>
-                         <button
-                           type="button"
-                           onClick={handleRemoveAudio}
-                           className="p-2.5 rounded-full bg-destructive/10 text-destructive hover:bg-destructive/20 transition-all active:scale-95"
-                         >
-                           <X className="h-4 w-4" />
-                         </button>
-                       </div>
-                     </div>
-                   </div>
-                 ) : (
-                   <label
-                     htmlFor="audio-upload"
-                     className={cn(
-                       "flex flex-col items-center justify-center gap-3 p-6 border-2 border-dashed rounded-xl cursor-pointer transition-all",
-                       isTrimmingAudio
-                         ? "border-primary/50 bg-primary/5 cursor-not-allowed"
-                         : "border-primary/30 bg-secondary/30 hover:bg-primary/5 hover:border-primary/50"
-                     )}
-                   >
-                     {isTrimmingAudio ? (
-                       <>
-                         <Loader2 className="h-8 w-8 animate-spin text-primary" />
-                         <span className="text-sm font-medium text-primary">{t.audioTrimming}</span>
-                       </>
-                     ) : (
-                       <>
-                         <div className="p-3 rounded-full bg-primary/10">
-                           <Mic className="h-6 w-6 text-primary" />
-                         </div>
-                         <div className="text-center">
-                           <span className="text-sm font-semibold text-primary block">{t.audioUpload}</span>
-                           <span className="text-xs text-muted-foreground">{t.audioFormats}</span>
-                         </div>
-                       </>
-                     )}
-                   </label>
-                 )}
-                 <input
-                   id="audio-upload"
-                   type="file"
-                   className="hidden"
-                   accept="audio/*"
-                   onChange={handleAudioFileChange}
-                   disabled={isTrimmingAudio}
-                 />
-               </div>
-               </>
-            ) : (
-                <div className="hidden">
-                     <FormField control={form.control} name="description" render={({ field }) => ( <FormItem><FormControl><Textarea {...field} /></FormControl></FormItem> )}/>
-                </div>
-            )}
-
-            {adType === 'video' && (
-                <div className="space-y-6 p-6 rounded-2xl border bg-secondary/5 shrink-0">
-                    <FormField
-                        control={form.control}
-                        name="videoSource"
-                        render={({ field }) => (
-                            <FormItem className="space-y-3">
-                                <FormLabel className="text-lg font-bold flex items-center gap-2">
-                                    <Hash className="h-5 w-5 text-primary" />
-                                    {t.videoSource}
-                                </FormLabel>
-                                <Select onValueChange={field.onChange} defaultValue={field.value} dir={direction}>
-                                    <FormControl>
-                                        <SelectTrigger className="w-full h-11">
-                                            <SelectValue placeholder={t.videoSource} />
-                                        </SelectTrigger>
-                                    </FormControl>
-                                    <SelectContent>
-                                        <SelectItem value="single">{t.singleVideo}</SelectItem>
-                                        <SelectItem value="playlist">{t.playlistSource}</SelectItem>
-                                    </SelectContent>
-                                </Select>
-                                <FormMessage />
-                            </FormItem>
-                        )}
+            <FormField
+              control={form.control}
+              name="title"
+              render={({ field }) => (
+                <FormItem>
+                  <div className="flex items-center justify-between">
+                    <FormLabel className="text-lg">
+                      {(adType === 'video' || adType === 'image') ? t.adName : (isStoreProduct ? t.productName : t.adTitle)}
+                    </FormLabel>
+                    <span className={cn(
+                      "text-xs font-mono px-2 py-0.5 rounded-full font-bold transition-colors",
+                      (field.value?.length || 0) >= 50
+                        ? "bg-destructive/15 text-destructive"
+                        : (field.value?.length || 0) >= 40
+                        ? "bg-amber-500/15 text-amber-600 dark:text-amber-400"
+                        : "bg-secondary text-muted-foreground"
+                    )}>
+                      {field.value?.length || 0} / 50
+                    </span>
+                  </div>
+                  <FormControl>
+                    <Input
+                      placeholder={t.adTitlePlaceholder}
+                      maxLength={50}
+                      {...field}
                     />
+                  </FormControl>
+                  <FormDescription className="text-xs text-muted-foreground">
+                    اختر عنواناً مركزاً ومختصراً بحد أقصى 50 حرفاً (حوالي 6-8 كلمات) لضمان ظهوره كاملاً في سطرين دون قطع.
+                  </FormDescription>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField 
+              control={form.control} 
+              name="description" 
+              render={({ field }) => ( 
+                <FormItem>
+                  <FormLabel className="text-lg">{t.description}</FormLabel>
+                  <FormControl>
+                    <Textarea placeholder={t.descriptionPlaceholder} className="resize-y min-h-[120px] custom-scrollbar" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem> 
+              )}
+            />
 
-                    {form.watch('videoSource') === 'single' ? (
-                        <FormField
-                            control={form.control}
-                            name="videoUrl"
-                            render={({ field }) => (
-                            <FormItem className="animate-in fade-in slide-in-from-top-2 duration-300">
-                                <FormLabel className="text-sm font-medium">
-                                    {t.videoUrl}
-                                </FormLabel>
-                                <FormControl>
-                                <div className="relative">
-                                    <Input placeholder="https://youtube.com/watch?v=..." {...field} className="pr-10 h-11" />
-                                    <Tv className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-primary/50" />
-                                </div>
-                                </FormControl>
-                                <FormDescription>
-                                    ادعم إعلانك بفيديو احترافي يظهر في صفحة "سوق بلدنا".
-                                </FormDescription>
-                                <FormMessage />
-                            </FormItem>
-                            )}
-                        />
-                    ) : (
-                        <FormField
-                            control={form.control}
-                            name="playlistUrl"
-                            render={({ field }) => (
-                            <FormItem className="animate-in fade-in slide-in-from-top-2 duration-300">
-                                <FormLabel className="text-sm font-medium">
-                                    {t.playlistUrl}
-                                </FormLabel>
-                                <FormControl>
-                                    <div className="relative">
-                                        <Input placeholder="https://youtube.com/playlist?list=..." {...field} className="pr-10 h-11" />
-                                        <Sparkles className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-primary/50" />
-                                    </div>
-                                </FormControl>
-                                <FormDescription>
-                                    سيتم استيراد كافة فيديوهات القائمة دفعة واحدة.
-                                </FormDescription>
-                                <FormMessage />
-                            </FormItem>
-                            )}
-                        />
-                    )}
-                </div>
-            )}
+            {/* Optional Video Link Field */}
+            <FormField
+              control={form.control}
+              name="videoUrl"
+              render={({ field }) => (
+                <FormItem className="space-y-2 p-4 rounded-xl border border-border/80 bg-secondary/20">
+                  <FormLabel className="text-sm font-bold flex items-center gap-2 text-foreground">
+                    <Tv className="h-4 w-4 text-primary" />
+                    <span>رابط فيديو توضيحي للإعلان (اختياري - يوتيوب / Shorts)</span>
+                  </FormLabel>
+                  <FormControl>
+                    <div className="relative">
+                      <Input placeholder="https://youtube.com/watch?v=... أو Shorts" {...field} className="h-10 text-xs bg-background" />
+                    </div>
+                  </FormControl>
+                  <FormDescription className="text-2xs text-muted-foreground">
+                    يمكنك إرفاق رابط فيديو يوتيوب لعرض شرح توضيحي للمنتج أو الخدمة داخل صفحة تفاصيل الإعلان.
+                  </FormDescription>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
             {adType === 'sell-item' && (
               <FormField
                 control={form.control}
@@ -1245,19 +891,45 @@ function AdFormContent({ adId, userId, isEditMode }: { adId?: string | null, use
                       name="price"
                       render={({ field }) => (
                       <FormItem>
-                      <FormLabel className="text-lg">{t.price} ({market.currency})</FormLabel>
-                      <div className="relative">
-                          <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                          <FormControl>
-                          <Input type="number" placeholder="0" className="pl-8" {...field} 
-                            step="1"
-                            onKeyDown={(e) => {
-                                if (e.key === '.') {
-                                    e.preventDefault();
-                                }
-                            }}
+                      <FormLabel className="text-lg">{t.price}</FormLabel>
+                      <div className="flex gap-3 items-end">
+                          {/* منتقي العملة */}
+                          <FormField
+                              control={form.control}
+                              name="currency"
+                              render={({ field: currField }) => (
+                                  <div className="flex flex-col gap-1.5">
+                                      <label className="text-sm font-medium text-foreground">اختار العملة</label>
+                                      <Select onValueChange={currField.onChange} value={currField.value || 'EGP'} dir="ltr">
+                                          <SelectTrigger className="w-[140px] shrink-0 font-mono font-bold text-primary border-primary/40 bg-primary/5 hover:bg-primary/10 transition-colors">
+                                              <SelectValue />
+                                          </SelectTrigger>
+                                          <SelectContent className="w-[220px]">
+                                              {CURRENCIES.map(c => (
+                                                  <SelectItem key={c.code} value={c.code}>
+                                                      <div className="flex items-center gap-2">
+                                                          <span className="font-mono font-bold text-primary w-10">{c.code}</span>
+                                                          <span className="text-muted-foreground text-sm">{c.name}</span>
+                                                      </div>
+                                                  </SelectItem>
+                                              ))}
+                                          </SelectContent>
+                                      </Select>
+                                  </div>
+                              )}
                           />
-                          </FormControl>
+                          {/* حقل السعر */}
+                          <div className="flex flex-col gap-1.5 flex-1">
+                              <label className="text-sm font-medium text-foreground">السعر</label>
+                              <FormControl>
+                                  <Input type="number" placeholder="0" className="h-10" {...field}
+                                      step="1"
+                                      onKeyDown={(e) => {
+                                          if (e.key === '.') e.preventDefault();
+                                      }}
+                                  />
+                              </FormControl>
+                          </div>
                       </div>
                       <FormMessage />
                       </FormItem>
@@ -1285,45 +957,6 @@ function AdFormContent({ adId, userId, isEditMode }: { adId?: string | null, use
             </div>
         </>
         
-        <FormField
-            control={form.control}
-            name="images"
-            render={({ field }) => (
-                <FormItem>
-                    <FormLabel className="text-lg">{t.uploadImages}</FormLabel>
-                    <FormDescription>{getImageDescription()}</FormDescription>
-                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
-                        {imageFields.map((image, index) => (
-                            <div key={image.id} className="relative group aspect-square">
-                                <Image src={image.url} alt={`Preview ${index + 1}`} layout="fill" className="object-cover rounded-lg border" />
-                                <Button type="button" variant="destructive" size="icon" className="absolute top-1 right-1 h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity" onClick={() => removeImage(index)}>
-                                    <X className="h-4 w-4" />
-                                </Button>
-                            </div>
-                        ))}
-                         {(!isStoreProduct || imageFields.length < 1) && (
-                            <label htmlFor="image-upload" className="flex flex-col items-center justify-center aspect-square border-2 border-dashed rounded-lg cursor-pointer bg-secondary/50 hover:bg-secondary/80 text-muted-foreground">
-                                <PlusCircle className="w-8 h-8 mb-1" />
-                                <span className="text-sm">{t.clickToUpload}</span>
-                            </label>
-                         )}
-                        <FormControl>
-                            <Input id="image-upload" type="file" className="hidden" onChange={handleFileChange} accept="image/*" multiple={!isStoreProduct} />
-                        </FormControl>
-                    </div>
-                    <FormMessage />
-                </FormItem>
-            )}
-        />
-        
-        {watchedImages && watchedImages.length > 0 && categoryValue && adType !== 'request-service' && adType !== 'image' && adType !== 'video' && !isStoreProduct && (
-            <div className="flex justify-center">
-                <Button type="button" onClick={handleSuggestion} disabled={isSuggesting} variant="outline" className="gap-2 w-full sm:w-auto">
-                    {isSuggesting ? ( <><Loader2 className="h-4 w-4 animate-spin"/>{t.suggesting}</> ) : ( <><Sparkles className="h-4 w-4 text-yellow-500"/>{t.suggestWithAI}</> )}
-                </Button>
-            </div>
-        )}
-
         <div className="space-y-6 pt-6 border-t">
             <h3 className="text-lg font-bold flex items-center gap-2">
                 <Globe className="h-5 w-5 text-primary" />
@@ -1363,134 +996,384 @@ function AdFormContent({ adId, userId, isEditMode }: { adId?: string | null, use
                 )}
             />
             
+            {/* مربع أرقام التواصل — يظهر عند اختيار "تواصل عبر التطبيق" */}
+            {form.watch('showCommIcon') === true && (
+                <div className="space-y-4 animate-in fade-in slide-in-from-top-2 duration-300 p-4 rounded-xl border border-primary/20 bg-primary/5">
+                    <p className="text-sm text-muted-foreground flex items-center gap-2">
+                        <Phone className="h-4 w-4 text-primary flex-shrink-0" />
+                        أضف أرقام التواصل التي ستظهر في إعلانك (واتساب، هاتف، أو كليهما).
+                    </p>
+                    <FormField
+                        control={form.control}
+                        name="phoneNumber"
+                        render={({ field }) => (
+                            <FormItem>
+                                <FormLabel className="flex items-center gap-2">
+                                    <Phone className="h-4 w-4 text-primary" />
+                                    {t.phoneNumber || "رقم الهاتف / واتساب (اختياري)"}
+                                </FormLabel>
+                                <FormControl>
+                                    <div className="relative">
+                                        <Input
+                                            placeholder={t.phoneNumberPlaceholder || "مثال: 00201234567890"}
+                                            {...field}
+                                            dir="ltr"
+                                            className="pl-10"
+                                        />
+                                        <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                                    </div>
+                                </FormControl>
+                                <FormDescription>
+                                    {t.phoneNumberDesc || "سيظهر رقم الهاتف في الإعلان ليتمكن المشترون من التواصل معك مباشرة."}
+                                </FormDescription>
+                                <FormMessage />
+                            </FormItem>
+                        )}
+                    />
+                </div>
+            )}
+
+            {/* مربع رابط الموقع الخارجي — يظهر عند اختيار "رابط موقع إلكتروني خارجي" */}
             {form.watch('showCommIcon') === false && (
-                <FormField
-                    control={form.control}
-                    name="websiteUrl"
-                    render={({ field }) => (
-                        <FormItem>
-                            <FormLabel>{t.websiteUrl || "رابط الموقع الإلكتروني الخاص بمشروعك"}</FormLabel>
-                            <FormControl>
-                                <Input placeholder={t.websitePlaceholder || "https://your-site.com"} {...field} dir="ltr" />
-                            </FormControl>
-                            <FormMessage />
-                        </FormItem>
-                    )}
-                />
+                <div className="animate-in fade-in slide-in-from-top-2 duration-300">
+                    <FormField
+                        control={form.control}
+                        name="websiteUrl"
+                        render={({ field }) => (
+                            <FormItem>
+                                <FormLabel>{t.websiteUrl || "رابط الموقع الإلكتروني الخاص بمشروعك"}</FormLabel>
+                                <FormControl>
+                                    <div className="relative">
+                                        <Input placeholder={t.websitePlaceholder || "https://your-site.com"} {...field} dir="ltr" className="pl-10" />
+                                        <Globe className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                                    </div>
+                                </FormControl>
+                                <FormMessage />
+                            </FormItem>
+                        )}
+                    />
+                </div>
             )}
         </div>
-
-        {/* ========== ADMIN ONLY: PREMIUM AD TOGGLE ========== */}
-        {userProfile?.role === 'admin' && (
-            <div className="space-y-6 pt-6 border-t bg-yellow-500/10 p-4 rounded-xl border border-yellow-500/30">
-                <h3 className="text-lg font-bold flex items-center gap-2 text-yellow-600 dark:text-yellow-400">
-                    <Sparkles className="h-5 w-5" />
-                    صلاحيات الإدارة: ترقية الإعلان
-                </h3>
-                <FormField
-                    control={form.control}
-                    name="isPremium"
-                    render={({ field }) => (
-                        <FormItem className="flex flex-row items-center justify-between rounded-lg border border-yellow-500/20 p-4 bg-background">
-                            <div className="space-y-0.5">
-                                <FormLabel className="text-base font-bold">إعلان ممول (Premium) 👑</FormLabel>
-                                <FormDescription>
-                                    تفعيل هذا الخيار سيجعل الإعلان يظهر باللون الذهبي ويثبته في أعلى نتائج سوق بلدنا.
-                                </FormDescription>
+        
+        <FormField
+            control={form.control}
+            name="images"
+            render={({ field }) => (
+                <FormItem>
+                    <FormLabel className="text-lg">{t.uploadImages}</FormLabel>
+                    <FormDescription>{getImageDescription()}</FormDescription>
+                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
+                        {imageFields.map((image, index) => (
+                            <div key={image.id} className="relative group aspect-square">
+                                <Image src={image.url} alt={`Preview ${index + 1}`} layout="fill" className={`object-cover rounded-lg border-2 ${index === 0 ? 'border-primary' : 'border-transparent'}`} />
+                                {/* شارة صورة الغلاف للصورة الأولى */}
+                                {index === 0 && (
+                                    <div className="absolute bottom-0 left-0 right-0 bg-primary/85 text-primary-foreground text-xs font-bold text-center py-1 rounded-b-lg backdrop-blur-sm pointer-events-none">
+                                        صورة الغلاف
+                                    </div>
+                                )}
+                                {/* زر "جعلها صورة الغلاف" للصور الأخرى */}
+                                {index !== 0 && (
+                                    <button
+                                        type="button"
+                                        onClick={() => {
+                                            const current = form.getValues('images');
+                                            const newOrder = [...current];
+                                            const [moved] = newOrder.splice(index, 1);
+                                            newOrder.unshift(moved);
+                                            form.setValue('images', newOrder);
+                                        }}
+                                        className="absolute bottom-0 left-0 right-0 bg-black/60 text-white text-xs font-bold text-center py-1 rounded-b-lg opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer backdrop-blur-sm"
+                                    >
+                                        اجعلها صورة الغلاف
+                                    </button>
+                                )}
+                                <Button type="button" variant="destructive" size="icon" className="absolute top-1 left-1 h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity" onClick={() => removeImage(index)}>
+                                    <X className="h-4 w-4" />
+                                </Button>
                             </div>
-                            <FormControl>
-                                <Switch
-                                    checked={field.value}
-                                    onCheckedChange={field.onChange}
-                                />
-                            </FormControl>
-                        </FormItem>
-                    )}
-                />
+                        ))}
+                         {(!isStoreProduct || imageFields.length < 1) && (
+                            <label htmlFor="image-upload" className="flex flex-col items-center justify-center aspect-square border-2 border-dashed rounded-lg cursor-pointer bg-secondary/50 hover:bg-secondary/80 text-muted-foreground">
+                                <PlusCircle className="w-8 h-8 mb-1" />
+                                <span className="text-sm">{t.clickToUpload}</span>
+                            </label>
+                         )}
+                        <FormControl>
+                            <Input id="image-upload" type="file" className="hidden" onChange={handleFileChange} accept="image/*" multiple={!isStoreProduct} />
+                        </FormControl>
+                    </div>
+                    <FormMessage />
+                </FormItem>
+            )}
+        />
+        
+        {!isEditMode && watchedImages && watchedImages.length > 0 && categoryValue && adType !== 'request-service' && adType !== 'image' && adType !== 'video' && !isStoreProduct && (
+            <div className="flex justify-center">
+                <Button type="button" onClick={handleSuggestion} disabled={isSuggesting} variant="outline" className="gap-2 w-full sm:w-auto">
+                    {isSuggesting ? ( <><Loader2 className="h-4 w-4 animate-spin"/>{t.suggesting}</> ) : ( <><Sparkles className="h-4 w-4 text-yellow-500"/>{t.suggestWithAI}</> )}
+                </Button>
             </div>
         )}
 
+
+
+
+
+        {/* مربع الاستهداف (Targeting Box) */}
         <div className="space-y-6 pt-6 border-t">
             <h3 className="text-lg font-bold flex items-center gap-2">
                 <Globe className="h-5 w-5 text-primary" />
-                {t.targetCountry}
+                مربع الاستهداف
             </h3>
+            
+            {/* 1. قائمة اختيار الدولة المستهدفة (الافتراضي: بلد المستخدم) */}
             <FormField
                 control={form.control}
                 name="market"
                 render={({ field }) => (
                     <FormItem>
-                        <Select onValueChange={field.onChange} value={field.value} dir={direction}>
+                        <FormLabel className="text-md font-semibold">الدولة المستهدفة</FormLabel>
+                        <Select
+                            onValueChange={(val) => {
+                                field.onChange(val);
+                                if (val !== userHomeCountryId) {
+                                    form.setValue('locationScope', 'country');
+                                    form.setValue('governorate', '');
+                                } else {
+                                    form.setValue('locationScope', 'country');
+                                }
+                            }}
+                            value={field.value || userHomeCountryId}
+                            dir={direction}
+                        >
                             <FormControl>
-                                <SelectTrigger>
+                                <SelectTrigger className="h-12 text-base font-semibold">
                                     <SelectValue placeholder="اختر الدولة" />
                                 </SelectTrigger>
                             </FormControl>
                             <SelectContent>
                                 {markets.map(m => (
-                                    <SelectItem key={m.id} value={m.id}>
-                                        {m.name.ar}
+                                    <SelectItem key={m.id} value={m.id} className="text-base py-2.5">
+                                        <div className="flex items-center gap-2">
+                                            <span>{m.name.ar}</span>
+                                            {m.id === userHomeCountryId && (
+                                                <span className="text-xs bg-primary/10 text-primary px-2 py-0.5 rounded-full font-normal">
+                                                    (بلدك الأصلي)
+                                                </span>
+                                            )}
+                                        </div>
                                     </SelectItem>
                                 ))}
                             </SelectContent>
                         </Select>
                         <FormMessage />
+                        <FormDescription className="text-2xs text-muted-foreground flex items-center gap-1.5 mt-1.5">
+                            <Info className="h-3.5 w-3.5 text-primary flex-shrink-0" />
+                            <span>ملاحظة: سيظهر إعلانك فوراً للمستخدمين عند تصفح سوق هذه الدولة، أو عند اختيار (جميع الدول العربية) من أعلى الموقع.</span>
+                        </FormDescription>
                     </FormItem>
                 )}
             />
-        </div>
 
-        {selectedMarket && userProfile?.country && (
-            selectedMarket.id.toLowerCase() === userProfile.country.toLowerCase() || 
-            selectedMarket.name.ar.trim() === userProfile.country.trim()
-        ) && !isStoreProduct && (
-            <div className="space-y-6 pt-6 border-t">
-                <h3 className="text-lg font-bold flex items-center gap-2">
-                    <MapPin className="h-5 w-5 text-primary" />
-                    {t.locationScope}
-                </h3>
-                <FormField
-                    control={form.control}
-                    name="locationScope"
-                    render={({ field }) => (
-                        <FormItem>
-                            <FormLabel className="flex items-center gap-2">
-                                {t.locationScope || "اختر النطاق المستهدف"}
-                            </FormLabel>
-                            <Select onValueChange={field.onChange} value={field.value || 'city'} dir={direction}>
+            {/* 2. إذا تم اختيار بلد المستخدم الأصلي -> تظهر 4 اختيارات محددة تلقائياً من بيانات المستخدم */}
+            {isHomeCountryTarget ? (
+                <div className="space-y-4 pt-2">
+                    <FormLabel className="text-md font-semibold flex items-center gap-2">
+                        <MapPin className="h-4 w-4 text-primary" />
+                        اختر المكان الذي تريد أن يظهر إعلانك فيه
+                    </FormLabel>
+                    <FormField
+                        control={form.control}
+                        name="locationScope"
+                        render={({ field }) => (
+                            <FormItem className="space-y-3">
                                 <FormControl>
-                                    <SelectTrigger>
-                                        <SelectValue placeholder="اختر نطاق الظهور" />
-                                    </SelectTrigger>
+                                    <RadioGroup
+                                        onValueChange={field.onChange}
+                                        value={field.value || 'country'}
+                                        className="grid grid-cols-1 sm:grid-cols-2 gap-3"
+                                    >
+                                        {/* الخيار 1: الدولة بالكامل */}
+                                        <FormItem>
+                                            <FormControl>
+                                                <RadioGroupItem value="country" id="scope-country" className="sr-only" />
+                                            </FormControl>
+                                            <FormLabel
+                                                htmlFor="scope-country"
+                                                className={cn(
+                                                    "flex items-center justify-between rounded-xl border-2 p-4 cursor-pointer transition-all hover:bg-accent/40",
+                                                    (field.value === 'country' || !field.value) ? "border-primary bg-primary/5 shadow-sm" : "border-border/60"
+                                                )}
+                                            >
+                                                <div className="flex items-center gap-3">
+                                                    <div className={cn("w-4 h-4 rounded-full border-2 flex items-center justify-center", (field.value === 'country' || !field.value) ? "border-primary bg-primary" : "border-muted-foreground")}>
+                                                        {(field.value === 'country' || !field.value) && <div className="w-1.5 h-1.5 rounded-full bg-white" />}
+                                                    </div>
+                                                    <span className="font-bold text-sm">الدولة بالكامل</span>
+                                                </div>
+                                                <span className="text-xs font-semibold text-muted-foreground bg-secondary px-2 py-1 rounded-md">
+                                                    {selectedMarket?.name.ar || userProfile?.country || 'كل المحافظات'}
+                                                </span>
+                                            </FormLabel>
+                                        </FormItem>
+
+                                        {/* الخيار 2: المحافظة بالكامل */}
+                                        <FormItem>
+                                            <FormControl>
+                                                <RadioGroupItem value="governorate" id="scope-gov" className="sr-only" />
+                                            </FormControl>
+                                            <FormLabel
+                                                htmlFor="scope-gov"
+                                                className={cn(
+                                                    "flex items-center justify-between rounded-xl border-2 p-4 cursor-pointer transition-all hover:bg-accent/40",
+                                                    field.value === 'governorate' ? "border-primary bg-primary/5 shadow-sm" : "border-border/60"
+                                                )}
+                                            >
+                                                <div className="flex items-center gap-3">
+                                                    <div className={cn("w-4 h-4 rounded-full border-2 flex items-center justify-center", field.value === 'governorate' ? "border-primary bg-primary" : "border-muted-foreground")}>
+                                                        {field.value === 'governorate' && <div className="w-1.5 h-1.5 rounded-full bg-white" />}
+                                                    </div>
+                                                    <span className="font-bold text-sm">المحافظة بالكامل</span>
+                                                </div>
+                                                <span className="text-xs font-semibold text-primary bg-primary/10 px-2 py-1 rounded-md max-w-[130px] truncate">
+                                                    {userGovName || 'غير محددة'}
+                                                </span>
+                                            </FormLabel>
+                                        </FormItem>
+
+                                        {/* الخيار 3: المدينة بالكامل */}
+                                        <FormItem>
+                                            <FormControl>
+                                                <RadioGroupItem value="city" id="scope-city" className="sr-only" />
+                                            </FormControl>
+                                            <FormLabel
+                                                htmlFor="scope-city"
+                                                className={cn(
+                                                    "flex items-center justify-between rounded-xl border-2 p-4 cursor-pointer transition-all hover:bg-accent/40",
+                                                    field.value === 'city' ? "border-primary bg-primary/5 shadow-sm" : "border-border/60"
+                                                )}
+                                            >
+                                                <div className="flex items-center gap-3">
+                                                    <div className={cn("w-4 h-4 rounded-full border-2 flex items-center justify-center", field.value === 'city' ? "border-primary bg-primary" : "border-muted-foreground")}>
+                                                        {field.value === 'city' && <div className="w-1.5 h-1.5 rounded-full bg-white" />}
+                                                    </div>
+                                                    <span className="font-bold text-sm">المدينة بالكامل</span>
+                                                </div>
+                                                <span className="text-xs font-semibold text-primary bg-primary/10 px-2 py-1 rounded-md max-w-[130px] truncate">
+                                                    {userCityName || 'غير محددة'}
+                                                </span>
+                                            </FormLabel>
+                                        </FormItem>
+
+                                        {/* الخيار 4: القرية بالكامل */}
+                                        <FormItem>
+                                            <FormControl>
+                                                <RadioGroupItem value="village" id="scope-village" className="sr-only" />
+                                            </FormControl>
+                                            <FormLabel
+                                                htmlFor="scope-village"
+                                                className={cn(
+                                                    "flex items-center justify-between rounded-xl border-2 p-4 cursor-pointer transition-all hover:bg-accent/40",
+                                                    field.value === 'village' ? "border-primary bg-primary/5 shadow-sm" : "border-border/60"
+                                                )}
+                                            >
+                                                <div className="flex items-center gap-3">
+                                                    <div className={cn("w-4 h-4 rounded-full border-2 flex items-center justify-center", field.value === 'village' ? "border-primary bg-primary" : "border-muted-foreground")}>
+                                                        {field.value === 'village' && <div className="w-1.5 h-1.5 rounded-full bg-white" />}
+                                                    </div>
+                                                    <span className="font-bold text-sm">القرية بالكامل</span>
+                                                </div>
+                                                <span className="text-xs font-semibold text-primary bg-primary/10 px-2 py-1 rounded-md max-w-[130px] truncate">
+                                                    {userVillageName || 'غير محددة'}
+                                                </span>
+                                            </FormLabel>
+                                        </FormItem>
+                                    </RadioGroup>
                                 </FormControl>
-                                <SelectContent>
-                                    {userProfile?.village && userProfile?.village !== 'غير محدد' && (
-                                        <SelectItem value="village">
-                                            {t.scopeVillage || "القرية فقط"} ({userProfile.village})
-                                        </SelectItem>
-                                    )}
-                                    {(userProfile?.city || userProfile?.village) && userProfile?.city !== 'غير محدد' && (
-                                        <SelectItem value="city">
-                                            {t.scopeCity || "المدينة بالكامل"} ({userProfile?.city || t.city})
-                                        </SelectItem>
-                                    )}
-                                    <SelectItem value="governorate">
-                                        {t.scopeGov || "المحافظة بالكامل"} ({userProfile?.governorate || userProfile?.province || t.governorate})
-                                    </SelectItem>
-                                    <SelectItem value="country">
-                                        {t.scopeCountry || "الدولة بالكامل"} ({userProfile?.country || t.country})
-                                    </SelectItem>
-                                </SelectContent>
-                            </Select>
-                            <FormDescription>
-                                {t.updateLocationInProfile || "يجب تحديث بيانات موقعك من ملفك الشخصي لتوسيع النطاق."}
-                            </FormDescription>
-                            <FormMessage />
-                        </FormItem>
+                                <FormMessage />
+                            </FormItem>
+                        )}
+                    />
+
+                    {/* حقول أدخل المكان مباشرة لو لم تكن متوفرة بملف المستخدم */}
+                    {locationScope === 'governorate' && !userGovName && (
+                        <FormField
+                            control={form.control}
+                            name="governorate"
+                            render={({ field }) => (
+                                <FormItem className="pt-2 animate-in fade-in">
+                                    <FormLabel className="text-xs text-muted-foreground">اسم المحافظة</FormLabel>
+                                    <FormControl><Input placeholder="أدخل اسم المحافظة..." {...field} /></FormControl>
+                                </FormItem>
+                            )}
+                        />
                     )}
-                />
-            </div>
-        )}
+                    {locationScope === 'city' && !userCityName && (
+                        <FormField
+                            control={form.control}
+                            name="city"
+                            render={({ field }) => (
+                                <FormItem className="pt-2 animate-in fade-in">
+                                    <FormLabel className="text-xs text-muted-foreground">اسم المدينة/المركز</FormLabel>
+                                    <FormControl><Input placeholder="أدخل اسم المدينة..." {...field} /></FormControl>
+                                </FormItem>
+                            )}
+                        />
+                    )}
+                    {locationScope === 'village' && !userVillageName && (
+                        <FormField
+                            control={form.control}
+                            name="village"
+                            render={({ field }) => (
+                                <FormItem className="pt-2 animate-in fade-in">
+                                    <FormLabel className="text-xs text-muted-foreground">اسم القرية/الحي</FormLabel>
+                                    <FormControl><Input placeholder="أدخل اسم القرية..." {...field} /></FormControl>
+                                </FormItem>
+                            )}
+                        />
+                    )}
+                </div>
+            ) : (
+                /* 3. إذا اختار بلد آخر غير بلده الأصلي -> يظهر له مربع اختيار المحافظة فقط */
+                <div className="space-y-4 pt-2 animate-in fade-in">
+                    <FormField
+                        control={form.control}
+                        name="governorate"
+                        render={({ field }) => (
+                            <FormItem>
+                                <FormLabel className="text-md font-semibold flex items-center gap-2">
+                                    <MapPin className="h-4 w-4 text-primary" />
+                                    اختر المحافظة المستهدفة في {selectedMarket?.name.ar}
+                                </FormLabel>
+                                <Select onValueChange={field.onChange} value={field.value || 'country'} dir={direction}>
+                                    <FormControl>
+                                        <SelectTrigger className="h-12 text-base">
+                                            <SelectValue placeholder="اختر المحافظة" />
+                                        </SelectTrigger>
+                                    </FormControl>
+                                    <SelectContent>
+                                        <SelectItem value="country" className="font-bold py-2">
+                                            الدولة بالكامل ({selectedMarket?.name.ar})
+                                        </SelectItem>
+                                        {selectedMarket?.majorCities && selectedMarket.majorCities.map((city) => (
+                                            <SelectItem key={city} value={city} className="py-2">
+                                                {city}
+                                            </SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                                <FormDescription>
+                                    اختر المحافظة المستهدفة في {selectedMarket?.name.ar} أو اختر الدولة بالكامل.
+                                </FormDescription>
+                                <FormMessage />
+                            </FormItem>
+                        )}
+                    />
+                </div>
+            )}
+        </div>
 
         <Button type="submit" className="w-full py-6 text-lg" size="lg" disabled={isSubmitting}>
              {isSubmitting ? (
@@ -1511,7 +1394,7 @@ function AdFormContent({ adId, userId, isEditMode }: { adId?: string | null, use
   );
 }
 
-export default function AdForm(props: { adId?: string | null, userId?: string | null, isEditMode: boolean }) {
+export default function AdForm(props: { adId?: string | null, userId?: string | null, isEditMode: boolean, onSuccess?: () => void }) {
     const [isClient, setIsClient] = useState(false);
     useEffect(() => {
         setIsClient(true);

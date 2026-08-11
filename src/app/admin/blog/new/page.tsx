@@ -191,6 +191,32 @@ export default function CreateBlogPost() {
         </div>
 
         <form onSubmit={handlePublish} className="bg-card p-6 md:p-8 rounded-2xl shadow-sm border border-border space-y-8 text-right">
+          {/* Floating Sticky Save Bar */}
+          <div className="sticky top-20 z-30 bg-card/95 backdrop-blur-md border border-border/80 p-3.5 rounded-xl shadow-lg flex items-center justify-between gap-4 transition-all">
+            <div className="flex items-center gap-2 overflow-hidden">
+              <Save className="h-5 w-5 text-primary flex-shrink-0" />
+              <span className="font-bold text-sm md:text-base text-foreground truncate">
+                {title ? `نشر: ${title}` : 'كتابة مقالة جديدة'}
+              </span>
+            </div>
+            <button 
+              type="submit" 
+              disabled={loading}
+              className="bg-primary hover:bg-primary/90 text-primary-foreground px-6 py-2 rounded-xl text-sm font-medium flex items-center transition-colors disabled:opacity-70 flex-shrink-0"
+            >
+              {loading ? (
+                <>
+                  <Loader2 className="w-4 h-4 ml-2 animate-spin" />
+                  جاري النشر...
+                </>
+              ) : (
+                <>
+                  <Save className="w-4 h-4 ml-2" />
+                  نشر المقالة
+                </>
+              )}
+            </button>
+          </div>
           
           {error && (
             <div className="bg-red-50 dark:bg-red-500/10 text-red-600 dark:text-red-400 p-4 rounded-xl text-sm border border-red-200 dark:border-red-900/50 text-right">

@@ -11,7 +11,7 @@ import { useAuth } from '@/context/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { toast } from '@/hooks/use-toast';
-import { cn } from '@/lib/utils';
+import { cn, formatWhatsAppNumber } from '@/lib/utils';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 
@@ -410,7 +410,7 @@ export default function RegularVideoPlayer({ ad, onClose, relatedAds, onAdSelect
                         {phoneNumber && (
                              <div className="flex flex-wrap items-center gap-3 mt-6">
                                 <a 
-                                    href={`https://wa.me/${phoneNumber.replace(/[\+\s\-]/g, '')}?text=${encodeURIComponent(`أهلاً، مهتم بخصوص إعلانك: ${ad.title}`)}`}
+                                    href={`https://wa.me/${formatWhatsAppNumber(phoneNumber)}?text=${encodeURIComponent(`السلام عليكم، أتواصل معك بخصوص إعلانك: "${ad.title}" المعروض على 🏪 منصة سوق العرب 🛍️`)}`}
                                     target="_blank"
                                     rel="noopener noreferrer"
                                     className="px-5 py-2.5 rounded-full bg-[#25D366]/10 text-[#25D366] hover:bg-[#25D366]/20 font-bold text-sm flex items-center gap-2 transition-colors border border-[#25D366]/20"

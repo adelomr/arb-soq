@@ -246,7 +246,7 @@ export default function AdminDashboard() {
                 <TableCell>
                   <div className="flex items-center gap-3">
                     <Image
-                      alt={user.name}
+                      alt={user.name || user.email || 'صورة المستخدم'}
                       className="aspect-square rounded-full object-cover"
                       height="40"
                       src={user.avatarUrl || `https://avatar.vercel.sh/${user.id}.png`}

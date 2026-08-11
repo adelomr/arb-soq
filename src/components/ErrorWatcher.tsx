@@ -18,13 +18,10 @@ export default function ErrorWatcher() {
         time: new Date().toISOString(),
       };
       console.warn("⚠️ AI Watcher caught an error:", errorInfo);
-      localStorage.setItem("lastError", JSON.stringify(errorInfo));
-
-      // A simple auto-fix attempt
-      if (typeof msg === 'string' && (msg.includes("adsbygoogle") || msg.includes("client-side exception"))) {
-        console.log("🧠 Attempting auto-fix...");
-        setTimeout(() => window.location.reload(), 1500);
-      }
+      // Log error safely without forcing page reloads
+      try {
+        localStorage.setItem("lastError", JSON.stringify(errorInfo));
+      } catch (e) {}
       return false;
     };
 

@@ -33,14 +33,15 @@ export default function AdminNodeInitializer() {
           console.log("✅ تم إنشاء عقدة 'مسؤل' الافتراضية لأول مرة.");
         }
       } catch (error: any) {
-        // Silently ignore permission errors (user is not admin — expected)
-        const code = error?.code || error?.message || '';
-        const isPermissionDenied =
-          code === 'PERMISSION_DENIED' ||
-          code.includes('PERMISSION_DENIED') ||
-          code.includes('permission-denied');
-        if (!isPermissionDenied) {
-          console.error("❌ حدث خطأ أثناء التحقق من/أو إنشاء عقدة المسؤول:", error);
+        // Silently ignore permission errors — expected for non-admin users
+        const msg = (error?.message || error?.code || String(error)).toLowerCase();
+        const isPermissionError =
+          msg.includes('permission_denied') ||
+          msg.includes('permission denied') ||
+          msg.includes('permission-denied') ||
+          msg.includes('insufficient permissions');
+        if (!isPermissionError) {
+          console.error('❌ حدث خطأ أثناء التحقق من/أو إنشاء عقدة المسؤول:', error);
         }
       }
     });

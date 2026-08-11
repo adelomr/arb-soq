@@ -477,6 +477,33 @@ export default function TopicManager({ initialView = 'list' }: TopicManagerProps
           </div>
         ) : (
           <form onSubmit={handleSave} className="space-y-6 text-right" dir="rtl">
+            {/* Sticky Save Bar for Edit Topic */}
+            <div className="sticky top-20 z-30 bg-card/95 backdrop-blur-md border border-border/80 p-3.5 rounded-xl shadow-lg flex items-center justify-between gap-4 transition-all">
+              <div className="flex items-center gap-2 overflow-hidden">
+                <Edit className="h-5 w-5 text-primary flex-shrink-0" />
+                <span className="font-bold text-sm md:text-base text-foreground truncate">
+                  {title ? `تعديل: ${title}` : 'تعديل الموضوع'}
+                </span>
+              </div>
+              <div className="flex items-center gap-2 flex-shrink-0">
+                <Button type="button" variant="outline" onClick={() => setView('list')} disabled={actionLoading} size="sm">
+                  إلغاء
+                </Button>
+                <Button type="submit" disabled={actionLoading} size="sm" className="bg-primary text-primary-foreground flex items-center gap-1.5 px-4 shadow-sm hover:opacity-90">
+                  {actionLoading ? (
+                    <>
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      جاري الحفظ...
+                    </>
+                  ) : (
+                    <>
+                      <Save className="h-4 w-4" />
+                      حفظ التعديلات
+                    </>
+                  )}
+                </Button>
+              </div>
+            </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="space-y-2">
                 <Label htmlFor="topic-title" className="text-foreground font-medium">عنوان الموضوع <span className="text-destructive">*</span></Label>
@@ -563,6 +590,7 @@ export default function TopicManager({ initialView = 'list' }: TopicManagerProps
                 value={content} 
                 onChange={setContent} 
                 placeholder="اكتب تفاصيل مقالتك أو موضوعك هنا..." 
+                stickyTopOffset="top-[144px]"
               />
             </div>
 

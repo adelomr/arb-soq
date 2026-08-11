@@ -161,6 +161,28 @@ export default function CreateTopicView({ onSuccess }: CreateTopicViewProps) {
       
       <CardContent className="pt-6">
         <form onSubmit={handlePublish} className="space-y-6 text-right" dir="rtl">
+          {/* Floating Sticky Save Bar */}
+          <div className="sticky top-20 z-30 bg-card/95 backdrop-blur-md border border-border/80 p-3.5 rounded-xl shadow-lg flex items-center justify-between gap-4 transition-all">
+            <div className="flex items-center gap-2 overflow-hidden">
+              <PenTool className="h-5 w-5 text-primary flex-shrink-0" />
+              <span className="font-bold text-sm md:text-base text-foreground truncate">
+                {title ? `نشر: ${title}` : 'كتابة موضوع جديد'}
+              </span>
+            </div>
+            <Button type="submit" disabled={actionLoading} className="bg-primary text-primary-foreground flex items-center gap-2 px-5 py-2 shadow-sm hover:opacity-90 flex-shrink-0">
+              {actionLoading ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  جاري النشر...
+                </>
+              ) : (
+                <>
+                  <Save className="h-4 w-4" />
+                  نشر الموضوع
+                </>
+              )}
+            </Button>
+          </div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div className="space-y-2">
               <Label htmlFor="create-topic-title" className="text-foreground font-medium">عنوان الموضوع <span className="text-destructive">*</span></Label>
@@ -244,6 +266,7 @@ export default function CreateTopicView({ onSuccess }: CreateTopicViewProps) {
               value={content} 
               onChange={setContent} 
               placeholder="اكتب تفاصيل مقالتك أو موضوعك هنا..." 
+              stickyTopOffset="top-[144px]"
             />
           </div>
 

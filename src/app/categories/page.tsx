@@ -9,6 +9,8 @@ import Link from 'next/link';
 import { Shapes } from 'lucide-react';
 import dynamic from 'next/dynamic';
 
+import { getCategorySlug } from '@/lib/category-utils';
+
 const Header = dynamic(() => import('@/components/Header'), { ssr: false });
 
 const t = {
@@ -41,7 +43,7 @@ export default function AllCategoriesPage() {
                              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
                                 {categories.map((category) => {
                                      const CategoryIcon = getCategoryIcon(category.icon);
-                                     const href = category.id === 'services' ? '/services' : (category.id === 'stores' ? '/shops' : `/category/${category.id}`);
+                                     const href = category.id === 'stores' ? '/shops' : `/p/${getCategorySlug(category.id)}`;
                                      return (
                                         <Link key={category.id} href={href} className="w-full">
                                            <Card className="flex flex-col items-center justify-center p-4 h-28 text-center transition-all hover:bg-primary/5 hover:shadow-md hover:-translate-y-1">

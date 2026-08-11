@@ -23,7 +23,7 @@ const jsonLd = {
     "name": "سوق العرب",
     "logo": {
       "@type": "ImageObject",
-      "url": "https://sooq-elarab.com/logo.png"
+      "url": "https://www.arb-soq.com/logo.png"
     }
   }
 };

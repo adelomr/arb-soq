@@ -2,10 +2,11 @@
 'use client';
 
 import Image from 'next/image';
-import { useState, useRef, WheelEvent, MouseEvent, useEffect, useCallback } from 'react';
+import { useState, useRef, WheelEvent, MouseEvent, TouchEvent, useEffect, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { ZoomIn, ZoomOut, RotateCcw, X, ArrowLeft, ArrowRight, Loader2 } from 'lucide-react';
 import { DialogClose } from '@/components/ui/dialog';
+import { useSwipe } from '@/hooks/useSwipe';
 
 const t = {
     zoomIn: 'تكبير',
@@ -30,6 +31,8 @@ export default function ZoomableImage({ src, alt, gallery = [] }: ZoomableImageP
   const imageRef = useRef<HTMLDivElement>(null);
   const isPanning = useRef(false);
   const startPos = useRef({ x: 0, y: 0 });
+  // Touch pan state (used when zoomed)
+  const touchPanStart = useRef<{ x: number; y: number } | null>(null);
 
   const imageSources = gallery.length > 0 ? gallery : [src];
   const [currentIndex, setCurrentIndex] = useState(() => {
@@ -73,6 +76,36 @@ export default function ZoomableImage({ src, alt, gallery = [] }: ZoomableImageP
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [handleNext, handlePrevious]);
+
+  // Touch swipe (only when NOT zoomed — otherwise touch pans the image)
+  const swipe = useSwipe({
+    onSwipeLeft: () => { if (scale <= 1) handleNext(); },
+    onSwipeRight: () => { if (scale <= 1) handlePrevious(); },
+    threshold: 60,
+  });
+
+  // Touch pan handlers (active only when zoomed in)
+  const handleTouchStart = (e: TouchEvent) => {
+    if (scale > 1) {
+      touchPanStart.current = { x: e.touches[0].clientX - position.x, y: e.touches[0].clientY - position.y };
+    }
+    swipe.handlers.onTouchStart(e);
+  };
+
+  const handleTouchMove = (e: TouchEvent) => {
+    if (scale > 1 && touchPanStart.current) {
+      e.preventDefault();
+      setPosition({
+        x: e.touches[0].clientX - touchPanStart.current.x,
+        y: e.touches[0].clientY - touchPanStart.current.y,
+      });
+    }
+  };
+
+  const handleTouchEnd = (e: TouchEvent) => {
+    touchPanStart.current = null;
+    swipe.handlers.onTouchEnd(e);
+  };
 
   const handleWheel = (e: WheelEvent) => {
     e.preventDefault();
@@ -127,6 +160,9 @@ export default function ZoomableImage({ src, alt, gallery = [] }: ZoomableImageP
       className="w-full h-full bg-black/80 flex items-center justify-center overflow-hidden relative"
       onMouseMove={handleMouseMove}
       onMouseUp={handleMouseUp}
+      onTouchStart={handleTouchStart}
+      onTouchMove={handleTouchMove}
+      onTouchEnd={handleTouchEnd}
     >
       <div
         ref={imageRef}

@@ -1,10 +1,6 @@
-
-
 'use client';
 import Footer from "@/components/Footer";
 import UserDashboard from "@/components/UserDashboard";
-import { useState, useEffect } from 'react';
-import Ads from '@/components/Ads';
 import dynamic from 'next/dynamic';
 
 const Header = dynamic(() => import('@/components/Header'), { ssr: false });

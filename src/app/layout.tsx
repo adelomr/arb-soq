@@ -1,4 +1,3 @@
-
 import type { Metadata } from 'next';
 import './globals.css';
 import { AuthProvider } from '@/context/AuthContext';
@@ -15,6 +14,9 @@ import { Cairo } from 'next/font/google';
 import { Suspense } from 'react';
 import ErrorWatcher from '@/components/ErrorWatcher';
 import { Toaster } from "@/components/ui/toaster";
+import AdminNodeInitializer from '@/components/AdminNodeInitializer';
+import LinkInterceptor from '@/components/LinkInterceptor';
+import GoogleAdSenseLoader from '@/components/GoogleAdSenseLoader';
 
 const cairo = Cairo({
   subsets: ['arabic', 'latin'],
@@ -32,11 +34,14 @@ export const metadata: Metadata = {
   authors: [{ name: 'سوق العرب' }],
   creator: 'سوق العرب',
   publisher: 'سوق العرب',
-  metadataBase: new URL('https://sooq-elarab.com'),
+  metadataBase: new URL('https://www.arb-soq.com'),
+  verification: {
+    google: 'google62a0a2329452de9a',
+  },
   openGraph: {
     type: 'website',
     locale: 'ar_SA',
-    url: 'https://sooq-elarab.com',
+    url: 'https://www.arb-soq.com',
     siteName: 'سوق العرب',
     title: 'سوق العرب | أكبر سوق للإعلانات في الوطن العربي',
     description: 'بيع واشتري كل شيء في منطقتك. سيارات، عقارات، وتوظيف مجاناً.',
@@ -62,10 +67,6 @@ export const metadata: Metadata = {
   },
 };
 
-
-import AdminNodeInitializer from '@/components/AdminNodeInitializer';
-import LinkInterceptor from '@/components/LinkInterceptor';
-
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -74,12 +75,12 @@ export default function RootLayout({
   return (
     <html lang="ar" dir="rtl" suppressHydrationWarning>
       <head>
-          <Script
-             async
-             src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-4808414573627321"
-             crossOrigin="anonymous"
-             strategy="lazyOnload"
-          ></Script>
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
+        <link rel="preconnect" href="https://firebasestorage.googleapis.com" crossOrigin="anonymous" />
+        <link rel="preconnect" href="https://res.cloudinary.com" crossOrigin="anonymous" />
+        <link rel="dns-prefetch" href="https://pagead2.googlesyndication.com" />
+        <link rel="dns-prefetch" href="https://firestore.googleapis.com" />
       </head>
       <body className={`${cairo.variable} min-h-screen bg-background font-body text-base flex flex-col antialiased`} suppressHydrationWarning>
         <Suspense fallback={<div>Loading...</div>}>
@@ -88,6 +89,7 @@ export default function RootLayout({
                 <FontSizeProvider>
                     <MarketProvider>
                       <AuthProvider>
+                        <GoogleAdSenseLoader />
                         <CartProvider>
                           <ViewProvider>
                           <FontSizeApplier>
@@ -101,10 +103,10 @@ export default function RootLayout({
                                   "@context": "https://schema.org",
                                   "@type": "WebSite",
                                   "name": "سوق العرب",
-                                  "url": "https://sooq-elarab.com",
+                                  "url": "https://www.arb-soq.com",
                                   "potentialAction": {
                                     "@type": "SearchAction",
-                                    "target": "https://sooq-elarab.com/?q={search_term_string}",
+                                    "target": "https://www.arb-soq.com/?q={search_term_string}",
                                     "query-input": "required name=search_term_string"
                                   }
                                 })

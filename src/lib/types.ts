@@ -70,8 +70,10 @@ export type Ad = {
   isPremium?: boolean; // Premium sponsored ad
   premiumExpiresAt?: number; // Expiration timestamp for premium status
   playlistUrl?: string; // YouTube playlist URL for video ads
-  phoneNumber?: string; // Optional phone number for image ads
-  audioUrl?: string; // Optional audio URL for image slideshow ads (max 30 seconds)
+  phoneNumber?: string; // Optional phone number for image/standard ads
+  currency?: string; // ISO 4217 currency code e.g. EGP, SAR, USD
+  rating?: number; // Rating average for the ad / seller
+  reviewCount?: number; // Number of reviews
 };
 
 export type Category = {
@@ -194,6 +196,7 @@ export type Review = {
     rating: number;
     text: string;
     createdAt: any; // Firestore Timestamp
+    adId?: string;
 };
 
 export type SiteStats = {
@@ -203,9 +206,9 @@ export type SiteStats = {
     totalStores: number;
 };
 
-export type PageType = 'system' | 'legal' | 'landing';
+export type PageType = 'system' | 'legal' | 'landing' | 'adpage';
 
-export type LandingTheme = 'default' | 'greenery' | 'dark-luxury' | 'corporate-blue';
+export type LandingTheme = 'default' | 'greenery' | 'dark-luxury' | 'corporate-blue' | 'clear-cover';
 
 export interface LandingFeature {
   title: string;
@@ -224,6 +227,97 @@ export interface LandingFaq {
   answer: string;
 }
 
+export interface LandingSection {
+  id: string;
+  name: {
+    ar: string;
+    en: string;
+  };
+  description: {
+    ar: string;
+  };
+  iconName: string;
+  badgeColor?: string;
+}
+
+export const DEFAULT_LANDING_SECTIONS: LandingSection[] = [
+  {
+    id: 'furniture-moving',
+    name: { ar: 'نقل وتغليف عفش', en: 'Furniture Moving' },
+    description: { ar: 'خدمات نقل الأثاث، الفك والتركيب، والتغليف الاحترافي' },
+    iconName: 'Truck',
+    badgeColor: 'bg-amber-500/10 text-amber-600 border-amber-500/20',
+  },
+  {
+    id: 'home-cleaning',
+    name: { ar: 'تنظيف وصيانة منازل', en: 'Home Cleaning & Maintenance' },
+    description: { ar: 'خدمات تنظيف الشقق، الفلل، غسيل السجاد، وصيانة المنازل' },
+    iconName: 'Sparkles',
+    badgeColor: 'bg-emerald-500/10 text-emerald-600 border-emerald-500/20',
+  },
+  {
+    id: 'leak-detection',
+    name: { ar: 'كشف تسربات وعزل', en: 'Leak Detection & Insulation' },
+    description: { ar: 'كشف تسربات المياه بأحدث الأجهزة وعزل الاسطح والخزانات' },
+    iconName: 'Droplets',
+    badgeColor: 'bg-sky-500/10 text-sky-600 border-sky-500/20',
+  },
+  {
+    id: 'contracting',
+    name: { ar: 'مقاولات وتشطيبات', en: 'Contracting & Finishing' },
+    description: { ar: 'أعمال البناء، الدهانات، الجبس بورد، والترميمات العامة' },
+    iconName: 'Building',
+    badgeColor: 'bg-purple-500/10 text-purple-600 border-purple-500/20',
+  },
+  {
+    id: 'pest-control',
+    name: { ar: 'مكافحة حشرات ورش مبيدات', en: 'Pest Control' },
+    description: { ar: 'إبادة النمل الأبيض، الصراصير، ورش المبيدات الآمنة' },
+    iconName: 'Bug',
+    badgeColor: 'bg-rose-500/10 text-rose-600 border-rose-500/20',
+  },
+  {
+    id: 'hvac-appliances',
+    name: { ar: 'تكييف وصيانة أجهزة', en: 'AC & Home Appliances' },
+    description: { ar: 'تركيب وتنظيف وصيانة المكيفات والأجهزة الكهربائية' },
+    iconName: 'Wind',
+    badgeColor: 'bg-indigo-500/10 text-indigo-600 border-indigo-500/20',
+  },
+  {
+    id: 'car-services',
+    name: { ar: 'خدمات سيارات ونقل', en: 'Car Services' },
+    description: { ar: 'خدمات السطحة، الصيانة السريعة، ونقل المركبات' },
+    iconName: 'Car',
+    badgeColor: 'bg-orange-500/10 text-orange-600 border-orange-500/20',
+  },
+  {
+    id: 'general-services',
+    name: { ar: 'خدمات عامة واستشارات', en: 'General Services' },
+    description: { ar: 'كافة الخدمات والحلول المنزلية والتجارية الأخرى' },
+    iconName: 'Briefcase',
+    badgeColor: 'bg-slate-500/10 text-slate-600 border-slate-500/20',
+  },
+];
+
+export interface AdpageStore {
+  id: string;
+  name: string;
+  logoText: string;
+  subText?: string;
+  active?: boolean;
+}
+
+export interface AdpageBrand {
+  id: string;
+  name: string;
+}
+
+export interface AdpageConditionFilter {
+  id: string;
+  name: string;
+  value: string;
+}
+
 export interface PageData {
   id?: string;
   slug: string;
@@ -238,6 +332,7 @@ export interface PageData {
   countdown?: number;
   views?: number;
   // === حقول صفحات الهبوط الاحترافية ===
+  landingCategory?: string;    // قسم صفحة الهبوط (مثال: furniture-moving, home-cleaning, etc.)
   coverImageUrl?: string;      // صورة الغلاف الكبيرة (Hero)
   logoUrl?: string;            // شعار الجهة أو المنتج
   subtitle?: string;           // العنوان الفرعي
@@ -250,5 +345,23 @@ export interface PageData {
   testimonials?: LandingTestimonial[]; // آراء العملاء
   faqs?: LandingFaq[];         // الأسئلة الشائعة
   locationEmbed?: string;      // رابط خرائط جوجل المضمّن
+  serviceName?: string;        // اسم الخدمة (لصفحات الهبوط)
+  serviceArea?: string;        // المنطقة/الحي (لصفحات الهبوط)
+  legacySlug?: string;         // الروابط القديمة لعمل redirect 301
+  // === حقول الصفحات الإعلانية (adpage) ===
+  adpageCategoryId?: string;      // معرف الفئة الرئيسية (مثال: vehicles, realestate)
+  adpageSubcategoryId?: string;   // معرف الفئة الفرعية (مثال: sub_v1)
+  adpageQuery?: string;           // نص البحث الاختياري
+  adpageDescription?: string;     // وصف الصفحة الإعلانية للـ SEO
+  adpageCoverImage?: string;      // صورة غلاف الصفحة الإعلانية
+  adpageSubtitle?: string;        // العنوان الفرعي للصفحة الإعلانية
+  adpageButtonText?: string;      // نص زر التوجيه
+  adpageMode?: 'redirect' | 'showcase'; // وضع التوجيه والمشاهدة: تحويل مباشر أم عرض صفحة مخصصة
+  adpageStores?: AdpageStore[];   // الشركات والمعارض المميزة المخصصة
+  adpageBrands?: AdpageBrand[];   // ماركات السيارات والفلاتر السريعة المخصصة
+  adpageConditionFilters?: AdpageConditionFilter[]; // أزرار الفلترة المخصصة لكل فئة (جديد، مستعمل، تمليك، إلخ)
 }
+
+
+
 

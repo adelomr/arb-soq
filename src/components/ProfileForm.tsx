@@ -468,6 +468,28 @@ export default function ProfileForm() {
     <>
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+        {/* Sticky Save Bar */}
+        <div className="sticky top-20 z-30 bg-card/95 backdrop-blur-md border border-border/80 p-3.5 rounded-xl shadow-lg flex items-center justify-between gap-4 transition-all">
+          <div className="flex items-center gap-2 overflow-hidden">
+            <User className="h-5 w-5 text-primary flex-shrink-0" />
+            <span className="font-bold text-sm md:text-base text-foreground truncate">
+              {form.watch('name') ? `تعديل ملف: ${form.watch('name')}` : 'الملف الشخصي'}
+            </span>
+          </div>
+          <Button type="submit" disabled={isSaving} size="sm" className="bg-primary text-primary-foreground flex items-center gap-1.5 px-5 shadow-sm hover:opacity-90 flex-shrink-0">
+            {isSaving ? (
+              <>
+                <Loader2 className="h-4 w-4 animate-spin ml-1" />
+                {t.saving}
+              </>
+            ) : (
+              <>
+                <Save className="h-4 w-4 ml-1" />
+                {t.saveChanges}
+              </>
+            )}
+          </Button>
+        </div>
         <div className="flex flex-col items-center space-y-4">
              <Avatar className="w-24 h-24 md:w-32 md:w-32 border-4 border-primary/20 shadow-lg">
                 <AvatarImage src={avatarPreview || undefined} alt={form.watch('name')} />

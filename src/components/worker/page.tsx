@@ -19,6 +19,7 @@ import { Input } from '@/components/ui/input';
 import { AdPlaceholder, AdPlaceholderSquare } from '@/components/Adsense';
 import Reviews from '@/components/Reviews';
 import dynamic from 'next/dynamic';
+import { formatWhatsAppNumber } from '@/lib/utils';
 
 const Header = dynamic(() => import('@/components/Header'), { ssr: false });
 
@@ -194,7 +195,7 @@ export default function WorkerPage() {
       const workerName = worker.name || worker.fullName || '';
       const workerProfession = professions.find(p => p.id === (worker.profession || worker.jobType))?.name.ar || worker.profession || worker.jobType || '';
       const message = `مرحباً ${workerName}, أنا مهتم بخدماتك كـ ${workerProfession} على سوق العرب.`;
-      const whatsappUrl = `https://api.whatsapp.com/send?phone=${phone.replace(/\D/g, '')}&text=${encodeURIComponent(message)}`;
+      const whatsappUrl = `https://api.whatsapp.com/send?phone=${formatWhatsAppNumber(phone)}&text=${encodeURIComponent(message)}`;
       window.open(whatsappUrl, '_blank');
     }
   };

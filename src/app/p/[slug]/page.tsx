@@ -1,13 +1,16 @@
-import { getPageBySlug, getAllPages, incrementPageViews } from "@/lib/page-service";
-import { notFound } from "next/navigation";
+import { getPageBySlug, getPageByLegacySlug, getAllPages, createPage } from "@/lib/page-service";
+import { notFound, permanentRedirect } from "next/navigation";
 import { Metadata } from "next";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import ContactPageClient from "@/components/ContactPageClient";
 import ContentWrapper from "@/components/ContentWrapper";
 import LandingPageClient from "@/components/LandingPageClient";
+import AdPageClient from "@/components/AdPageClient";
+import PageViewIncrementer from "@/components/PageViewIncrementer";
 
-export const dynamic = 'force-dynamic';
+export const revalidate = 60;
+
 
 type Props = {
   params: Promise<{ slug: string }>;
@@ -32,7 +35,11 @@ export async function generateStaticParams() {
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const p = await params;
   const slug = decodeURIComponent(p.slug);
-  const page = await getPageBySlug(slug);
+  let page = await getPageBySlug(slug);
+  
+  if (!page) {
+    page = await getPageByLegacySlug(slug);
+  }
   
   if (!page || !page.isPublished) {
     return { title: 'الصفحة غير موجودة | سوق العرب' };
@@ -41,14 +48,31 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   // Strip HTML for clean description
   const cleanDescription = (page.description || page.content || '').substring(0, 150).replace(/<[^>]+>/g, '');
 
+  const canonicalUrl = `https://www.arb-soq.com/p/${page.slug}`;
+  const cleanDesc = (page.description || page.content || '').substring(0, 160).replace(/<[^>]+>/g, '');
+
   return {
     title: `${page.title} | سوق العرب`,
-    description: cleanDescription,
-    openGraph: page.coverImageUrl ? {
-      images: [{ url: page.coverImageUrl }],
+    description: cleanDesc,
+    alternates: {
+      canonical: canonicalUrl,
+    },
+    // السماح بفهرسة صفحات الهبوط لتعمل مع إعلانات جوجل
+    robots: {
+      index: page.pageType === 'landing' ? true : true,
+      follow: true,
+    },
+    openGraph: {
+      type: 'website',
+      locale: 'ar_SA',
+      url: canonicalUrl,
+      siteName: 'سوق العرب',
       title: page.title,
-      description: cleanDescription,
-    } : undefined,
+      description: cleanDesc,
+      ...(page.coverImageUrl && {
+        images: [{ url: page.coverImageUrl, width: 1200, height: 630, alt: page.title }],
+      }),
+    },
   };
 }
 
@@ -56,18 +80,110 @@ export default async function CustomPageDetail({ params }: Props) {
   const p = await params;
   // Decode Arabic or special-character slugs encoded in the URL
   const slug = decodeURIComponent(p.slug);
-  const page = await getPageBySlug(slug);
+  let page = await getPageBySlug(slug);
+
+  if (!page) {
+    page = await getPageByLegacySlug(slug);
+    if (page && page.isPublished) {
+      // 301 Permanent Redirect to the new clean slug URL
+      permanentRedirect(`/p/${page.slug}`);
+    }
+  }
+
+  // ===== Auto-create known category pages if missing from Firebase =====
+  if (!page) {
+    const knownCategoryPages: Record<string, { title: string; categoryId: string; description: string; shortCode: string }> = {
+      'cars-auto-parts':      { title: 'عربيات وقطع غيار', categoryId: 'vehicles',    shortCode: 'cars',        description: 'سوق السيارات والمركبات وقطع الغيار الشامل.' },
+      'real-estate':          { title: 'عقارات',            categoryId: 'realestate',  shortCode: 'realestate',  description: 'سوق العقارات الشامل - شقق وفلل ومحلات وأراضي.' },
+      'mobiles-tablets':      { title: 'موبايلات وتابلت',  categoryId: 'mobiles',     shortCode: 'mobiles',     description: 'سوق الهواتف والموبايلات والتابلت وإكسسواراتها.' },
+      'jobs-careers':         { title: 'وظائف',            categoryId: 'jobs',        shortCode: 'jobs',        description: 'سوق الفرص الوظيفية والمهنية.' },
+      'home-office-furniture':{ title: 'أثاث المنزل والمكتب', categoryId: 'furniture', shortCode: 'furniture',   description: 'سوق الأثاث المنزلي والمكتبي والديكور.' },
+      'electronics-appliances':{ title: 'أجهزة إلكترونية',categoryId: 'electronics', shortCode: 'electronics', description: 'سوق الأجهزة الإلكترونية والشاشات وأجهزة الكمبيوتر والألعاب.' },
+      'fashion-beauty':       { title: 'الموضة والجمال',  categoryId: 'fashion',     shortCode: 'fashion',     description: 'سوق الموضة والجمال والملابس والإكسسوارات.' },
+      'pets-animals':         { title: 'حيوانات أليفة',   categoryId: 'pets',        shortCode: 'pets',        description: 'سوق الحيوانات الأليفة والكلاب والقطط والطيور.' },
+      'baby-kids':            { title: 'مستلزمات أطفال',  categoryId: 'baby',        shortCode: 'baby',        description: 'سوق مستلزمات وحاجيات الرضع والأطفال.' },
+      'hobbies-sports':       { title: 'هوايات وتسلية',   categoryId: 'hobbies',     shortCode: 'hobbies',     description: 'سوق الهوايات والرياضة والمقتنيات والكتب.' },
+      'commercial-industrial':{ title: 'تجارة وصناعة',    categoryId: 'trade',       shortCode: 'trade',       description: 'سوق المعدات الصناعية والتجارية وأعمال البناء.' },
+      'professional-services':{ title: 'خدمات',            categoryId: 'services',    shortCode: 'services',    description: 'دليل الخدمات والشركات والصيانة والحفلات.' },
+      'crafts-professions':   { title: 'المهن والحرف',     categoryId: 'crafts',      shortCode: 'crafts',      description: 'سوق المهن والحرف - سباكة، كهرباء، نجارة، دهانات.' },
+    };
+
+    const spec = knownCategoryPages[slug];
+    if (spec) {
+      try {
+        await createPage({
+          title: spec.title,
+          slug,
+          shortCode: spec.shortCode,
+          content: spec.description,
+          isPublished: true,
+          pageType: 'adpage' as any,
+          adpageMode: 'showcase' as any,
+          adpageCategoryId: spec.categoryId,
+          adpageDescription: spec.description,
+          adpageSubtitle: `تصفح أفضل عروض ${spec.title}`,
+          adpageButtonText: 'تصفح الإعلانات',
+          views: 0,
+        });
+        page = await getPageBySlug(slug);
+      } catch (e) {
+        console.error('Auto-create page failed:', e);
+      }
+    }
+  }
 
   if (!page || !page.isPublished) {
     notFound(); // Triggers 404 page
   }
 
-  if (page.id) {
-    try { await incrementPageViews(page.id); } catch {}
+  // ===== صفحات إعلانية: عرض AdPageClient دائماً =====
+  if (page.pageType === 'adpage' && page.adpageCategoryId) {
+    const serializedPage = {
+      ...page,
+      adpageMode: 'showcase' as const, // دائماً showcase بغض النظر عن القيمة المخزنة
+      createdAt: page.createdAt?.seconds ?? null,
+      updatedAt: page.updatedAt?.seconds ?? null,
+    };
+    return (
+      <main className="min-h-screen bg-background">
+        <AdPageClient page={serializedPage as any} />
+        <PageViewIncrementer pageId={page.id} />
+      </main>
+    );
   }
+
+
 
   // ===== صفحات الهبوط: عرض احترافي مخصص =====
   if (page.pageType === 'landing') {
+    // JSON-LD للأعمال المحلية لصفحات الهبوط
+    const landingJsonLd = {
+      '@context': 'https://schema.org',
+      '@type': 'LocalBusiness',
+      name: page.serviceName || page.title,
+      description: (page.description || page.content || '').replace(/<[^>]+>/g, '').substring(0, 200),
+      url: `https://www.arb-soq.com/p/${page.slug}`,
+      ...(page.coverImageUrl && { image: page.coverImageUrl }),
+      ...(page.phoneNumber && { telephone: page.phoneNumber }),
+      ...(page.whatsappNumber && { telephone: page.whatsappNumber }),
+      ...(page.serviceArea && {
+        areaServed: { '@type': 'Place', name: page.serviceArea },
+        address: { '@type': 'PostalAddress', addressLocality: page.serviceArea },
+      }),
+      ...(page.features && page.features.length > 0 && {
+        hasOfferCatalog: {
+          '@type': 'OfferCatalog',
+          name: 'خدماتنا',
+          itemListElement: page.features.map((f, i) => ({
+            '@type': 'Offer',
+            position: i + 1,
+            name: f.title,
+            description: f.desc,
+          })),
+        },
+      }),
+    };
+
     // Serialize Firestore timestamps to avoid "plain objects only" Next.js error
     const serializedPage = {
       ...page,
@@ -75,13 +191,14 @@ export default async function CustomPageDetail({ params }: Props) {
       updatedAt: page.updatedAt?.seconds ?? null,
     };
     return (
-      <div className="flex flex-col min-h-screen bg-background">
-        <Header />
-        <main className="flex-1">
-          <LandingPageClient page={serializedPage as any} />
-        </main>
-        <Footer />
-      </div>
+      <main className="min-h-screen bg-background">
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(landingJsonLd) }}
+        />
+        <LandingPageClient page={serializedPage as any} />
+        <PageViewIncrementer pageId={page.id} />
+      </main>
     );
   }
 
@@ -89,6 +206,7 @@ export default async function CustomPageDetail({ params }: Props) {
   return (
     <div className="flex flex-col min-h-screen bg-background">
       <Header />
+      <PageViewIncrementer pageId={page.id} />
 
       <main className="flex-1 py-12 md:py-16 px-4">
         {/* Special handling for the contact page — show interactive form */}
@@ -164,8 +282,9 @@ export default async function CustomPageDetail({ params }: Props) {
           font-weight: normal !important;
         }
         .custom-page-content img {
-          max-width: 100%;
-          height: auto;
+          width: 100% !important;
+          max-width: 100% !important;
+          height: auto !important;
           border-radius: 12px;
           display: block;
           margin: 1.5rem auto;

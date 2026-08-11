@@ -9,17 +9,34 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Check, Loader2, X, AlertCircle, ImageIcon, Play } from 'lucide-react';
+import { Check, Loader2, X, AlertCircle, ImageIcon, Play, Trash2, Pencil } from 'lucide-react';
 import { useLanguage } from '@/context/LanguageContext';
 import { useToast } from '@/hooks/use-toast';
 import { formatDistanceToNow } from 'date-fns';
 import { ar } from 'date-fns/locale';
 import { safeParseDate } from '@/lib/utils';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import AdForm from '@/components/AdForm';
 
 const translations = {
   ar: {
     title: 'مراجعة الإعلانات',
-    description: 'إدارة جميع الإعلانات النشطة في النظام. يمكنك إيقاف أي إعلان إذا كان ينتهك السياسات.',
+    description: 'إدارة جميع الإعلانات النشطة في النظام. يمكنك إيقاف أو حذف أي إعلان إذا كان ينتهك السياسات.',
     ad: 'الإعلان',
     user: 'المستخدم',
     price: 'السعر',
@@ -29,15 +46,18 @@ const translations = {
     reject: 'رفض',
     stop: 'إيقاف',
     activate: 'تفعيل',
+    delete: 'حذف',
     approving: 'جارٍ الموافقة...',
     rejecting: 'جارٍ الرفض...',
     stopping: 'جارٍ الإيقاف...',
     activating: 'جارٍ التفعيل...',
+    deleting: 'جارٍ الحذف...',
     noPendingAds: 'لا توجد إعلانات للمراجعة حاليًا.',
     adApproved: 'تمت الموافقة على الإعلان بنجاح.',
     adRejected: 'تم رفض الإعلان بنجاح.',
     adStopped: 'تم إيقاف الإعلان بنجاح.',
     adActivated: 'تم تفعيل الإعلان بنجاح.',
+    adDeleted: 'تم حذف الإعلان بنجاح.',
     errorOccurred: 'حدث خطأ. الرجاء المحاولة مرة أخرى.',
     loading: 'جارٍ تحميل الإعلانات...',
     status: 'الحالة',
@@ -45,18 +65,26 @@ const translations = {
     pending: 'قيد المراجعة',
     stopped: 'موقوف',
     rejected: 'مرفوض',
+    deleteConfirmTitle: 'هل أنت متأكد من حذف هذا الإعلان؟',
+    deleteConfirmDesc: 'لا يمكن التراجع عن هذا الإجراء. سيتم حذف الإعلان وصوره نهائياً من النظام.',
+    confirmDelete: 'نعم، احذف الإعلان',
+    cancel: 'إلغاء',
+    edit: 'تعديل',
+    editAdTitle: 'تعديل تفاصيل الإعلان',
   }
 };
 
 type AdWithId = Ad & { id: string };
-type ActionType = 'approve' | 'reject' | 'stop' | 'activate';
+type ActionType = 'approve' | 'reject' | 'stop' | 'activate' | 'delete';
 
 export default function AdModerationList() {
-  const { getAdsForModeration, updateAdStatus } = useAuth();
+  const { getAdsForModeration, updateAdStatus, deleteAd } = useAuth();
   const [ads, setAds] = useState<AdWithId[]>([]);
   const [loading, setLoading] = useState(true);
   const [updatingId, setUpdatingId] = useState<string | null>(null);
   const [currentAction, setCurrentAction] = useState<ActionType | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<AdWithId | null>(null);
+  const [editTarget, setEditTarget] = useState<AdWithId | null>(null);
 
   const { language } = useLanguage();
   const { toast } = useToast();
@@ -135,6 +163,25 @@ export default function AdModerationList() {
     }
   };
 
+  const handleDeleteConfirmed = async () => {
+    if (!deleteTarget) return;
+    const ad = deleteTarget;
+    setDeleteTarget(null);
+    setUpdatingId(ad.id);
+    setCurrentAction('delete');
+
+    try {
+      await deleteAd(ad.userId, ad.id, ad);
+      toast({ title: t.adDeleted });
+    } catch (error) {
+      toast({ title: t.errorOccurred, variant: 'destructive' });
+      console.error(error);
+    } finally {
+      setUpdatingId(null);
+      setCurrentAction(null);
+    }
+  };
+
   const getStatusBadge = (status: Ad['status']) => {
       switch (status) {
           case 'active':
@@ -153,125 +200,219 @@ export default function AdModerationList() {
   }
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>{t.title}</CardTitle>
-        <CardDescription>{t.description}</CardDescription>
-      </CardHeader>
-      <CardContent>
-        {loading ? (
-          <div className="flex justify-center items-center h-48">
-            <Loader2 className="h-8 w-8 animate-spin text-primary" />
-            <span className="ml-2">{t.loading}</span>
-          </div>
-        ) : ads.length === 0 ? (
-          <div className="flex flex-col items-center justify-center h-48 text-center border-2 border-dashed rounded-lg">
-            <AlertCircle className="h-10 w-10 text-muted-foreground mb-2" />
-            <p className="text-lg font-semibold">{t.noPendingAds}</p>
-          </div>
-        ) : (
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>{t.ad}</TableHead>
-                <TableHead className="hidden md:table-cell">{t.user}</TableHead>
-                <TableHead className="hidden sm:table-cell">{t.status}</TableHead>
-                <TableHead className="hidden sm:table-cell">{t.submitted}</TableHead>
-                <TableHead className="text-right">{t.actions}</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {ads.map((ad) => {
-                  const hasImage = ad.imageUrls && ad.imageUrls.length > 0 && ad.imageUrls[0];
-                  return (
-                    <TableRow key={ad.id}>
-                      <TableCell>
-                        <div className="flex items-center gap-3">
-                            <div className="w-16 h-16 rounded-md bg-muted flex items-center justify-center">
-                            {hasImage ? (
-                                <Image
-                                    src={ad.imageUrls[0]}
-                                    alt={ad.title}
-                                    width={64}
-                                    height={64}
-                                    className="rounded-md object-cover aspect-square"
-                                />
-                            ) : (
-                                <ImageIcon className="h-8 w-8 text-muted-foreground/50"/>
-                            )}
+    <>
+      <Card>
+        <CardHeader>
+          <CardTitle>{t.title}</CardTitle>
+          <CardDescription>{t.description}</CardDescription>
+        </CardHeader>
+        <CardContent>
+          {loading ? (
+            <div className="flex justify-center items-center h-48">
+              <Loader2 className="h-8 w-8 animate-spin text-primary" />
+              <span className="ml-2">{t.loading}</span>
+            </div>
+          ) : ads.length === 0 ? (
+            <div className="flex flex-col items-center justify-center h-48 text-center border-2 border-dashed rounded-lg">
+              <AlertCircle className="h-10 w-10 text-muted-foreground mb-2" />
+              <p className="text-lg font-semibold">{t.noPendingAds}</p>
+            </div>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>{t.ad}</TableHead>
+                  <TableHead className="hidden md:table-cell">{t.user}</TableHead>
+                  <TableHead className="hidden sm:table-cell">{t.status}</TableHead>
+                  <TableHead className="hidden sm:table-cell">{t.submitted}</TableHead>
+                  <TableHead className="text-right">{t.actions}</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {ads.map((ad) => {
+                    const hasImage = ad.imageUrls && ad.imageUrls.length > 0 && ad.imageUrls[0];
+                    return (
+                      <TableRow key={ad.id}>
+                        <TableCell>
+                          <div className="flex items-center gap-3">
+                              <div className="w-16 h-16 rounded-md bg-muted flex items-center justify-center">
+                              {hasImage ? (
+                                  <Image
+                                      src={ad.imageUrls[0]}
+                                      alt={ad.title}
+                                      width={64}
+                                      height={64}
+                                      className="rounded-md object-cover aspect-square"
+                                  />
+                              ) : (
+                                  <ImageIcon className="h-8 w-8 text-muted-foreground/50"/>
+                              )}
+                              </div>
+                            <div>
+                              <span className="font-medium">{ad.title}</span>
+                              {(!ad.categoryId && !ad.category) && (
+                                <div className="mt-1">
+                                  <Badge variant="outline" className="bg-amber-500/10 text-amber-600 border-amber-400 text-[10px] font-bold gap-1 py-0.5 px-2">
+                                    <AlertCircle className="h-3 w-3 text-amber-500" />
+                                    يحتاج تحديث الفئة
+                                  </Badge>
+                                </div>
+                              )}
                             </div>
-                          <span className="font-medium">{ad.title}</span>
-                        </div>
-                      </TableCell>
-                       <TableCell className="hidden md:table-cell">
-                         <div className="flex items-center gap-2">
-                            {ad.user?.avatarUrl && <Image src={ad.user.avatarUrl} alt={ad.user.name || ''} width={24} height={24} className="rounded-full"/>}
-                            <span>{ad.user?.name || ad.userId}</span>
-                        </div>
-                       </TableCell>
-                      <TableCell className="hidden sm:table-cell">
-                        {getStatusBadge(ad.status)}
-                      </TableCell>
-                      <TableCell className="hidden sm:table-cell">
-                        {ad.postedAt ? formatDistanceToNow(safeParseDate(ad.postedAt), { addSuffix: true, locale: dateLocale }) : ''}
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <div className="flex gap-2 justify-end">
-                           {ad.status === 'pending' && (
-                            <>
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                onClick={() => handleUpdateStatus(ad, 'rejected')}
-                                disabled={updatingId === ad.id}
-                                className="text-destructive border-destructive hover:bg-destructive/10 hover:text-destructive"
-                              >
-                                {isLoadingAction(ad.id, 'reject') ? <Loader2 className="h-4 w-4 animate-spin" /> : <X className="h-4 w-4" />}
-                                <span className="hidden lg:inline ml-2">{t.reject}</span>
-                              </Button>
-                              <Button
-                                size="sm"
-                                onClick={() => handleUpdateStatus(ad, 'active')}
-                                disabled={updatingId === ad.id}
-                                className="bg-green-600 hover:bg-green-700 text-white"
-                              >
-                                {isLoadingAction(ad.id, 'approve') ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
-                                <span className="hidden lg:inline ml-2">{t.approve}</span>
-                              </Button>
-                            </>
-                          )}
-                          {ad.status === 'active' && (
-                             <Button
-                                size="sm"
-                                variant="destructive"
-                                onClick={() => handleStopAd(ad)}
-                                disabled={updatingId === ad.id}
-                             >
-                                {isLoadingAction(ad.id, 'stop') ? <Loader2 className="h-4 w-4 animate-spin" /> : <X className="h-4 w-4" />}
-                                <span className="hidden lg:inline ml-2">{t.stop}</span>
-                             </Button>
-                          )}
-                          {ad.status === 'rejected' && (
-                             <Button
-                                size="sm"
-                                variant="outline"
-                                onClick={() => handleActivateAd(ad)}
-                                disabled={updatingId === ad.id}
-                                className="text-green-600 border-green-600 hover:bg-green-50 hover:text-green-700"
-                             >
-                                {isLoadingAction(ad.id, 'activate') ? <Loader2 className="h-4 w-4 animate-spin" /> : <Play className="h-4 w-4" />}
-                                <span className="hidden lg:inline ml-2">{t.activate}</span>
-                             </Button>
-                          )}
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  )
-                })}
-            </TableBody>
-          </Table>
-        )}
-      </CardContent>
-    </Card>
+                          </div>
+                        </TableCell>
+                         <TableCell className="hidden md:table-cell">
+                           <div className="flex items-center gap-2">
+                              {ad.user?.avatarUrl && <Image src={ad.user.avatarUrl} alt={ad.user.name || ''} width={24} height={24} className="rounded-full"/>}
+                              <span>{ad.user?.name || ad.userId}</span>
+                          </div>
+                         </TableCell>
+                        <TableCell className="hidden sm:table-cell">
+                          <div className="flex flex-col gap-1">
+                            {getStatusBadge(ad.status)}
+                            {(!ad.categoryId && !ad.category) && (
+                              <Badge variant="outline" className="bg-amber-500/10 text-amber-600 border-amber-400 text-[10px] font-bold">
+                                الفئة مفقودة
+                              </Badge>
+                            )}
+                          </div>
+                        </TableCell>
+                        <TableCell className="hidden sm:table-cell">
+                          {ad.postedAt ? formatDistanceToNow(safeParseDate(ad.postedAt), { addSuffix: true, locale: dateLocale }) : ''}
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <div className="flex gap-2 justify-end">
+                             {ad.status === 'pending' && (
+                              <>
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => handleUpdateStatus(ad, 'rejected')}
+                                  disabled={updatingId === ad.id}
+                                  className="text-destructive border-destructive hover:bg-destructive/10 hover:text-destructive"
+                                >
+                                  {isLoadingAction(ad.id, 'reject') ? <Loader2 className="h-4 w-4 animate-spin" /> : <X className="h-4 w-4" />}
+                                  <span className="hidden lg:inline ml-2">{t.reject}</span>
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  onClick={() => handleUpdateStatus(ad, 'active')}
+                                  disabled={updatingId === ad.id}
+                                  className="bg-green-600 hover:bg-green-700 text-white"
+                                >
+                                  {isLoadingAction(ad.id, 'approve') ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
+                                  <span className="hidden lg:inline ml-2">{t.approve}</span>
+                                </Button>
+                              </>
+                            )}
+                            {ad.status !== 'pending' && ad.status !== 'rejected' && (
+                               <Button
+                                  size="sm"
+                                  variant="destructive"
+                                  onClick={() => handleStopAd(ad)}
+                                  disabled={updatingId === ad.id}
+                               >
+                                  {isLoadingAction(ad.id, 'stop') ? <Loader2 className="h-4 w-4 animate-spin" /> : <X className="h-4 w-4" />}
+                                  <span className="hidden lg:inline ml-2">{t.stop}</span>
+                               </Button>
+                            )}
+                            {ad.status === 'rejected' && (
+                               <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => handleActivateAd(ad)}
+                                  disabled={updatingId === ad.id}
+                                  className="text-green-600 border-green-600 hover:bg-green-50 hover:text-green-700"
+                               >
+                                  {isLoadingAction(ad.id, 'activate') ? <Loader2 className="h-4 w-4 animate-spin" /> : <Play className="h-4 w-4" />}
+                                  <span className="hidden lg:inline ml-2">{t.activate}</span>
+                               </Button>
+                            )}
+                            {/* Edit button — always visible */}
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => setEditTarget(ad)}
+                              disabled={updatingId === ad.id}
+                              className="text-blue-600 border-blue-600 hover:bg-blue-50 hover:text-blue-700"
+                              title={t.edit}
+                            >
+                              <Pencil className="h-4 w-4" />
+                              <span className="hidden lg:inline ml-2">{t.edit}</span>
+                            </Button>
+                            {/* Delete button — always visible */}
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              onClick={() => setDeleteTarget(ad)}
+                              disabled={updatingId === ad.id}
+                              className="text-destructive hover:bg-destructive/10 hover:text-destructive"
+                              title={t.delete}
+                            >
+                              {isLoadingAction(ad.id, 'delete') ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
+                            </Button>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    )
+                  })}
+              </TableBody>
+            </Table>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={!!deleteTarget} onOpenChange={(open) => { if (!open) setDeleteTarget(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{t.deleteConfirmTitle}</AlertDialogTitle>
+            <AlertDialogDescription>
+              {t.deleteConfirmDesc}
+              {deleteTarget && (
+                <span className="block mt-2 font-semibold text-foreground">
+                  &ldquo;{deleteTarget.title}&rdquo;
+                </span>
+              )}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>{t.cancel}</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDeleteConfirmed}
+              className="bg-destructive hover:bg-destructive/90 text-destructive-foreground"
+            >
+              <Trash2 className="h-4 w-4 ml-2" />
+              {t.confirmDelete}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Edit Ad Dialog */}
+      <Dialog open={!!editTarget} onOpenChange={(open) => { if (!open) setEditTarget(null); }}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto" dir="rtl">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-xl font-bold">
+              <Pencil className="h-5 w-5 text-primary" />
+              {t.editAdTitle}: {editTarget?.title}
+            </DialogTitle>
+          </DialogHeader>
+          {editTarget && (
+            <div className="pt-2">
+              <AdForm
+                adId={editTarget.id}
+                userId={editTarget.userId}
+                isEditMode={true}
+                onSuccess={() => {
+                  setEditTarget(null);
+                  getAdsForModeration(setAds, setLoading);
+                }}
+              />
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }

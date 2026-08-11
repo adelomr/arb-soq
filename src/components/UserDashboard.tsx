@@ -28,7 +28,7 @@ import {
 } from "@/components/ui/alert-dialog"
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { MoreHorizontal, Pencil, Trash2, Loader2, LayoutDashboard, Store, PlusCircle, Building, Edit, Eye, MousePointerClick, RotateCcw, Users, Bell, Settings, ShieldCheck, Megaphone, BadgeDollarSign, Shapes, Briefcase, ChevronLeft, Shield } from 'lucide-react';
+import { MoreHorizontal, Pencil, Trash2, Loader2, LayoutDashboard, Store, PlusCircle, Building, Edit, Eye, MousePointerClick, RotateCcw, AlertTriangle } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -97,33 +97,40 @@ const translations = {
         createNewStore: "إنشاء متجر جديد",
         editStore: "تعديل المتجر",
         viewStore: "عرض المتجر",
-        adminSection: "أدوات المسؤول",
-        adminSectionDesc: "الوصول السريع إلى أدوات إدارة الموقع.",
-        goToAdminPanel: "الذهاب إلى لوحة التحكم الكاملة",
-        userManagement: "إدارة المستخدمين",
-        userManagementDesc: "عرض، إيقاف، وحذف المستخدمين.",
-        notifications: "إدارة الإشعارات",
-        notificationsDesc: "إرسال إشعارات مخصصة للمستخدمين.",
-        adSettings: "مراجعة الإعلانات",
-        adSettingsDesc: "الموافقة على أو رفض الإعلانات الجديدة.",
-        imageModeration: "الإشراف على الصور",
-        imageModerationDesc: "فحص الصور بحثًا عن محتوى غير لائق.",
-        announcementBar: "إدارة شريط الإعلانات",
-        announcementBarDesc: "التحكم في شريط الإعلانات العلوي.",
-        pricingManagement: "إدارة الأسعار",
-        pricingManagementDesc: "تعديل خطط وباقات الأسعار.",
-        categoryManagement: "إدارة الفئات",
-        categoryManagementDesc: "إضافة وتعديل فئات الإعلانات.",
-        professionManagement: "إدارة المهن",
-        professionManagementDesc: "إضافة وتعديل المهن المتاحة في سوق العمل.",
     }
 }
+
 
 type DialogState = {
   isOpen: boolean;
   ad: Ad | null;
   action: 'delete' | 'reset';
 }
+
+const checkNeedsCategoryUpdate = (ad: Ad): boolean => {
+  if (!ad) return false;
+  const catId = (ad.categoryId || ad.category || '').toString().toLowerCase().trim();
+  if (!catId) return true;
+  
+  const knownCategories = [
+    'vehicles', 'cars', 'عربيات', 'سيارات', 'مركبات',
+    'realestate', 'real-estate', 'عقارات',
+    'mobiles', 'phones', 'tablets', 'موبايلات', 'هواتف',
+    'jobs', 'وظائف',
+    'furniture', 'أثاث',
+    'electronics', 'appliances', 'إلكترونيات', 'أجهزة',
+    'fashion', 'موضة',
+    'pets', 'حيوانات',
+    'baby', 'kids', 'أطفال',
+    'hobbies', 'هوايات',
+    'trade', 'commercial', 'تجارة',
+    'services', 'خدمات',
+    'crafts', 'labor', 'cat_1786316040524', 'مهن', 'حرف',
+    'store-product'
+  ];
+
+  return !knownCategories.some(k => catId === k || (k.length > 3 && catId.includes(k)));
+};
 
 const AdTable = ({ ads, isLoading, isAdmin, noItemsMessage, isStoreProduct = false }: { ads: Ad[]; isLoading: boolean; isAdmin: boolean; noItemsMessage: string; isStoreProduct?: boolean }) => {
     const { language, direction } = useLanguage();
@@ -132,6 +139,8 @@ const AdTable = ({ ads, isLoading, isAdmin, noItemsMessage, isStoreProduct = fal
     const [dialogState, setDialogState] = useState<DialogState>({ isOpen: false, ad: null, action: 'delete' });
     const { deleteAd, resetAdCounters } = useAuth();
     const { toast } = useToast();
+
+    const needsCategoryUpdateCount = ads.filter(checkNeedsCategoryUpdate).length;
 
     const openDialog = (ad: Ad, action: 'delete' | 'reset') => {
         setDialogState({ isOpen: true, ad, action });
@@ -221,6 +230,15 @@ const AdTable = ({ ads, isLoading, isAdmin, noItemsMessage, isStoreProduct = fal
 
     return (
         <>
+        {needsCategoryUpdateCount > 0 && (
+          <div className="mb-4 p-3 rounded-xl border border-amber-300 bg-amber-50 dark:bg-amber-950/40 text-amber-800 dark:text-amber-300 flex items-center justify-between text-xs font-bold font-headline">
+            <div className="flex items-center gap-2">
+              <AlertTriangle className="h-4 w-4 text-amber-600 flex-shrink-0" />
+              <span>يوجد {needsCategoryUpdateCount} إعلان بحاجة إلى تحديث الفئة حتى تظهر في أقسامها الصحيحة للمستخدمين. اضغط "تعديل" وتحديث الإعلان.</span>
+            </div>
+            <span className="text-2xs bg-amber-200 dark:bg-amber-800 px-2 py-0.5 rounded-full">تنبيه فئات الإعلانات</span>
+          </div>
+        )}
         <div className="w-full overflow-x-auto">
             <Table>
             <TableHeader>
@@ -240,8 +258,9 @@ const AdTable = ({ ads, isLoading, isAdmin, noItemsMessage, isStoreProduct = fal
             <TableBody>
                 {ads.map((ad) => {
                     const editLink = `/submit?id=${ad.id}&userId=${ad.userId}${isStoreProduct ? '&type=store-product' : ''}`;
+                    const needsCatUpdate = checkNeedsCategoryUpdate(ad);
                     return (
-                        <TableRow key={ad.id}>
+                        <TableRow key={ad.id} className={needsCatUpdate ? 'bg-amber-500/5' : undefined}>
                             <TableCell>
                             <Image
                                 alt={ad.title}
@@ -252,11 +271,29 @@ const AdTable = ({ ads, isLoading, isAdmin, noItemsMessage, isStoreProduct = fal
                                 data-ai-hint={(ad.imageHints && ad.imageHints.length > 0) ? ad.imageHints[0] : ''}
                             />
                             </TableCell>
-                            <TableCell className="font-medium">{ad.title}</TableCell>
+                            <TableCell className="font-medium">
+                              <div>
+                                <span>{ad.title}</span>
+                                {needsCatUpdate && (
+                                  <div className="mt-1">
+                                    <Badge variant="outline" className="bg-amber-500/10 text-amber-600 border-amber-400 text-[10px] font-bold gap-1 py-0.5 px-2">
+                                      <AlertTriangle className="h-3 w-3 text-amber-500" />
+                                      يحتاج تحديث الفئة
+                                    </Badge>
+                                  </div>
+                                )}
+                              </div>
+                            </TableCell>
                             {isAdmin && (
                                 <TableCell className="hidden lg:table-cell">
                                     <div className="flex items-center gap-2">
-                                        <Image src={ad.user?.avatarUrl || ''} alt={ad.user?.name || 'User'} width={24} height={24} className="rounded-full"/>
+                                        {ad.user?.avatarUrl ? (
+                                            <Image src={ad.user.avatarUrl} alt={ad.user.name || 'User'} width={24} height={24} className="rounded-full"/>
+                                        ) : (
+                                            <div className="w-6 h-6 rounded-full bg-muted flex items-center justify-center text-2xs font-bold">
+                                                {ad.user?.name?.[0]?.toUpperCase() || 'U'}
+                                            </div>
+                                        )}
                                         <span>{ad.user?.name || 'Unknown'}</span>
                                     </div>
                                 </TableCell>
@@ -292,9 +329,9 @@ const AdTable = ({ ads, isLoading, isAdmin, noItemsMessage, isStoreProduct = fal
                                 </DropdownMenuTrigger>
                                 <DropdownMenuContent align={direction === 'rtl' ? 'start' : 'end'}>
                                     <DropdownMenuItem asChild>
-                                        <Link href={editLink}>
+                                        <Link href={editLink} className={needsCatUpdate ? 'font-bold text-amber-600' : ''}>
                                             <Pencil className={direction === 'rtl' ? 'ml-2 h-4 w-4' : 'mr-2 h-4 w-4'} />
-                                            {t.edit}
+                                            {needsCatUpdate ? 'تحديث الفئة والإعلان' : t.edit}
                                         </Link>
                                     </DropdownMenuItem>
                                      <DropdownMenuItem onSelect={() => openDialog(ad, 'reset')}>
@@ -520,16 +557,6 @@ export default function UserDashboard() {
 
   const effectiveProfile = userProfile || externalProfile;
 
-  const adminCards = [
-    { icon: Users,            label: t.userManagement,     desc: t.userManagementDesc,     href: '/admin#users',          color: 'from-blue-500/20 to-blue-600/10',    iconColor: 'text-blue-500' },
-    { icon: Shapes,           label: t.categoryManagement, desc: t.categoryManagementDesc, href: '/admin#categories',      color: 'from-violet-500/20 to-violet-600/10', iconColor: 'text-violet-500' },
-    { icon: Briefcase,        label: t.professionManagement,desc: t.professionManagementDesc,href: '/admin#professions',   color: 'from-amber-500/20 to-amber-600/10',  iconColor: 'text-amber-500' },
-    { icon: Settings,         label: t.adSettings,         desc: t.adSettingsDesc,         href: '/admin#moderation',      color: 'from-orange-500/20 to-orange-600/10', iconColor: 'text-orange-500' },
-    { icon: BadgeDollarSign,  label: t.pricingManagement,  desc: t.pricingManagementDesc,  href: '/admin#pricing',         color: 'from-green-500/20 to-green-600/10',  iconColor: 'text-green-500' },
-    { icon: Bell,             label: t.notifications,      desc: t.notificationsDesc,      href: '/admin#notifications',   color: 'from-pink-500/20 to-pink-600/10',    iconColor: 'text-pink-500' },
-    { icon: ShieldCheck,      label: t.imageModeration,    desc: t.imageModerationDesc,    href: '/admin#image-mod',       color: 'from-teal-500/20 to-teal-600/10',   iconColor: 'text-teal-500' },
-    { icon: Megaphone,        label: t.announcementBar,    desc: t.announcementBarDesc,    href: '/admin#announcement',    color: 'from-red-500/20 to-red-600/10',     iconColor: 'text-red-500' },
-  ];
 
   return (
     <div className="space-y-8">
@@ -538,10 +565,10 @@ export default function UserDashboard() {
         <CardHeader>
           <CardTitle className="text-2xl md:text-3xl font-headline flex items-center gap-3">
               <LayoutDashboard className="h-6 w-6 md:h-8 md:w-8" />
-              {isAdmin ? 'لوحة التحكم' : t.dashboardTitle}
+              {t.dashboardTitle}
           </CardTitle>
           <CardDescription>
-              {isAdmin ? t.adminView : t.dashboardDescription}
+              {t.dashboardDescription}
               {urlUserId && <Badge variant="outline" className="ml-2">عرض ملف: {effectiveProfile?.name}</Badge>}
           </CardDescription>
         </CardHeader>
@@ -563,50 +590,7 @@ export default function UserDashboard() {
         </CardContent>
       </Card>
 
-      {/* Admin tools section - only visible to admins */}
-      {isAdmin && (
-        <Card className="border-primary/30 bg-gradient-to-br from-primary/5 to-background">
-          <CardHeader className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-            <div>
-              <CardTitle className="text-xl md:text-2xl font-headline flex items-center gap-3">
-                <Shield className="h-5 w-5 md:h-6 md:w-6 text-primary" />
-                {t.adminSection}
-              </CardTitle>
-              <CardDescription>{t.adminSectionDesc}</CardDescription>
-            </div>
-            <Link
-              href="/admin"
-              className="flex items-center gap-2 text-sm font-medium text-primary hover:text-primary/80 transition-colors shrink-0 bg-primary/10 hover:bg-primary/20 px-4 py-2 rounded-lg"
-            >
-              {t.goToAdminPanel}
-              <ChevronLeft className="h-4 w-4" />
-            </Link>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-              {adminCards.map((item) => (
-                <Link
-                  key={item.href}
-                  href={item.href}
-                  className={cn(
-                    'group relative flex flex-col gap-3 rounded-xl border border-border/50 p-4',
-                    'bg-gradient-to-br', item.color,
-                    'hover:border-primary/50 hover:shadow-md transition-all duration-200 cursor-pointer'
-                  )}
-                >
-                  <div className={cn('flex items-center justify-center w-11 h-11 rounded-lg bg-background/70 shadow-sm transition-transform group-hover:scale-110', item.iconColor)}>
-                    <item.icon className="h-5 w-5" />
-                  </div>
-                  <div>
-                    <p className="font-semibold text-sm leading-tight">{item.label}</p>
-                    <p className="text-xs text-muted-foreground mt-1 leading-relaxed">{item.desc}</p>
-                  </div>
-                </Link>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-      )}
+
     </div>
   );
 }

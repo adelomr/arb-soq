@@ -3,6 +3,7 @@
 'use client';
 
 import { useEffect, useState, useRef } from 'react';
+import { useSwipe } from '@/hooks/useSwipe';
 import { useParams, notFound } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
 import type { Ad, UserProfile } from '@/lib/types';
@@ -11,7 +12,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
 import Image from 'next/image';
 import { AspectRatio } from '@/components/ui/aspect-ratio';
-import { MapPin, Tag, Calendar, User, Phone, MessageCircle, ZoomIn, ZoomOut, RotateCcw, Star, PlusCircle, ShoppingCart, Globe, Hash, Package, Eye } from 'lucide-react';
+import { MapPin, Tag, Calendar, User, Phone, MessageCircle, ZoomIn, ZoomOut, RotateCcw, Star, PlusCircle, ShoppingCart, Globe, Hash, Package, Eye, ChevronLeft, ChevronRight, AlertTriangle, ExternalLink } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { useMarket } from '@/context/MarketContext';
@@ -26,11 +27,112 @@ import { useToast } from '@/hooks/use-toast';
 import { AdPlaceholder, AdPlaceholderSquare } from './Adsense';
 import { markets } from '@/lib/markets';
 import RelatedAdsSidebar from './RelatedAdsSidebar';
-import { safeParseDate } from '@/lib/utils';
-import CommentsSection from '@/components/CommentsSection';
+import { safeParseDate, cn, formatWhatsAppNumber } from '@/lib/utils';
 
 const Header = dynamic(() => import('@/components/Header'), { ssr: false });
 const Footer = dynamic(() => import('@/components/Footer'), { ssr: false });
+
+// مكوّن تحذير المغادرة قبل فتح روابط خارجية
+function ExternalLinkWarning({ href, children }: { href: string; children: React.ReactNode }) {
+  const [open, setOpen] = useState(false);
+
+  let displayHost = '';
+  try { displayHost = new URL(href).hostname; } catch {}
+
+  return (
+    <>
+      <button
+        type="button"
+        onClick={() => setOpen(true)}
+        className="text-primary underline break-all hover:opacity-80 transition-opacity inline-flex items-center gap-1"
+      >
+        {children}
+        <ExternalLink className="h-3 w-3 flex-shrink-0" />
+      </button>
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogContent className="max-w-sm text-center" dir="rtl">
+          <DialogHeader>
+            <DialogTitle className="flex items-center justify-center gap-2 text-amber-500">
+              <AlertTriangle className="h-5 w-5" />
+              أنت على وشك مغادرة الموقع
+            </DialogTitle>
+            <DialogDescription className="pt-2 text-base">
+              سيتم توجيهك إلى موقع خارجي:
+              <span className="block font-bold text-foreground mt-1 break-all">{displayHost}</span>
+              <span className="block text-xs text-muted-foreground mt-1">سوق العرب غير مسؤول عن محتوى المواقع الخارجية.</span>
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex gap-3 mt-2">
+            <Button
+              variant="outline"
+              className="flex-1"
+              onClick={() => setOpen(false)}
+            >
+              البقاء في الموقع
+            </Button>
+            <Button
+              className="flex-1 bg-amber-500 hover:bg-amber-600 text-white"
+              onClick={() => {
+                setOpen(false);
+                window.open(href, '_blank', 'noopener,noreferrer');
+              }}
+            >
+              المتابعة
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+    </>
+  );
+}
+
+// جميع نطاقات الموقع المعروفة (إنتاج + تطوير)
+const SITE_DOMAINS = [
+  'arb-soq.com',
+  'www.arb-soq.com',
+  'localhost',
+  '127.0.0.1',
+];
+
+// دالة لتحويل الروابط في النص إلى روابط قابلة للنقر مع تحذير مغادرة للروابط الخارجية فقط
+function renderTextWithLinks(text: string) {
+  const urlRegex = /(https?:\/\/[^\s]+)/g;
+  const parts = text.split(urlRegex);
+  return parts.map((part, i) => {
+    if (!urlRegex.test(part)) return <span key={i}>{part}</span>;
+
+    // تحقق إذا كان الرابط داخلياً
+    let isInternal = false;
+    try {
+      const linkHost = new URL(part).hostname;
+      const currentHost = typeof window !== 'undefined' ? window.location.hostname : '';
+      isInternal =
+        SITE_DOMAINS.includes(linkHost) ||
+        linkHost === currentHost ||
+        linkHost.endsWith(`.${currentHost}`);
+    } catch {}
+
+    if (isInternal) {
+      // رابط داخلي — فتح مباشر بدون تحذير
+      return (
+        <a
+          key={i}
+          href={part}
+          className="text-primary underline break-all hover:opacity-80 transition-opacity"
+        >
+          {part}
+        </a>
+      );
+    }
+
+    // رابط خارجي — عرض نافذة التحذير
+    return (
+      <ExternalLinkWarning key={i} href={part}>
+        {part}
+      </ExternalLinkWarning>
+    );
+  });
+}
 
 const WhatsappIcon = () => (
   <svg role="img" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" className="h-5 w-5">
@@ -55,7 +157,7 @@ const t = {
     reviews: "التقييمات والمراجعات",
     basedOn: "بناءً على",
     reviewsCount: "مراجعات",
-    whatsappMessage: 'مرحباً، أنا مهتم بإعلانك "{adTitle}" على سوق العرب.',
+    whatsappMessage: 'السلام عليكم، أتواصل معك بخصوص إعلانك: "{adTitle}" المعروض على 🏪 منصة سوق العرب 🛍️',
     addToCart: 'أضف للسلة',
     addedToCart: 'تمت الإضافة للسلة',
     targetMarket: 'السوق المستهدف',
@@ -73,7 +175,17 @@ export default function AdDetailClient({ initialAd }: { initialAd: Ad }) {
 
   const [ad, setAd] = useState<Ad>(initialAd);
   const [seller, setSeller] = useState<UserProfile | null>(initialAd.user || null);
+  const [selectedImageIndex, setSelectedImageIndex] = useState(0);
   const viewIncremented = useRef(false);
+
+  // Swipe to navigate images on mobile
+  const swipe = useSwipe({
+    onSwipeLeft: () => setSelectedImageIndex(prev => (prev < ad.imageUrls.length - 1 ? prev + 1 : 0)),
+    onSwipeRight: () => setSelectedImageIndex(prev => (prev > 0 ? prev - 1 : ad.imageUrls.length - 1)),
+  });
+
+
+
   
   const { adId } = useParams();
 
@@ -117,11 +229,16 @@ export default function AdDetailClient({ initialAd }: { initialAd: Ad }) {
 
   const dateLocale = ar;
 
+  // The admin may have added a phone number directly on the ad (ad.phoneNumber).
+  // Prefer that over the seller's profile phone so the buttons always work.
+  const effectivePhone = (ad.phoneNumber && ad.phoneNumber.trim()) || seller.phoneNumber || null;
+
   const handleWhatsAppClick = () => {
-    if (seller.phoneNumber) {
+    if (effectivePhone) {
       const messageTemplate = t.whatsappMessage;
       const message = messageTemplate.replace('{adTitle}', ad.title);
-      const whatsappUrl = `https://api.whatsapp.com/send?phone=${seller.phoneNumber.replace('+', '')}&text=${encodeURIComponent(message)}`;
+      const formattedPhone = formatWhatsAppNumber(effectivePhone);
+      const whatsappUrl = `https://api.whatsapp.com/send?phone=${formattedPhone}&text=${encodeURIComponent(message)}`;
       window.open(whatsappUrl, '_blank');
     }
   };
@@ -179,27 +296,104 @@ export default function AdDetailClient({ initialAd }: { initialAd: Ad }) {
                         </div>
                     </div>
 
-                    {/* Ad Image */}
+                    {/* Ad Image with floating audio controls & ambient background */}
                     <Dialog>
                         <DialogTrigger asChild>
-                            <AspectRatio ratio={16 / 9} className="bg-muted rounded-lg overflow-hidden mb-8 shadow-lg cursor-zoom-in">
+                        <div
+                              className="relative w-full rounded-2xl overflow-hidden mb-3 shadow-xl cursor-zoom-in group border border-border/40"
+                              {...swipe.handlers}
+                            >
+                                {/* الصورة الرئيسية — عرض كامل بارتفاع طبيعي (لا مساحات جانبية) */}
                                 <Image
-                                src={ad.imageUrls[0] || '/app-logo.png'}
-                                alt={ad.title}
-                                fill
-                                className="object-contain"
-                                data-ai-hint={ad.imageHints ? ad.imageHints[0] : ''}
+                                  src={ad.imageUrls[selectedImageIndex] || ad.imageUrls[0] || '/app-logo.png'}
+                                  alt={ad.title}
+                                  width={0}
+                                  height={0}
+                                  priority
+                                  sizes="(max-width: 768px) 100vw, (max-width: 1200px) 70vw, 800px"
+                                  className="w-full h-auto max-h-[85vh] object-contain block drop-shadow-md transition-transform duration-300 group-hover:scale-[1.01]"
+                                  data-ai-hint={ad.imageHints ? ad.imageHints[selectedImageIndex] || ad.imageHints[0] : ''}
                                 />
-                            </AspectRatio>
+
+                                {/* أزرار التنقل بين الصور على الصورة الرئيسية */}
+                                {ad.imageUrls && ad.imageUrls.length > 1 && (
+                                  <>
+                                    <button
+                                      type="button"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        setSelectedImageIndex((prev) => (prev > 0 ? prev - 1 : ad.imageUrls.length - 1));
+                                      }}
+                                      className="pointer-events-auto absolute left-3 top-1/2 -translate-y-1/2 bg-black/60 hover:bg-black/85 text-white p-2.5 rounded-full backdrop-blur-md transition-all z-40 active:scale-95 shadow-md border border-white/20"
+                                      title="الصورة السابقة"
+                                    >
+                                      <ChevronLeft className="h-5 w-5" />
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        setSelectedImageIndex((prev) => (prev < ad.imageUrls.length - 1 ? prev + 1 : 0));
+                                      }}
+                                      className="pointer-events-auto absolute right-3 top-1/2 -translate-y-1/2 bg-black/60 hover:bg-black/85 text-white p-2.5 rounded-full backdrop-blur-md transition-all z-40 active:scale-95 shadow-md border border-white/20"
+                                      title="الصورة التالية"
+                                    >
+                                      <ChevronRight className="h-5 w-5" />
+                                    </button>
+                                    <div className="absolute top-3 left-3 bg-black/70 backdrop-blur-md text-white px-3 py-1 rounded-full text-xs font-bold shadow-md z-30 border border-white/10">
+                                      {selectedImageIndex + 1} / {ad.imageUrls.length}
+                                    </div>
+                                  </>
+                                )}
+
+                                {/* Zoom hint badge */}
+                                <div className="absolute bottom-3 right-3 bg-black/60 backdrop-blur-md text-white/90 px-2.5 py-1 rounded-lg text-xs font-medium flex items-center gap-1.5 shadow-md z-30 border border-white/10">
+                                  <ZoomIn className="h-3.5 w-3.5" />
+                                  <span>تكبير الصورة</span>
+                                </div>
+                            </div>
                         </DialogTrigger>
                         <DialogContent className="max-w-5xl h-[90vh] p-0 border-0">
                             <DialogHeader className="sr-only">
                                 <DialogTitle>{t.imageOf} {ad.title}</DialogTitle>
                                 <DialogDescription>{t.zoomableImage}</DialogDescription>
                             </DialogHeader>
-                        <ZoomableImage src={ad.imageUrls[0]} alt={ad.title} gallery={ad.imageUrls} />
+                        <ZoomableImage src={ad.imageUrls[selectedImageIndex] || ad.imageUrls[0]} alt={ad.title} gallery={ad.imageUrls} />
                         </DialogContent>
                     </Dialog>
+
+                    {/* شريط الصور المصغرة (Thumbnails Bar) */}
+                    {ad.imageUrls && ad.imageUrls.length > 1 && (
+                      <div className="flex items-center gap-3 overflow-x-auto py-3 my-3 px-2 rounded-2xl bg-secondary/30 border border-border/50 shadow-inner" dir="rtl">
+                        {ad.imageUrls.map((imgUrl, index) => (
+                          <button
+                            key={index}
+                            type="button"
+                            onClick={() => setSelectedImageIndex(index)}
+                            className={cn(
+                              "relative w-20 h-20 md:w-24 md:h-24 rounded-xl overflow-hidden border-2 transition-all flex-shrink-0 cursor-pointer shadow-sm hover:scale-105 active:scale-95",
+                              selectedImageIndex === index
+                                ? "border-primary ring-2 ring-primary/40 opacity-100 scale-105 shadow-md"
+                                : "border-border/60 opacity-60 hover:opacity-100"
+                            )}
+                            title={`عرض صورة ${index + 1}`}
+                          >
+                            <Image
+                              src={imgUrl}
+                              alt={`${ad.title} - صورة ${index + 1}`}
+                              fill
+                              sizes="96px"
+                              className="object-cover"
+                            />
+                            {selectedImageIndex === index && (
+                              <div className="absolute inset-0 bg-primary/10 border-2 border-primary rounded-xl" />
+                            )}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+
+
 
                      <div className="py-8">
                         <AdPlaceholder />
@@ -218,24 +412,18 @@ export default function AdDetailClient({ initialAd }: { initialAd: Ad }) {
                                      <CardTitle>الوصف</CardTitle>
                                  </CardHeader>
                                  <CardContent>
-                                     <p className="text-lg leading-relaxed whitespace-pre-wrap">{ad.description}</p>
+                                     <p className="text-lg leading-relaxed whitespace-pre-wrap">{renderTextWithLinks(ad.description)}</p>
                                  </CardContent>
                              </Card>
                          )}
                         {seller && (
                             <div className="py-8">
-                                <Reviews seller={seller} />
+                                <Reviews seller={seller} adId={ad.id} ad={ad} />
                             </div>
                         )}
                         <div className="py-8">
                             <AdPlaceholderSquare />
                         </div>
-                        {/* Comments Section */}
-                        {ad.id && (
-                            <div className="py-4">
-                                <CommentsSection entityId={ad.id} entityType="ad" />
-                            </div>
-                        )}
                     </div>
                 </div>
 
@@ -278,11 +466,11 @@ export default function AdDetailClient({ initialAd }: { initialAd: Ad }) {
                                     asChild 
                                     className="w-full" 
                                     size="lg" 
-                                    disabled={!seller.phoneNumber || !seller.phoneVerified}
+                                    disabled={!effectivePhone}
                                 >
-                                    <a href={`tel:${seller.phoneNumber}`}>
+                                    <a href={`tel:${effectivePhone}`}>
                                         <Phone className="mr-2 h-5 w-5" />
-                                        {seller.phoneNumber && seller.phoneVerified ? t.callSeller : t.phoneNotAvailable}
+                                        {effectivePhone ? t.callSeller : t.phoneNotAvailable}
                                     </a>
                                 </Button>
                                 <Button 
@@ -290,11 +478,11 @@ export default function AdDetailClient({ initialAd }: { initialAd: Ad }) {
                                     className="w-full bg-green-500 text-white hover:bg-green-600 hover:text-white" 
                                     size="lg" 
                                     onClick={handleWhatsAppClick}
-                                    disabled={!seller.phoneNumber || !seller.phoneVerified}
+                                    disabled={!effectivePhone}
                                 >
                                     <WhatsappIcon />
                                     <span className="mx-2">
-                                    {seller.phoneNumber && seller.phoneVerified ? t.messageOnWhatsapp : t.phoneNotAvailable}
+                                    {effectivePhone ? t.messageOnWhatsapp : t.phoneNotAvailable}
                                     </span>
                                 </Button>
                             </>

@@ -18,6 +18,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { Button } from './ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { safeParseDate } from '@/lib/utils';
+import { memo } from 'react';
 
 
 const WhatsappIcon = () => (
@@ -45,7 +46,7 @@ type AdRowProps = {
   ad: Ad;
 };
 
-export default function AdRow({ ad }: AdRowProps) {
+function AdRow({ ad }: AdRowProps) {
   const { market } = useMarket();
   const { incrementAdClick, getUserById } = useAuth();
   const { toast } = useToast();
@@ -65,28 +66,36 @@ export default function AdRow({ ad }: AdRowProps) {
   
   const hasImage = ad.imageUrls && ad.imageUrls.length > 0 && ad.imageUrls[0];
 
+  const realRating = ad.rating;
+  const realReviewCount = ad.reviewCount;
+  const hasRealRating = typeof realRating === 'number' && realRating > 0 && typeof realReviewCount === 'number' && realReviewCount > 0;
+
+  const effectiveUserId = ad.userId || ad.user?.id || 'owner';
+
   return (
-    <Link href={`/ad/${ad.userId}/${ad.id}`} className="block group" onClick={() => incrementAdClick(ad)}>
+    <Link href={`/ad/${effectiveUserId}/${ad.id}`} className="block group" onClick={() => incrementAdClick(ad)}>
       <Card className="flex flex-col sm:flex-row overflow-hidden h-full transition-all duration-300 hover:shadow-lg hover:border-primary/50">
-        <div className="sm:w-1/3 md:w-1/4 relative bg-muted">
-          <div className="aspect-video sm:aspect-square w-full h-full">
+        <div className="sm:w-1/3 md:w-1/4 relative bg-muted overflow-hidden">
+          <div className="aspect-video sm:aspect-square w-full h-full relative">
              {hasImage ? (
                 <Image
                     src={ad.imageUrls[0]}
                     alt={ad.title}
                     fill
-                    className="object-cover"
-                    sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+                    loading="lazy"
+                    decoding="async"
+                    className="object-cover transition-transform duration-500 group-hover:scale-105"
+                    sizes="(max-width: 768px) 100vw, (max-width: 1200px) 30vw, 25vw"
                 />
               ) : (
-                <div className="w-full h-full flex items-center justify-center">
+                <div className="w-full h-full flex items-center justify-center bg-secondary">
                     <ImageIcon className="h-12 w-12 text-muted-foreground/30" />
                 </div>
               )}
           </div>
         </div>
         <div className="p-4 flex flex-col flex-1">
-          <div className="flex justify-between items-start mb-2">
+          <div className="flex justify-between items-start mb-1">
             <h3 className="text-lg font-bold leading-tight group-hover:text-primary transition-colors text-right w-full">
               {ad.title}
             </h3>
@@ -97,6 +106,24 @@ export default function AdRow({ ad }: AdRowProps) {
               </Badge>
             )}
           </div>
+
+          {/* Rating below title — Amazon/Noon style */}
+          {hasRealRating && (
+            <div className="flex items-center gap-1.5 mb-2">
+              {[1,2,3,4,5].map(i => (
+                <Star
+                  key={i}
+                  className={`w-3.5 h-3.5 ${
+                    i <= Math.round(realRating)
+                      ? 'fill-amber-400 text-amber-400'
+                      : 'fill-muted text-muted-foreground/30'
+                  }`}
+                />
+              ))}
+              <span className="text-xs font-bold text-amber-500">{realRating.toFixed(1)}</span>
+              <span className="text-xs text-muted-foreground">({realReviewCount})</span>
+            </div>
+          )}
 
           <div className="flex flex-col sm:flex-row sm:items-center justify-between text-sm text-muted-foreground mt-auto pt-2 gap-y-2">
              <div className="flex items-center gap-2">
@@ -166,3 +193,5 @@ export default function AdRow({ ad }: AdRowProps) {
     </Link>
   );
 }
+
+export default memo(AdRow);

@@ -1,12 +1,12 @@
 
 'use client';
 
-import { useState, useEffect, useCallback, FormEvent, useRef } from 'react';
+import { useState, useCallback, FormEvent, useRef } from 'react';
 import { Map, Marker, Point } from "pigeon-maps";
 const MapMarker = Marker as any;
 import { Button } from './ui/button';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, Check, LocateFixed, Layers, Search, Camera } from 'lucide-react';
+import { Loader2, Check, LocateFixed, Layers, Search, Camera, MapPin, Navigation, PenLine, X } from 'lucide-react';
 import { useLanguage } from '@/context/LanguageContext';
 import { Input } from './ui/input';
 import { Card } from './ui/card';
@@ -34,7 +34,18 @@ const translations = {
     searchError: "خطأ في البحث. حاول مرة أخرى.",
     searchButton: "بحث",
     screenshot: "أخذ لقطة",
-    screenshotError: "فشل في أخذ اللقطة"
+    screenshotError: "فشل في أخذ اللقطة",
+    // Permission dialog
+    permissionTitle: "تفعيل الموقع الجغرافي",
+    permissionDesc: "للحصول على أفضل استهداف للعملاء بدقة، نحتاج إلى الوصول إلى موقعك الجغرافي. هذا يتيح لك تحديد منطقتك بدقة على الخريطة.",
+    permissionBenefit: "✓ استهداف عملاء المنطقة المجاورة لك بدقة عالية",
+    allowLocation: "السماح بتحديد الموقع",
+    manualInput: "إدخال يدوي",
+    manualInputPlaceholder: "اكتب اسم منطقتك (مثال: الرياض، النزهة)",
+    manualInputConfirm: "تأكيد المنطقة",
+    manualInputCancel: "إلغاء",
+    orManual: "أو",
+    backToMap: "العودة للخريطة",
   }
 };
 
@@ -46,6 +57,7 @@ const DEFAULT_CENTER: Point = [24.7136, 46.6753]; // Riyadh
 const DEFAULT_ZOOM = 11;
 
 type MapProvider = 'osm' | 'satellite';
+type PickerMode = 'permission' | 'locating' | 'map' | 'manual';
 
 const osmProvider = (x: number, y: number, z: number) => {
   return `https://tile.openstreetmap.org/${z}/${x}/${y}.png`
@@ -80,32 +92,37 @@ export default function LocationPicker({ onLocationSelect }: LocationPickerProps
   const t = translations.ar;
   const { toast } = useToast();
 
+  const [mode, setMode] = useState<PickerMode>('permission');
+  const [isLocating, setIsLocating] = useState(false);
   const [center, setCenter] = useState<Point>(DEFAULT_CENTER);
   const [zoom, setZoom] = useState(DEFAULT_ZOOM);
   const [markerPosition, setMarkerPosition] = useState<Point>(DEFAULT_CENTER);
-  const [isLocating, setIsLocating] = useState(true);
   const [isFetchingAddress, setIsFetchingAddress] = useState(false);
-  const [initialPositionLoaded, setInitialPositionLoaded] = useState(false);
   const [mapProvider, setMapProvider] = useState<MapProvider>('osm');
 
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<any[]>([]);
   const [isSearching, setIsSearching] = useState(false);
 
+  const [manualText, setManualText] = useState('');
+
   const mapRef = useRef<HTMLDivElement>(null);
 
-  // تحديد الموقع أول مرة
-  useEffect(() => {
+  // ───────────────────────────────────────────
+  // 1. طلب إذن الموقع الجغرافي
+  // ───────────────────────────────────────────
+  const handleAllowLocation = () => {
     if (!navigator.geolocation) {
       toast({
         title: t.locationFailed,
         description: t.locationNotSupported,
         variant: 'destructive',
       });
-      setIsLocating(false);
-      setInitialPositionLoaded(true);
+      setMode('map');
       return;
     }
+
+    setMode('locating');
 
     navigator.geolocation.getCurrentPosition(
       (pos) => {
@@ -114,22 +131,54 @@ export default function LocationPicker({ onLocationSelect }: LocationPickerProps
         setCenter(newPos);
         setMarkerPosition(newPos);
         setZoom(14);
-        setIsLocating(false);
-        setInitialPositionLoaded(true);
+        setMode('map');
       },
-      () => {
-        toast({
-          title: t.locationFailed,
-          description: t.locationPermissionDenied,
-          variant: 'destructive',
-        });
+      (error) => {
+        let errorMessage = t.unknownLocationError;
+        switch (error.code) {
+          case 1: errorMessage = t.locationPermissionDenied; break;
+          case 2: errorMessage = t.locationUnavailable; break;
+          case 3: errorMessage = t.locationTimeout; break;
+        }
+        toast({ title: t.locationFailed, description: errorMessage, variant: 'destructive' });
+        setMode('map'); // fallback to map with default center
+      },
+      { timeout: 10000, maximumAge: 60000 }
+    );
+  };
+
+  // ───────────────────────────────────────────
+  // 2. زر "تحديد موقعي" داخل الخريطة
+  // ───────────────────────────────────────────
+  const handleLocateMe = () => {
+    if (!navigator.geolocation) return;
+    setIsLocating(true);
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        const { latitude, longitude } = pos.coords;
+        const newPos: Point = [latitude, longitude];
+        setCenter(newPos);
+        setMarkerPosition(newPos);
+        setZoom(14);
+        toast({ title: t.locationSuccess, description: t.locationSetTo });
         setIsLocating(false);
-        setInitialPositionLoaded(true);
+      },
+      (error) => {
+        let errorMessage = t.unknownLocationError;
+        switch (error.code) {
+          case 1: errorMessage = t.locationPermissionDenied; break;
+          case 2: errorMessage = t.locationUnavailable; break;
+          case 3: errorMessage = t.locationTimeout; break;
+        }
+        toast({ title: t.locationFailed, description: errorMessage, variant: 'destructive' });
+        setIsLocating(false);
       }
     );
-  }, [t, toast]);
+  };
 
-  // البحث
+  // ───────────────────────────────────────────
+  // 3. البحث
+  // ───────────────────────────────────────────
   const handleSearch = async (e: FormEvent) => {
     e.preventDefault();
     if (searchQuery.length < 3) {
@@ -165,31 +214,9 @@ export default function LocationPicker({ onLocationSelect }: LocationPickerProps
     setMarkerPosition(payload);
   }, []);
 
-  const handleLocateMe = () => {
-    setIsLocating(true);
-    navigator.geolocation.getCurrentPosition(
-      (pos) => {
-        const { latitude, longitude } = pos.coords;
-        const newPos: Point = [latitude, longitude];
-        setCenter(newPos);
-        setMarkerPosition(newPos);
-        setZoom(14);
-        toast({ title: t.locationSuccess, description: t.locationSetTo });
-        setIsLocating(false);
-      },
-      (error) => {
-        let errorMessage = t.unknownLocationError;
-        switch (error.code) {
-          case 1: errorMessage = t.locationPermissionDenied; break;
-          case 2: errorMessage = t.locationUnavailable; break;
-          case 3: errorMessage = t.locationTimeout; break;
-        }
-        toast({ title: t.locationFailed, description: errorMessage, variant: 'destructive' });
-        setIsLocating(false);
-      }
-    );
-  };
-
+  // ───────────────────────────────────────────
+  // 4. تأكيد الموقع من الخريطة
+  // ───────────────────────────────────────────
   const handleConfirm = async () => {
     setIsFetchingAddress(true);
     try {
@@ -232,15 +259,147 @@ export default function LocationPicker({ onLocationSelect }: LocationPickerProps
     }
   };
 
-  if (!initialPositionLoaded) {
+  // ───────────────────────────────────────────
+  // 5. تأكيد الإدخال اليدوي
+  // ───────────────────────────────────────────
+  const handleManualConfirm = () => {
+    if (!manualText.trim()) return;
+    onLocationSelect(manualText.trim());
+  };
+
+  // ═══════════════════════════════════════════
+  // RENDER: شاشة طلب الإذن
+  // ═══════════════════════════════════════════
+  if (mode === 'permission') {
     return (
-      <div className="h-full w-full flex flex-col items-center justify-center bg-muted/50 rounded-lg">
-        <Loader2 className="h-8 w-8 animate-spin mb-4 text-primary" />
-        <p>{t.locating}</p>
+      <div className="h-full w-full flex flex-col items-center justify-center p-6 bg-muted/30 rounded-lg" dir="rtl">
+        <div className="max-w-sm w-full space-y-5 text-center">
+          {/* أيقونة */}
+          <div className="mx-auto w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center">
+            <Navigation className="h-8 w-8 text-primary" />
+          </div>
+
+          {/* العنوان */}
+          <div className="space-y-2">
+            <h3 className="text-xl font-bold text-foreground">{t.permissionTitle}</h3>
+            <p className="text-sm text-muted-foreground leading-relaxed">{t.permissionDesc}</p>
+          </div>
+
+          {/* الفائدة */}
+          <div className="flex items-center gap-2 p-3 rounded-xl bg-primary/10 border border-primary/20">
+            <MapPin className="h-4 w-4 text-primary shrink-0" />
+            <p className="text-sm font-medium text-primary text-right">{t.permissionBenefit}</p>
+          </div>
+
+          {/* زر السماح */}
+          <Button
+            className="w-full gap-2 h-11 text-base"
+            onClick={handleAllowLocation}
+          >
+            <LocateFixed className="h-5 w-5" />
+            {t.allowLocation}
+          </Button>
+
+          {/* فاصل */}
+          <div className="flex items-center gap-3">
+            <div className="flex-1 h-px bg-border" />
+            <span className="text-xs text-muted-foreground">{t.orManual}</span>
+            <div className="flex-1 h-px bg-border" />
+          </div>
+
+          {/* زر الإدخال اليدوي */}
+          <Button
+            variant="outline"
+            className="w-full gap-2 h-10"
+            onClick={() => setMode('manual')}
+          >
+            <PenLine className="h-4 w-4" />
+            {t.manualInput}
+          </Button>
+        </div>
       </div>
-    )
+    );
   }
 
+  // ═══════════════════════════════════════════
+  // RENDER: شاشة تحميل الموقع
+  // ═══════════════════════════════════════════
+  if (mode === 'locating') {
+    return (
+      <div className="h-full w-full flex flex-col items-center justify-center bg-muted/30 rounded-lg gap-4" dir="rtl">
+        <div className="relative">
+          <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center">
+            <Navigation className="h-8 w-8 text-primary" />
+          </div>
+          <Loader2 className="absolute -top-1 -right-1 h-6 w-6 animate-spin text-primary" />
+        </div>
+        <p className="text-sm font-medium text-muted-foreground animate-pulse">{t.locating}</p>
+      </div>
+    );
+  }
+
+  // ═══════════════════════════════════════════
+  // RENDER: شاشة الإدخال اليدوي
+  // ═══════════════════════════════════════════
+  if (mode === 'manual') {
+    return (
+      <div className="h-full w-full flex flex-col items-center justify-center p-6 bg-muted/30 rounded-lg" dir="rtl">
+        <div className="max-w-sm w-full space-y-5">
+          {/* رأس */}
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
+                <PenLine className="h-4 w-4 text-primary" />
+              </div>
+              <h3 className="text-lg font-bold">{t.manualInput}</h3>
+            </div>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8"
+              onClick={() => setMode('permission')}
+            >
+              <X className="h-4 w-4" />
+            </Button>
+          </div>
+
+          {/* حقل الإدخال */}
+          <div className="space-y-3">
+            <Input
+              value={manualText}
+              onChange={e => setManualText(e.target.value)}
+              placeholder={t.manualInputPlaceholder}
+              className="h-12 text-base"
+              autoFocus
+              onKeyDown={e => { if (e.key === 'Enter') handleManualConfirm(); }}
+            />
+            <Button
+              className="w-full gap-2 h-11"
+              onClick={handleManualConfirm}
+              disabled={!manualText.trim()}
+            >
+              <Check className="h-4 w-4" />
+              {t.manualInputConfirm}
+            </Button>
+          </div>
+
+          {/* العودة للخريطة */}
+          <Button
+            variant="ghost"
+            className="w-full gap-2 text-muted-foreground"
+            onClick={() => setMode('permission')}
+          >
+            <Navigation className="h-4 w-4" />
+            {t.backToMap}
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
+  // ═══════════════════════════════════════════
+  // RENDER: الخريطة الكاملة
+  // ═══════════════════════════════════════════
   return (
     <div className="w-full h-full rounded-md z-0 relative" ref={mapRef}>
       {/* البحث */}
@@ -292,13 +451,16 @@ export default function LocationPicker({ onLocationSelect }: LocationPickerProps
 
       {/* أزرار التحكم */}
       <div className="absolute top-16 right-2 z-[1000] flex flex-col gap-2">
-        <Button size="icon" onClick={handleLocateMe} disabled={isLocating}>
+        <Button size="icon" onClick={handleLocateMe} disabled={isLocating} title={t.locateMe}>
           {isLocating ? <Loader2 className="h-4 w-4 animate-spin" /> : <LocateFixed className="h-4 w-4" />}
         </Button>
-        <Button size="icon" onClick={toggleProvider}>
+        <Button size="icon" onClick={toggleProvider} title={t.toggleView}>
           <Layers className="h-4 w-4" />
         </Button>
-        <Button size="icon" onClick={handleTakeScreenshot}>
+        <Button size="icon" onClick={() => setMode('manual')} title={t.manualInput}>
+          <PenLine className="h-4 w-4" />
+        </Button>
+        <Button size="icon" onClick={handleTakeScreenshot} title={t.screenshot}>
           <Camera className="h-4 w-4" />
         </Button>
       </div>

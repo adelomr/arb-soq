@@ -72,6 +72,30 @@ node_modules/
 .next/
 out/
 
+# TypeScript build info cache
+*.tsbuildinfo
+
+# Temporary & Debug files
+temp_puppeteer/
+scratch/
+debug_*.js
+inspect_*.js
+find_*.js
+test_*.js
+test-*.js
+fetchAds.mjs
+parse.js
+sooq-page-live.js
+after_click.png
+initial_body.html
+final_body.html
+live_sooq.html
+
+# IDE / Editor configs
+.idea/
+.vscode/
+
 # OS files
 .DS_Store
 Thumbs.db
+

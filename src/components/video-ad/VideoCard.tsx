@@ -2,6 +2,7 @@
 
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { Ad } from '@/lib/types';
+import { formatWhatsAppNumber } from '@/lib/utils';
 import { 
   Play, 
   PlayCircle,
@@ -68,10 +69,6 @@ export default function VideoCard({ ad, isActive, isMuted, onToggleMute }: Video
   const [videoError, setVideoError] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
   const iframeRef = useRef<HTMLIFrameElement>(null);
-  const audioRef = useRef<HTMLAudioElement | null>(null);
-
-  // Audio URL for image slideshow ads
-  const adAudioUrl = (ad as any).audioUrl as string | undefined;
 
   // 1. ROBUST AD-TYPE DETECTION
   const adTypeRaw = (ad.adType || '').toString().toLowerCase().trim();
@@ -151,11 +148,6 @@ export default function VideoCard({ ad, isActive, isMuted, onToggleMute }: Video
       setVideoError(false);
     } else {
       setIsPlaying(false);
-      // Pause & reset audio when card becomes inactive
-      if (audioRef.current) {
-        audioRef.current.pause();
-        audioRef.current.currentTime = 0;
-      }
     }
   }, [isActive]);
 
@@ -184,19 +176,9 @@ export default function VideoCard({ ad, isActive, isMuted, onToggleMute }: Video
               }, 3000);
           }
 
-          // Play audio for image ads if available
-          if (adAudioUrl && audioRef.current) {
-              audioRef.current.muted = isMuted;
-              audioRef.current.play().catch(() => {});
-          }
-
           return () => {
               clearInterval(imageInterval);
               if (slideshowInterval) clearInterval(slideshowInterval);
-              if (audioRef.current) {
-                  audioRef.current.pause();
-                  audioRef.current.currentTime = 0;
-              }
           };
       }
     } else {
@@ -204,40 +186,12 @@ export default function VideoCard({ ad, isActive, isMuted, onToggleMute }: Video
       if (isYouTube && iframeRef.current?.contentWindow) {
         iframeRef.current.contentWindow.postMessage('{"event":"command","func":"pauseVideo","args":""}', '*');
       }
-      // Pause audio when video pauses
-      if (audioRef.current) {
-          audioRef.current.pause();
-      }
     }
-  }, [isActive, isPlaying, isImage, isYouTube, adAudioUrl, isMuted]);
+  }, [isActive, isPlaying, isImage, isYouTube, isMuted]);
 
   useEffect(() => {
     if (videoRef.current) videoRef.current.muted = isMuted;
-    if (audioRef.current) audioRef.current.muted = isMuted;
   }, [isMuted]);
-
-  // Robust play-on-interaction handler to bypass browser autoplay blocks
-  useEffect(() => {
-    if (!isActive || !isPlaying || !isImage || !adAudioUrl) return;
-
-    const playAudio = () => {
-      if (audioRef.current && audioRef.current.paused) {
-        audioRef.current.muted = isMuted;
-        audioRef.current.play().catch((err) => {
-          console.warn("Audio play on user interaction failed:", err);
-        });
-      }
-    };
-
-    // Add listeners for any user interaction on the window
-    window.addEventListener('click', playAudio, { once: true });
-    window.addEventListener('touchstart', playAudio, { once: true });
-
-    return () => {
-      window.removeEventListener('click', playAudio);
-      window.removeEventListener('touchstart', playAudio);
-    };
-  }, [isActive, isPlaying, isImage, adAudioUrl, isMuted]);
 
   const togglePlay = () => {
     if (isImage) return;
@@ -341,17 +295,6 @@ export default function VideoCard({ ad, isActive, isMuted, onToggleMute }: Video
     >
       {/* Inner Media Wrapper — Absolute on mobile, relative column on desktop */}
       <div className="absolute inset-0 md:relative md:inset-auto md:w-[400px] md:aspect-[9/16] md:max-h-[85vh] overflow-hidden bg-black md:rounded-22 md:shadow-2xl z-20">
-
-      {/* Hidden Audio Element for image ads */}
-      {isImage && adAudioUrl && (
-        <audio
-          ref={audioRef}
-          src={adAudioUrl}
-          loop
-          muted={isMuted}
-          preload="auto"
-        />
-      )}
 
       {/* Background Mask for visual stability */}
       <div className="absolute inset-0 bg-black z-0" />
@@ -505,7 +448,7 @@ export default function VideoCard({ ad, isActive, isMuted, onToggleMute }: Video
             />
 
             {/* Mute Toggle Button — z-50 to be above the shield */}
-            {(!isImage || adAudioUrl) && (
+            {!isImage && (
               <div className="absolute top-20 right-4 z-50">
                 <button 
                   onClick={(e) => { 
@@ -519,24 +462,8 @@ export default function VideoCard({ ad, isActive, isMuted, onToggleMute }: Video
               </div>
             )}
 
-            {/* Audio equalizer indicator for image ads with audio */}
-            {isImage && adAudioUrl && !isMuted && isPlaying && (
-              <div className="absolute top-4 left-4 z-50 flex items-end gap-[3px] h-6">
-                {[...Array(5)].map((_, i) => (
-                  <div
-                    key={i}
-                    className="w-[3px] bg-primary rounded-full"
-                    style={{
-                      height: '100%',
-                      animation: `eq-bar-${i + 1} ${0.4 + i * 0.1}s ease-in-out infinite alternate`,
-                    }}
-                  />
-                ))}
-              </div>
-            )}
-
             {/* "Tap to unmute" hint */}
-            {((!isImage) || (isImage && adAudioUrl)) && isMuted && isPlaying && (
+            {!isImage && isMuted && isPlaying && (
                 <div className="absolute bottom-32 left-1/2 -translate-x-1/2 z-50 pointer-events-none">
                     <div className="flex items-center gap-2 px-5 py-2.5 rounded-full bg-primary/90 text-primary-foreground text-sm font-bold shadow-2xl animate-in fade-in zoom-in-95 duration-500">
                         <VolumeX className="w-4 h-4 animate-pulse" />
@@ -643,7 +570,7 @@ export default function VideoCard({ ad, isActive, isMuted, onToggleMute }: Video
                     {/* WhatsApp Button */}
                     <div className="flex flex-col items-center gap-1 group/wa">
                         <a 
-                            href={`https://wa.me/${phoneNumber.replace(/[\+\s\-]/g, '')}?text=${encodeURIComponent(`أهلاً، مهتم بخصوص إعلانك: ${ad.title}`)}`}
+                            href={`https://wa.me/${formatWhatsAppNumber(phoneNumber)}?text=${encodeURIComponent(`السلام عليكم، أتواصل معك بخصوص إعلانك: "${ad.title}" المعروض على 🏪 منصة سوق العرب 🛍️`)}`}
                             target="_blank"
                             rel="noopener noreferrer"
                             className="w-12 h-12 rounded-full bg-[#25D366] flex items-center justify-center shadow-lg border-2 border-white/20 transition-transform active:scale-90 hover:scale-105"

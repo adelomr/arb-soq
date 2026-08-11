@@ -11,7 +11,7 @@ import { useAuth } from '@/context/AuthContext';
 import { useCart } from '@/context/CartContext';
 import { Button } from './ui/button';
 import { useToast } from '@/hooks/use-toast';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, memo } from 'react';
 import { useRouter } from 'next/navigation';
 import { navTranslations } from './Header';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
@@ -64,7 +64,7 @@ const generateStoreColor = (userId: string): { backgroundColor: string; textColo
 };
 
 
-export default function AdCard({ ad }: AdCardProps) {
+function AdCard({ ad }: AdCardProps) {
   const { market } = useMarket();
   const t = translations.ar;
   const direction = 'rtl';
@@ -119,26 +119,32 @@ export default function AdCard({ ad }: AdCardProps) {
 
   const storeColorStyle = isStoreProduct && adUser?.id ? generateStoreColor(adUser.id) : null;
 
-  if (!adUser) {
-    return null; // or a skeleton loader
-  }
+  const realRating = ad.rating;
+  const realReviewCount = ad.reviewCount;
+  const hasRealRating = typeof realRating === 'number' && realRating > 0 && typeof realReviewCount === 'number' && realReviewCount > 0;
+
+  const effectiveUserId = ad.userId || ad.user?.id || 'owner';
+  const effectiveUser = adUser || ad.user || { id: effectiveUserId, name: 'مستخدم سوق العرب' };
 
   return (
-    <Link href={`/ad/${ad.userId}/${ad.id}`} className="block group h-full" onClick={() => incrementAdClick(ad)}>
+    <Link href={`/ad/${effectiveUserId}/${ad.id}`} className="block group h-full" onClick={() => incrementAdClick(ad)}>
         <Card className="overflow-hidden h-full flex flex-col transition-all duration-300 group-hover:shadow-xl group-hover:-translate-y-1">
             <CardHeader className="p-0 relative">
-                <div className="w-full h-56 bg-muted flex items-center justify-center">
+                <div className="relative w-full aspect-[4/3] bg-muted overflow-hidden">
                     {hasImage ? (
                         <Image
                             src={ad.imageUrls[0]}
                             alt={ad.title}
-                            width={600}
-                            height={400}
-                            className="w-full h-full object-cover"
-                            sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+                            fill
+                            loading="lazy"
+                            decoding="async"
+                            className="object-cover transition-transform duration-500 group-hover:scale-105"
+                            sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw"
                         />
                     ) : (
-                        <ImageIcon className="h-16 w-16 text-muted-foreground/50" />
+                        <div className="w-full h-full flex items-center justify-center bg-secondary">
+                            <ImageIcon className="h-16 w-16 text-muted-foreground/50" />
+                        </div>
                     )}
                 </div>
                 <div className="absolute top-2 right-2 flex flex-col items-end gap-2">
@@ -163,16 +169,38 @@ export default function AdCard({ ad }: AdCardProps) {
                 </div>
             </CardHeader>
             <CardContent className="p-2 flex-grow flex flex-col">
-                <h2 className="text-md font-bold leading-tight group-hover:text-primary transition-colors text-right w-full mb-2 h-8 line-clamp-2">
+                <h2 className="text-sm sm:text-base font-bold leading-snug group-hover:text-primary transition-colors text-right w-full mb-1 min-h-[2.5rem] line-clamp-2">
                     {ad.title}
                 </h2>
+                {/* Rating below title — Amazon/Noon style */}
+                {hasRealRating && (
+                    <div className="flex items-center gap-1.5 mb-1">
+                        {[1,2,3,4,5].map(i => (
+                            <Star
+                                key={i}
+                                className={`w-3.5 h-3.5 ${
+                                    i <= Math.round(realRating)
+                                        ? 'fill-amber-400 text-amber-400'
+                                        : 'fill-muted text-muted-foreground/30'
+                                }`}
+                            />
+                        ))}
+                        <span className="text-xs font-bold text-amber-500">{realRating.toFixed(1)}</span>
+                        <span className="text-xs text-muted-foreground">({realReviewCount})</span>
+                    </div>
+                )}
                 <div className="flex-grow"></div>
                 <div className="flex items-center justify-between w-full text-xs mt-2 pt-2 border-t">
                     {!isStoreProduct && (
                         <div className="flex items-center gap-3 text-muted-foreground">
-                            <div className="flex items-center gap-1">
+                            <div className="flex items-center gap-1 flex-wrap">
                                 <MapPin className="w-3.5 h-3.5" />
                                 <span>{ad.location}</span>
+                                {ad.country && (
+                                    <span className="text-2xs font-bold px-1.5 py-0.5 rounded bg-primary/10 text-primary mr-1">
+                                        {ad.country}
+                                    </span>
+                                )}
                             </div>
                             <div className="flex items-center gap-1">
                                 <Eye className="w-3.5 h-3.5 text-muted-foreground/75" />
@@ -266,5 +294,4 @@ export default function AdCard({ ad }: AdCardProps) {
   );
 }
 
-
-    
+export default memo(AdCard);

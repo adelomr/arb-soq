@@ -14,7 +14,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { formatDistanceToNow } from 'date-fns';
 import { ar } from 'date-fns/locale';
 import {
-  MessageCircle,
+  MessageSquare,
   Send,
   Trash2,
   Loader2,
@@ -27,15 +27,19 @@ import { useToast } from '@/hooks/use-toast';
 interface CommentsSectionProps {
   entityId: string;
   entityType: 'blog' | 'ad';
+  sellerId?: string;
 }
 
-export default function CommentsSection({ entityId, entityType }: CommentsSectionProps) {
+const INITIAL_SHOW_COUNT = 4;
+
+export default function CommentsSection({ entityId, entityType, sellerId }: CommentsSectionProps) {
   const { user, userProfile } = useAuth();
   const { toast } = useToast();
   const [comments, setComments] = useState<Comment[]>([]);
   const [newComment, setNewComment] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [showAll, setShowAll] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -90,47 +94,55 @@ export default function CommentsSection({ entityId, entityType }: CommentsSectio
     }
   };
 
+  const visibleComments = showAll ? comments : comments.slice(0, INITIAL_SHOW_COUNT);
+
   return (
-    <section className="mt-12 pt-10 border-t border-border/50" dir="rtl">
-      {/* Section Header */}
-      <div className="flex items-center gap-3 mb-8">
-        <div className="p-2 rounded-full bg-primary/10">
-          <MessageCircle className="h-5 w-5 text-primary" />
-        </div>
-        <h2 className="text-xl font-bold text-foreground">
+    <div className="space-y-6" dir="rtl">
+
+      {/* === Header Card === */}
+      <div className="rounded-2xl border bg-card shadow-sm p-5">
+        <h2 className="text-lg font-bold mb-1 flex items-center gap-2">
+          <MessageSquare className="h-5 w-5 text-primary" />
           التعليقات
           {comments.length > 0 && (
-            <span className="mr-2 text-sm font-normal text-muted-foreground bg-secondary px-2 py-0.5 rounded-full">
+            <span className="text-sm font-normal text-muted-foreground bg-secondary px-2.5 py-0.5 rounded-full">
               {comments.length}
             </span>
           )}
         </h2>
+        <p className="text-sm text-muted-foreground">
+          اطرح سؤالك أو شارك رأيك حول هذا الإعلان
+        </p>
       </div>
 
-      {/* Comment Input */}
+      {/* === Write a Comment Form === */}
       {user ? (
-        <form onSubmit={handleSubmit} className="mb-10">
-          <div className="flex gap-3 items-start">
-            <Avatar className="h-10 w-10 flex-shrink-0 mt-1">
+        <div className="rounded-2xl border bg-card shadow-sm p-5 space-y-4">
+          <h3 className="font-bold text-base flex items-center gap-2">
+            <MessageSquare className="h-5 w-5 text-primary" />
+            أضف تعليقك
+          </h3>
+          <div className="flex items-start gap-3">
+            <Avatar className="h-10 w-10 shrink-0 ring-2 ring-border">
               <AvatarImage src={userProfile?.avatarUrl || user.photoURL || undefined} />
-              <AvatarFallback className="bg-primary/20 text-primary font-bold">
+              <AvatarFallback className="text-sm font-bold bg-primary/10 text-primary">
                 {(userProfile?.name || user.displayName || 'م')[0].toUpperCase()}
               </AvatarFallback>
             </Avatar>
-            <div className="flex-1 space-y-2">
+            <form onSubmit={handleSubmit} className="flex-1 space-y-3">
               <Textarea
                 value={newComment}
                 onChange={(e) => setNewComment(e.target.value)}
                 placeholder="اكتب تعليقك هنا..."
-                className="resize-none bg-background border-border text-right min-h-[80px] focus:ring-primary"
+                className="min-h-[90px] resize-none text-sm rounded-xl focus:ring-2 focus:ring-primary/40"
                 dir="rtl"
                 disabled={submitting}
               />
-              <div className="flex justify-end">
+              <div className="flex items-center gap-3">
                 <Button
                   type="submit"
                   disabled={submitting || !newComment.trim()}
-                  className="flex items-center gap-2"
+                  className="rounded-xl gap-2"
                 >
                   {submitting ? (
                     <>
@@ -144,14 +156,24 @@ export default function CommentsSection({ entityId, entityType }: CommentsSectio
                     </>
                   )}
                 </Button>
+                {newComment.length > 0 && (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    onClick={() => setNewComment('')}
+                    className="rounded-xl text-muted-foreground"
+                  >
+                    مسح
+                  </Button>
+                )}
               </div>
-            </div>
+            </form>
           </div>
-        </form>
+        </div>
       ) : (
-        <div className="mb-8 p-5 rounded-xl border border-dashed border-border bg-muted/30 text-center">
-          <p className="text-muted-foreground mb-3">سجّل دخولك لإضافة تعليق</p>
-          <Button asChild variant="outline" className="gap-2">
+        <div className="p-5 rounded-2xl border border-dashed border-border bg-muted/30 text-center">
+          <p className="text-muted-foreground mb-3 font-medium">سجّل دخولك لإضافة تعليق</p>
+          <Button asChild variant="outline" className="gap-2 rounded-xl">
             <Link href="/login">
               <LogIn className="h-4 w-4" />
               تسجيل الدخول
@@ -160,73 +182,100 @@ export default function CommentsSection({ entityId, entityType }: CommentsSectio
         </div>
       )}
 
-      {/* Comments List */}
-      {loading ? (
-        <div className="flex items-center justify-center py-12 gap-3 text-muted-foreground">
-          <Loader2 className="h-5 w-5 animate-spin" />
-          <span>جاري تحميل التعليقات...</span>
-        </div>
-      ) : comments.length === 0 ? (
-        <div className="text-center py-12 border border-dashed border-border/50 rounded-xl">
-          <MessageCircle className="h-12 w-12 mx-auto mb-3 text-muted-foreground/30" />
-          <p className="text-muted-foreground font-medium">لا توجد تعليقات بعد</p>
-          <p className="text-sm text-muted-foreground mt-1">كن أول من يعلّق!</p>
-        </div>
-      ) : (
-        <div className="space-y-6">
-          {comments.map((comment) => {
-            const isOwner = user?.uid === comment.userId;
-            const isAdmin = userProfile?.role === 'admin';
-            const canDelete = isOwner || isAdmin;
+      {/* === Comments List === */}
+      <div className="rounded-2xl border bg-card shadow-sm overflow-hidden">
+        {loading ? (
+          <div className="flex items-center justify-center py-12 gap-3 text-muted-foreground">
+            <Loader2 className="h-5 w-5 animate-spin" />
+            <span className="text-sm">جاري تحميل التعليقات...</span>
+          </div>
+        ) : comments.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
+            <MessageSquare className="h-12 w-12 mb-3 text-slate-300 dark:text-slate-600" />
+            <p className="text-sm">لا توجد تعليقات بعد. كن أول من يعلّق!</p>
+          </div>
+        ) : (
+          <>
+            <div className="divide-y divide-border/60">
+              {visibleComments.map((comment) => {
+                const isOwner = user?.uid === comment.userId;
+                const isSeller = sellerId ? comment.userId === sellerId : false;
+                const isAdmin = userProfile?.role === 'admin';
+                const canDelete = isOwner || isAdmin;
 
-            return (
-              <div
-                key={comment.id}
-                className="group flex gap-3 p-4 rounded-xl bg-card hover:bg-muted/30 transition-colors border border-border/30"
-              >
-                <Avatar className="h-9 w-9 flex-shrink-0 mt-0.5">
-                  <AvatarImage src={comment.userAvatar} />
-                  <AvatarFallback className="bg-primary/10 text-primary text-sm font-bold">
-                    {(comment.userName || 'م')[0].toUpperCase()}
-                  </AvatarFallback>
-                </Avatar>
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center justify-between gap-2 mb-1">
-                    <div className="flex items-center gap-2">
-                      <span className="font-semibold text-foreground text-sm">
-                        {comment.userName}
-                      </span>
-                      {comment.createdAt?.toDate && (
-                        <span className="text-xs text-muted-foreground">
-                          {formatDistanceToNow(comment.createdAt.toDate(), {
-                            addSuffix: true,
-                            locale: ar,
-                          })}
-                        </span>
-                      )}
+                return (
+                  <div key={comment.id} className="px-5 py-5 group hover:bg-muted/20 transition-colors">
+                    <div className="flex items-start gap-3.5">
+                      {/* Avatar */}
+                      <Avatar className="h-10 w-10 shrink-0 ring-2 ring-border">
+                        <AvatarImage src={comment.userAvatar} />
+                        <AvatarFallback className="text-sm font-bold bg-primary/10 text-primary">
+                          {(comment.userName || 'م')[0].toUpperCase()}
+                        </AvatarFallback>
+                      </Avatar>
+
+                      <div className="flex-1 min-w-0">
+                        {/* Header row */}
+                        <div className="flex items-start justify-between gap-2 flex-wrap">
+                          <div>
+                            <p className="font-semibold text-sm text-foreground leading-tight flex items-center gap-2">
+                              {comment.userName}
+                              {isSeller && (
+                                <span className="text-[10px] bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20 px-1.5 py-0 rounded font-bold">
+                                  صاحب الإعلان
+                                </span>
+                              )}
+                            </p>
+                          </div>
+                          <div className="flex items-center gap-2 shrink-0">
+                            {comment.createdAt?.toDate && (
+                              <span className="text-xs text-muted-foreground whitespace-nowrap">
+                                {formatDistanceToNow(comment.createdAt.toDate(), {
+                                  addSuffix: true,
+                                  locale: ar,
+                                })}
+                              </span>
+                            )}
+                            {canDelete && (
+                              <button
+                                onClick={() => comment.id && handleDelete(comment.id, comment.userId)}
+                                title="حذف التعليق"
+                                className="opacity-0 group-hover:opacity-100 transition-opacity p-1 rounded text-destructive hover:bg-destructive/10"
+                              >
+                                <Trash2 className="h-3.5 w-3.5" />
+                              </button>
+                            )}
+                          </div>
+                        </div>
+
+                        {/* Comment text */}
+                        <p className="text-sm text-foreground/80 mt-2 leading-relaxed whitespace-pre-wrap break-words">
+                          {comment.content}
+                        </p>
+                      </div>
                     </div>
-                    {canDelete && (
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity text-destructive hover:bg-destructive/10 flex-shrink-0"
-                        onClick={() => comment.id && handleDelete(comment.id, comment.userId)}
-                        title="حذف التعليق"
-                      >
-                        <Trash2 className="h-3.5 w-3.5" />
-                      </Button>
-                    )}
                   </div>
-                  <p className="text-sm text-foreground leading-relaxed whitespace-pre-wrap break-words">
-                    {comment.content}
-                  </p>
-                </div>
+                );
+              })}
+            </div>
+
+            {/* Show more / less */}
+            {comments.length > INITIAL_SHOW_COUNT && (
+              <div className="border-t px-5 py-3">
+                <button
+                  onClick={() => setShowAll(v => !v)}
+                  className="flex items-center gap-1.5 text-sm font-semibold text-primary hover:text-primary/80 transition-colors"
+                >
+                  <ChevronDown className={`h-4 w-4 transition-transform duration-200 ${showAll ? 'rotate-180' : ''}`} />
+                  {showAll ? 'عرض أقل' : `عرض كل التعليقات (${comments.length})`}
+                </button>
               </div>
-            );
-          })}
-          <div ref={bottomRef} />
-        </div>
-      )}
-    </section>
+            )}
+          </>
+        )}
+      </div>
+
+      <div ref={bottomRef} />
+    </div>
   );
 }

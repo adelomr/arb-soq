@@ -13,6 +13,7 @@ import { useToast } from '@/hooks/use-toast';
 import dynamic from 'next/dynamic';
 import { useAuth } from '@/context/AuthContext';
 import { useState } from 'react';
+import { formatWhatsAppNumber } from '@/lib/utils';
 
 const Header = dynamic(() => import('@/components/Header'), { ssr: false });
 const Footer = dynamic(() => import('@/components/Footer'), { ssr: false });
@@ -57,7 +58,7 @@ const t = {
 
 // ⭐ دالة إنشاء رابط معاينة داخل موقعك
 function createPreviewUrl(productId: string, userId: string) {
-  return `https://arb-soq.allqaqasyana.com/ad/${userId}/${productId}`;
+  return `https://www.arb-soq.com/ad/${userId}/${productId}`;
 }
 
 export default function CartPage() {
@@ -129,7 +130,7 @@ export default function CartPage() {
       ];
       
       const message = messageParts.filter(part => part !== undefined && part !== null).join('\n');
-      const whatsappUrl = `https://api.whatsapp.com/send?phone=${sellerPhone.replace(/\D/g, '')}&text=${encodeURIComponent(message)}`;
+      const whatsappUrl = `https://api.whatsapp.com/send?phone=${formatWhatsAppNumber(sellerPhone)}&text=${encodeURIComponent(message)}`;
       
       const newWindow = window.open(whatsappUrl, '_blank');
       

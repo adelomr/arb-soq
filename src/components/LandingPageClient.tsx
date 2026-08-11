@@ -2,8 +2,10 @@
 
 import Image from 'next/image';
 import Link from 'next/link';
-import { useState } from 'react';
+import { useState, type Dispatch, type SetStateAction } from 'react';
+import { useSwipe } from '@/hooks/useSwipe';
 import type { PageData, LandingTheme } from '@/lib/types';
+import { formatWhatsAppNumber } from '@/lib/utils';
 import ContentWrapper from '@/components/ContentWrapper';
 import { Phone, MessageCircle, Star, ChevronDown, ChevronUp, MapPin, Check, ExternalLink } from 'lucide-react';
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from '@/components/ui/dialog';
@@ -96,6 +98,21 @@ const THEMES: Record<LandingTheme, ThemeConfig> = {
     callBtn: 'bg-teal-700 hover:bg-teal-800',
     featureIcon: 'bg-teal-100 dark:bg-teal-900/40 text-teal-600 dark:text-teal-400',
   },
+  'clear-cover': {
+    heroBg: 'from-slate-900 via-slate-800 to-slate-950',
+    heroOverlay: 'from-black/60 via-black/20 to-transparent',
+    accent: 'bg-slate-800 dark:bg-slate-200',
+    accentText: 'text-slate-800 dark:text-slate-200',
+    accentLight: 'bg-slate-800/10 dark:bg-slate-200/10',
+    sectionBg: 'bg-background',
+    cardBg: 'bg-card border border-border',
+    badge: 'bg-slate-800 dark:bg-slate-200',
+    badgeText: 'text-white dark:text-black',
+    divider: 'bg-slate-800 dark:bg-slate-200',
+    waBtn: 'bg-green-500 hover:bg-green-600',
+    callBtn: 'bg-slate-800 hover:bg-slate-900 dark:bg-slate-200 dark:hover:bg-slate-100 dark:text-black',
+    featureIcon: 'bg-slate-100 dark:bg-slate-800/50 text-slate-800 dark:text-slate-200',
+  },
 };
 
 function StarRating({ rating = 5 }: { rating?: number }) {
@@ -115,29 +132,7 @@ export default function LandingPageClient({ page }: Props) {
   const [galleryIdx, setGalleryIdx] = useState(0);
 
   const getCleanWaLink = (num: string, msg?: string) => {
-    let cleaned = num.replace(/\D/g, '');
-    if (cleaned.startsWith('00')) {
-      cleaned = cleaned.substring(2);
-    }
-    if (cleaned.startsWith('0')) {
-      const withoutZero = cleaned.substring(1);
-      if (withoutZero.length === 9 && withoutZero.startsWith('5')) { // السعودية
-        cleaned = `966${withoutZero}`;
-      } else if (withoutZero.length === 10 && withoutZero.startsWith('1')) { // مصر
-        cleaned = `20${withoutZero}`;
-      } else if (withoutZero.length === 8 && withoutZero.startsWith('5')) { // الإمارات
-        cleaned = `971${withoutZero}`;
-      } else if (withoutZero.length === 9 && (withoutZero.startsWith('77') || withoutZero.startsWith('78') || withoutZero.startsWith('79'))) { // الأردن
-        cleaned = `962${withoutZero}`;
-      } else {
-        cleaned = `966${withoutZero}`; // الافتراضي السعودية
-      }
-    } else if (cleaned.length === 9 && cleaned.startsWith('5')) { // السعودية بدون 0
-      cleaned = `966${cleaned}`;
-    } else if (cleaned.length === 8 && cleaned.startsWith('5')) { // الإمارات بدون 0
-      cleaned = `971${cleaned}`;
-    }
-    return `https://wa.me/${cleaned}${msg ? `?text=${encodeURIComponent(msg)}` : ''}`;
+    return `https://wa.me/${formatWhatsAppNumber(num)}${msg ? `?text=${encodeURIComponent(msg)}` : ''}`;
   };
 
   const waLink = page.whatsappNumber ? getCleanWaLink(page.whatsappNumber, page.whatsappMessage) : null;
@@ -145,8 +140,54 @@ export default function LandingPageClient({ page }: Props) {
 
   const hasCta = waLink || callLink;
 
+  // 1. FAQ Schema (JSON-LD)
+  const faqSchema = page.faqs && page.faqs.length > 0 ? {
+    "@context": "https://schema.org",
+    "@type": "FAQPage",
+    "mainEntity": page.faqs.map(faq => ({
+      "@type": "Question",
+      "name": faq.question,
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": faq.answer
+      }
+    }))
+  } : null;
+
+  // 2. Service / LocalBusiness Schema (JSON-LD)
+  const hasServiceInfo = page.serviceName || page.serviceArea;
+  const serviceSchema = hasServiceInfo ? {
+    "@context": "https://schema.org",
+    "@type": "Service",
+    "name": page.serviceName || page.title,
+    "provider": {
+      "@type": "LocalBusiness",
+      "name": page.title,
+      "image": page.coverImageUrl || page.logoUrl || undefined,
+      "telephone": page.phoneNumber || page.whatsappNumber || undefined,
+      "url": `https://www.arb-soq.com/p/${page.slug}`
+    },
+    "areaServed": page.serviceArea ? {
+      "@type": "AdministrativeArea",
+      "name": page.serviceArea
+    } : undefined,
+    "description": page.description || page.subtitle || undefined
+  } : null;
+
   return (
     <div className="min-h-screen" dir="rtl">
+      {faqSchema && (
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(faqSchema) }}
+        />
+      )}
+      {serviceSchema && (
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(serviceSchema) }}
+        />
+      )}
       {/* ========== HERO ========== */}
       <section className={`relative min-h-[70vh] flex items-end bg-gradient-to-br ${theme.heroBg} overflow-hidden`}>
         {/* Cover image */}
@@ -156,7 +197,7 @@ export default function LandingPageClient({ page }: Props) {
             alt={page.title}
             fill
             priority
-            className="object-cover object-center opacity-40 mix-blend-luminosity"
+            className={`object-cover object-center ${page.theme === 'clear-cover' ? 'opacity-100' : 'opacity-40 mix-blend-luminosity'}`}
             sizes="100vw"
           />
         )}
@@ -167,13 +208,14 @@ export default function LandingPageClient({ page }: Props) {
         <div className="absolute top-0 left-0 w-[500px] h-[500px] rounded-full bg-white/5 -translate-x-1/2 -translate-y-1/2 blur-3xl pointer-events-none" />
         <div className="absolute bottom-0 right-0 w-[400px] h-[400px] rounded-full bg-white/5 translate-x-1/3 translate-y-1/3 blur-3xl pointer-events-none" />
 
-        <div className="relative z-10 container mx-auto px-4 pb-16 pt-32 flex flex-col gap-8 items-center text-center">
-          {/* Logo */}
-          {page.logoUrl && (
-            <div className="w-40 h-40 rounded-2xl overflow-hidden border-2 border-white/30 shadow-2xl bg-white/10 backdrop-blur-sm flex-shrink-0 mb-2">
-              <Image src={page.logoUrl} alt="Logo" width={160} height={160} className="w-full h-full object-cover" />
-            </div>
-          )}
+        {/* Top-right Logo */}
+        {page.logoUrl && (
+          <div className="absolute top-6 right-6 z-20 w-20 h-20 md:w-28 md:h-28 rounded-2xl overflow-hidden border-2 border-white/30 shadow-2xl bg-white/10 backdrop-blur-sm flex-shrink-0">
+            <Image src={page.logoUrl} alt="Logo" width={112} height={112} className="w-full h-full object-cover" />
+          </div>
+        )}
+
+        <div className="relative z-10 container mx-auto px-4 pb-16 pt-24 flex flex-col gap-6 items-center text-center">
           {/* Title */}
           <h1
             className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-extrabold text-white drop-shadow-2xl max-w-6xl tracking-tight mx-auto text-center"
@@ -211,46 +253,111 @@ export default function LandingPageClient({ page }: Props) {
         </div>
       </section>
 
-      {/* ========== MAIN CONTENT ========== */}
-      <section className={`${theme.sectionBg} py-14 px-4`}>
-        <div className="container mx-auto max-w-6xl">
-
-          {/* Features */}
+      {/* ========== STICKY SECTION NAV BAR (Google Ads Sitelinks & Smooth Navigation) ========== */}
+      <div className="sticky top-0 z-40 w-full bg-background/95 backdrop-blur-md border-b border-border/60 shadow-sm py-2.5 px-4">
+        <div className="container mx-auto max-w-6xl flex items-center gap-2 overflow-x-auto scrollbar-none no-scrollbar justify-start md:justify-center dir-rtl">
+          {page.content && (
+            <a
+              href="#details"
+              className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-secondary/80 hover:bg-primary hover:text-primary-foreground text-xs sm:text-sm font-semibold transition-all flex-shrink-0"
+            >
+              <span>تفاصيل الخدمة</span>
+            </a>
+          )}
           {page.features && page.features.length > 0 && (
-            <div className="mb-16">
+            <a
+              href="#features"
+              className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-secondary/80 hover:bg-primary hover:text-primary-foreground text-xs sm:text-sm font-semibold transition-all flex-shrink-0"
+            >
+              <span>المميزات</span>
+            </a>
+          )}
+          {page.gallery && page.gallery.length > 0 && (
+            <a
+              href="#gallery"
+              className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-secondary/80 hover:bg-primary hover:text-primary-foreground text-xs sm:text-sm font-semibold transition-all flex-shrink-0"
+            >
+              <span>معرض الصور</span>
+            </a>
+          )}
+          {page.testimonials && page.testimonials.length > 0 && (
+            <a
+              href="#testimonials"
+              className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-secondary/80 hover:bg-primary hover:text-primary-foreground text-xs sm:text-sm font-semibold transition-all flex-shrink-0"
+            >
+              <span>آراء العملاء</span>
+            </a>
+          )}
+          {page.faqs && page.faqs.length > 0 && (
+            <a
+              href="#faqs"
+              className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-secondary/80 hover:bg-primary hover:text-primary-foreground text-xs sm:text-sm font-semibold transition-all flex-shrink-0"
+            >
+              <span>الأسئلة الشائعة</span>
+            </a>
+          )}
+          {page.locationEmbed && (
+            <a
+              href="#location"
+              className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-secondary/80 hover:bg-primary hover:text-primary-foreground text-xs sm:text-sm font-semibold transition-all flex-shrink-0"
+            >
+              <span>الموقع على الخريطة</span>
+            </a>
+          )}
+          {hasCta && (
+            <a
+              href="#contact"
+              className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-primary text-primary-foreground text-xs sm:text-sm font-bold shadow-sm hover:scale-105 transition-all flex-shrink-0"
+            >
+              <span>تواصل معنا</span>
+            </a>
+          )}
+        </div>
+      </div>
+
+      {/* ========== MAIN CONTENT ========== */}
+      <section className={`${theme.sectionBg} py-8 md:py-14 px-0 md:px-4`}>
+        <div className="w-full md:container md:mx-auto md:max-w-6xl">
+
+          {/* 1. Rich Text Content (تفاصيل الخدمة) */}
+          {page.content && (
+            <div id="details" className={`${theme.cardBg} rounded-none md:rounded-3xl shadow-sm p-4 md:p-10 mb-8 md:mb-16 mx-0 md:mx-0 scroll-mt-24`}>
+              <ContentWrapper
+                html={page.content}
+                className="custom-page-content text-foreground/90 font-body text-base leading-relaxed"
+              />
+            </div>
+          )}
+
+          {/* 2. Features (المميزات) */}
+          {page.features && page.features.length > 0 && (
+            <div id="features" className="mb-8 md:mb-16 px-4 md:px-0 scroll-mt-24">
               <SectionTitle label="مميزاتنا" themeAccent={theme.accentText} themeDivider={theme.divider} />
               <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-5 mt-8">
                 {page.features.map((feat, i) => (
-                  <div key={i} className={`${theme.cardBg} rounded-2xl p-6 shadow-sm hover:shadow-md transition-shadow group`}>
-                    <div className={`w-12 h-12 rounded-xl flex items-center justify-center mb-4 ${theme.featureIcon} text-xl font-bold group-hover:scale-110 transition-transform`}>
-                      {feat.iconName ? <FeatureIcon name={feat.iconName} /> : <Check className="h-6 w-6" />}
+                  <div key={i} className={`${theme.cardBg} rounded-2xl p-6 shadow-sm hover:shadow-lg transition-all duration-300 group flex flex-col gap-3 hover:-translate-y-1`}>
+                    <div className={`w-14 h-14 rounded-2xl flex items-center justify-center ${theme.featureIcon} text-2xl group-hover:scale-110 transition-transform duration-300 shadow-sm`}>
+                      {feat.iconName ? <FeatureIcon name={feat.iconName} /> : <Check className="h-7 w-7" />}
                     </div>
-                    <h3 className="font-bold text-foreground mb-2 text-base">{feat.title}</h3>
-                    <p className="text-sm text-muted-foreground leading-relaxed">{feat.desc}</p>
+                    <h3 className="font-bold text-foreground text-base leading-snug">{feat.title}</h3>
+                    <p className="text-sm text-muted-foreground leading-relaxed flex-1">{feat.desc}</p>
+                    <div className={`w-8 h-0.5 rounded-full ${theme.divider} opacity-40 group-hover:w-14 group-hover:opacity-100 transition-all duration-300`} />
                   </div>
                 ))}
               </div>
             </div>
           )}
 
-          {/* Rich Text Content */}
-          <div className={`${theme.cardBg} rounded-3xl shadow-sm p-6 md:p-10 mb-16`}>
-            <ContentWrapper
-              html={page.content}
-              className="custom-page-content text-foreground/90 font-body text-base leading-relaxed"
-            />
-          </div>
-
           {/* Gallery */}
           {page.gallery && page.gallery.length > 0 && (
-            <div className="mb-16">
+            <div id="gallery" className="mb-8 md:mb-16 px-0 md:px-0 scroll-mt-24">
               <SectionTitle label="معرض الأعمال والصور" themeAccent={theme.accentText} themeDivider={theme.divider} />
-              <div className="mt-8 max-w-5xl mx-auto">
+              <div className="mt-6 md:mt-8 max-w-5xl mx-auto">
                 {page.gallery.length === 1 ? (
                   /* Single image — full width */
                   <button
                     onClick={() => { setGalleryIdx(0); setGalleryOpen(true); }}
-                    className="relative w-full aspect-video rounded-3xl overflow-hidden group cursor-zoom-in shadow-xl hover:shadow-2xl transition-all"
+                    className="relative w-full aspect-video rounded-none md:rounded-3xl overflow-hidden group cursor-zoom-in shadow-xl hover:shadow-2xl transition-all"
                   >
                     <Image src={page.gallery[0]} alt="صورة 1" fill className="object-cover group-hover:scale-105 transition-transform duration-700" sizes="100vw" />
                     <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex items-end justify-center pb-6">
@@ -277,7 +384,7 @@ export default function LandingPageClient({ page }: Props) {
                     {/* Hero image */}
                     <button
                       onClick={() => { setGalleryIdx(0); setGalleryOpen(true); }}
-                      className="relative w-full aspect-[16/7] rounded-3xl overflow-hidden group cursor-zoom-in shadow-xl hover:shadow-2xl transition-all"
+                      className="relative w-full aspect-[16/7] rounded-none md:rounded-3xl overflow-hidden group cursor-zoom-in shadow-xl hover:shadow-2xl transition-all"
                     >
                       <Image src={page.gallery[0]} alt="صورة 1" fill className="object-cover group-hover:scale-105 transition-transform duration-700" sizes="100vw" />
                       <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent" />
@@ -317,9 +424,9 @@ export default function LandingPageClient({ page }: Props) {
 
           {/* Testimonials */}
           {page.testimonials && page.testimonials.length > 0 && (
-            <div className="mb-16">
+            <div id="testimonials" className="mb-8 md:mb-16 px-4 md:px-0 scroll-mt-24">
               <SectionTitle label="آراء عملائنا" themeAccent={theme.accentText} themeDivider={theme.divider} />
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5 mt-8">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-5 mt-6 md:mt-8">
                 {page.testimonials.map((t, i) => (
                   <div key={i} className={`${theme.cardBg} rounded-2xl p-6 shadow-sm hover:shadow-md transition-all relative overflow-hidden flex flex-col gap-4`}>
                     {/* Header: avatar + name */}
@@ -342,9 +449,9 @@ export default function LandingPageClient({ page }: Props) {
           )}
 
           {page.faqs && page.faqs.length > 0 && (
-            <div className="mb-16">
+            <div id="faqs" className="mb-8 md:mb-16 px-4 md:px-0 scroll-mt-24">
               <SectionTitle label="الأسئلة الشائعة" themeAccent={theme.accentText} themeDivider={theme.divider} />
-              <div className="mt-8 space-y-3">
+              <div className="mt-6 md:mt-8 space-y-3">
                 {page.faqs.map((faq, i) => (
                   <div key={i} className={`${theme.cardBg} rounded-2xl overflow-hidden shadow-sm`}>
                     <button
@@ -369,9 +476,9 @@ export default function LandingPageClient({ page }: Props) {
 
           {/* Location embed */}
           {page.locationEmbed && (
-            <div className="mb-16">
+            <div id="location" className="mb-8 md:mb-16 px-4 md:px-0 scroll-mt-24">
               <SectionTitle label="موقعنا على الخريطة" themeAccent={theme.accentText} themeDivider={theme.divider} />
-              <div className="mt-8 rounded-3xl overflow-hidden shadow-lg border border-border/40 h-72">
+              <div className="mt-6 md:mt-8 rounded-none md:rounded-3xl overflow-hidden shadow-lg border border-border/40 h-72">
                 <iframe
                   src={page.locationEmbed}
                   width="100%"
@@ -388,7 +495,7 @@ export default function LandingPageClient({ page }: Props) {
 
           {/* Final CTA card */}
           {hasCta && (
-            <div className={`rounded-3xl bg-gradient-to-br ${theme.heroBg} p-8 md:p-12 text-center shadow-2xl relative overflow-hidden`}>
+            <div id="contact" className={`rounded-none md:rounded-3xl bg-gradient-to-br ${theme.heroBg} p-6 md:p-12 text-center shadow-2xl relative overflow-hidden scroll-mt-24`}>
               <div className="absolute inset-0 bg-black/20" />
               <div className="relative z-10">
                 <div className="flex items-center justify-center gap-2 mb-3">
@@ -445,37 +552,18 @@ export default function LandingPageClient({ page }: Props) {
           <DialogTitle className="sr-only">معرض الصور</DialogTitle>
           <DialogDescription className="sr-only">عرض الصورة {galleryIdx + 1} من {page.gallery?.length}</DialogDescription>
           {page.gallery && page.gallery[galleryIdx] && (
-            <div className="relative w-full aspect-video">
-              <Image
-                src={page.gallery[galleryIdx]}
-                alt={`صورة ${galleryIdx + 1}`}
-                fill
-                className="object-contain"
-                sizes="90vw"
-              />
-              {/* prev/next */}
-              {page.gallery.length > 1 && (
-                <>
-                  <button
-                    onClick={() => setGalleryIdx(i => (i - 1 + (page.gallery?.length ?? 1)) % (page.gallery?.length ?? 1))}
-                    className="absolute right-2 top-1/2 -translate-y-1/2 bg-white/20 hover:bg-white/40 backdrop-blur p-2 rounded-full text-white transition-all"
-                  >◀</button>
-                  <button
-                    onClick={() => setGalleryIdx(i => (i + 1) % (page.gallery?.length ?? 1))}
-                    className="absolute left-2 top-1/2 -translate-y-1/2 bg-white/20 hover:bg-white/40 backdrop-blur p-2 rounded-full text-white transition-all"
-                  >▶</button>
-                </>
-              )}
-              <div className="absolute bottom-3 left-1/2 -translate-x-1/2 bg-black/50 text-white text-xs px-3 py-1 rounded-full">
-                {galleryIdx + 1} / {page.gallery.length}
-              </div>
-            </div>
+            <GalleryLightboxContent
+              gallery={page.gallery}
+              galleryIdx={galleryIdx}
+              setGalleryIdx={setGalleryIdx}
+            />
           )}
         </DialogContent>
       </Dialog>
 
       {/* ========== Embedded styles ========== */}
       <style>{`
+        html { scroll-behavior: smooth; }
         .custom-page-content { font-size: 16px; line-height: 1.85; }
         .custom-page-content p { margin-bottom: 1.25rem; }
         .custom-page-content h1, .custom-page-content h2, .custom-page-content h3 { font-weight: 700; margin-top: 2rem; margin-bottom: 1rem; }
@@ -486,7 +574,8 @@ export default function LandingPageClient({ page }: Props) {
         .custom-page-content ol { list-style-type: decimal; padding-right: 1.75rem; margin-bottom: 1.25rem; }
         .custom-page-content li { margin-bottom: 0.5rem; }
         .custom-page-content a { color: hsl(var(--primary)); text-decoration: underline; }
-        .custom-page-content img { max-width: 100%; height: auto; border-radius: 12px; display: block; margin: 1.5rem auto; }
+        .custom-page-content img { width: 100% !important; max-width: 100% !important; height: auto !important; border-radius: 0; display: block; margin: 1.5rem auto; }
+        @media (min-width: 768px) { .custom-page-content img { border-radius: 12px; } }
         .custom-page-content blockquote { border-right: 4px solid hsl(var(--primary)); padding-right: 1.25rem; margin: 1.5rem 0; font-style: italic; color: hsl(var(--muted-foreground)); }
       `}</style>
     </div>
@@ -497,7 +586,7 @@ export default function LandingPageClient({ page }: Props) {
 function SectionTitle({ label, themeAccent, themeDivider }: { label: string; themeAccent: string; themeDivider: string }) {
   return (
     <div className="text-center">
-      <span className={`inline-block text-sm font-bold uppercase tracking-widest mb-2 ${themeAccent}`}>{label}</span>
+      <h2 className={`inline-block text-sm font-bold uppercase tracking-widest mb-2 ${themeAccent}`}>{label}</h2>
       <div className={`mx-auto w-12 h-1 rounded-full ${themeDivider}`} />
     </div>
   );
@@ -510,5 +599,62 @@ function FeatureIcon({ name }: { name: string }) {
     garden: '🌿', palm: '🌴', star: '⭐', phone: '📞', location: '📍',
     clock: '🕐', shield: '🛡️', leaf: '🍃', plant: '🪴', sun: '☀️',
   };
-  return <span className="text-lg">{map[name] ?? '✦'}</span>;
+  return <span className="text-lg">{map[name] ?? '✶'}</span>;
+}
+
+// ---- Gallery Lightbox sub-component (needs its own scope to use useSwipe hook) ----
+function GalleryLightboxContent({
+  gallery,
+  galleryIdx,
+  setGalleryIdx,
+}: {
+  gallery: string[];
+  galleryIdx: number;
+  setGalleryIdx: Dispatch<SetStateAction<number>>;
+}) {
+  const swipe = useSwipe({
+    onSwipeLeft: () => setGalleryIdx(i => (i + 1) % gallery.length),
+    onSwipeRight: () => setGalleryIdx(i => (i - 1 + gallery.length) % gallery.length),
+  });
+
+  return (
+    <div
+      className="relative w-full aspect-video select-none"
+      {...swipe.handlers}
+    >
+      <Image
+        src={gallery[galleryIdx]}
+        alt={`صورة ${galleryIdx + 1}`}
+        fill
+        className="object-contain pointer-events-none"
+        sizes="90vw"
+      />
+      {/* Navigation arrows — visible on desktop only, swipe handles mobile */}
+      {gallery.length > 1 && (
+        <>
+          <button
+            onClick={() => setGalleryIdx(i => (i - 1 + gallery.length) % gallery.length)}
+            className="absolute right-2 top-1/2 -translate-y-1/2 bg-white/20 hover:bg-white/40 backdrop-blur p-2.5 rounded-full text-white transition-all hidden md:flex items-center justify-center"
+            aria-label="السابق"
+          >◄</button>
+          <button
+            onClick={() => setGalleryIdx(i => (i + 1) % gallery.length)}
+            className="absolute left-2 top-1/2 -translate-y-1/2 bg-white/20 hover:bg-white/40 backdrop-blur p-2.5 rounded-full text-white transition-all hidden md:flex items-center justify-center"
+            aria-label="التالي"
+          >►</button>
+        </>
+      )}
+      {/* Mobile swipe hint (shown briefly) */}
+      {gallery.length > 1 && (
+        <div className="md:hidden absolute bottom-10 left-1/2 -translate-x-1/2 flex items-center gap-1.5 text-white/60 text-xs">
+          <span>←</span>
+          <span>اسحب للتصفح</span>
+          <span>→</span>
+        </div>
+      )}
+      <div className="absolute bottom-3 left-1/2 -translate-x-1/2 bg-black/50 text-white text-xs px-3 py-1 rounded-full">
+        {galleryIdx + 1} / {gallery.length}
+      </div>
+    </div>
+  );
 }

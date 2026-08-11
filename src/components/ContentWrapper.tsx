@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useEffect, useRef } from 'react';
+import { formatWhatsAppNumber } from '../lib/utils';
 
 interface ContentWrapperProps {
   html: string;
@@ -28,11 +29,10 @@ function processButtons(container: HTMLElement) {
     if (span.parentElement?.tagName === 'A') return; // already wrapped
     const type = span.getAttribute('data-contact-btn') || 'whatsapp';
     const phone = (span.getAttribute('data-phone') || '').replace(/\s+/g, '');
-    const cleanPhone = phone.replace(/^\+/, '');
 
     let href = '#';
-    if (type === 'whatsapp' && cleanPhone) {
-      href = `https://wa.me/${cleanPhone}`;
+    if (type === 'whatsapp' && phone) {
+      href = `https://wa.me/${formatWhatsAppNumber(phone)}`;
     } else if (type === 'call' && phone) {
       href = `tel:${phone}`;
     }

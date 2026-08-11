@@ -201,6 +201,28 @@ export default function CreateStorePage() {
                     </div>
                     <Form {...form}>
                         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8 bg-card p-6 rounded-lg shadow-md">
+                            {/* Sticky Save Bar */}
+                            <div className="sticky top-20 z-30 bg-card/95 backdrop-blur-md border border-border/80 p-3.5 rounded-xl shadow-lg flex items-center justify-between gap-4 transition-all">
+                              <div className="flex items-center gap-2 overflow-hidden">
+                                <Store className="h-5 w-5 text-primary flex-shrink-0" />
+                                <span className="font-bold text-sm md:text-base text-foreground truncate">
+                                  {form.watch('storeName') ? `إنشاء: ${form.watch('storeName')}` : t.title}
+                                </span>
+                              </div>
+                              <Button type="submit" disabled={isSaving} size="sm" className="bg-primary text-primary-foreground flex items-center gap-1.5 px-5 shadow-sm hover:opacity-90 flex-shrink-0">
+                                {isSaving ? (
+                                  <>
+                                    <Loader2 className="h-4 w-4 animate-spin ml-1" />
+                                    {t.saving}
+                                  </>
+                                ) : (
+                                  <>
+                                    <Save className="h-4 w-4 ml-1" />
+                                    {t.saveChanges}
+                                  </>
+                                )}
+                              </Button>
+                            </div>
                              <FormField
                                 control={form.control}
                                 name="storeName"

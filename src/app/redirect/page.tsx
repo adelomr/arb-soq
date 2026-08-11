@@ -6,9 +6,11 @@ import { ExternalLink, ShieldAlert, ArrowLeft, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 import { getPageBySlug, incrementPageViews } from '@/lib/page-service';
+import { useAuth } from '@/context/AuthContext';
 
 
 function RedirectContent() {
+  const { adSenseSettings } = useAuth();
   const searchParams = useSearchParams();
   const router = useRouter();
   const [targetUrl, setTargetUrl] = useState<string>('');
@@ -43,6 +45,13 @@ function RedirectContent() {
 
   useEffect(() => {
     if (!contentRef.current) return;
+
+    // If ads are disabled, remove all ad elements
+    if (adSenseSettings && !adSenseSettings.adsEnabled) {
+      const ads = contentRef.current.querySelectorAll('amp-ad, ins.adsbygoogle');
+      ads.forEach(ad => ad.remove());
+      return;
+    }
 
     // 1. Process legacy <amp-ad> tags by converting them to standard <ins> tags
     const ampAds = contentRef.current.querySelectorAll('amp-ad');
@@ -101,7 +110,7 @@ function RedirectContent() {
         console.error('Error pushing adsbygoogle for ins-ad:', err);
       }
     });
-  }, [pageContent]);
+  }, [pageContent, adSenseSettings]);
 
 
 
@@ -112,13 +121,28 @@ function RedirectContent() {
       // Do NOT call decodeURIComponent again — it would break Firebase Storage URLs
       // by converting %2F (path separator) into a literal slash, causing HTTP 400 errors.
 
-      // ── Instant bypass for contact links (tel: and WhatsApp) ──
+      // ── Instant bypass for contact & social media links ──
       // These don't need a countdown — redirect immediately.
       const isDirectContact =
         urlParam.startsWith('tel:') ||
-        urlParam.startsWith('wa.me') ||
-        urlParam.startsWith('https://wa.me') ||
-        urlParam.startsWith('http://wa.me');
+        urlParam.startsWith('mailto:') ||
+        urlParam.startsWith('sms:') ||
+        urlParam.includes('arb-soq.com') ||
+        urlParam.includes('arab-store.allqaqasyana.com') ||
+        urlParam.includes('allqaqasyana.com') ||
+        urlParam.includes('wa.me') ||
+        urlParam.includes('whatsapp.com') ||
+        urlParam.includes('facebook.com') ||
+        urlParam.includes('fb.com') ||
+        urlParam.includes('instagram.com') ||
+        urlParam.includes('twitter.com') ||
+        urlParam.includes('x.com') ||
+        urlParam.includes('t.me') ||
+        urlParam.includes('youtube.com') ||
+        urlParam.includes('youtu.be') ||
+        urlParam.includes('tiktok.com') ||
+        urlParam.includes('snapchat.com') ||
+        urlParam.includes('linkedin.com');
 
       if (isDirectContact) {
         window.location.href = urlParam;

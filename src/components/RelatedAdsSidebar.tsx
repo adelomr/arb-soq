@@ -66,14 +66,15 @@ export default function RelatedAdsSidebar({ category, currentAdId }: RelatedAdsS
             {t.mostViewed}
         </CardTitle>
       </CardHeader>
-      <CardContent className="space-y-4">
+      <CardContent className="space-y-3 p-4">
         {loading ? (
           [...Array(5)].map((_, i) => (
             <div key={i} className="flex items-center gap-4">
-              <Skeleton className="h-16 w-16 rounded-md" />
+              <Skeleton className="h-20 w-20 rounded-xl flex-shrink-0" />
               <div className="space-y-2 flex-1">
                 <Skeleton className="h-4 w-full" />
-                <Skeleton className="h-4 w-1/2" />
+                <Skeleton className="h-3 w-2/3" />
+                <Skeleton className="h-3 w-1/2" />
               </div>
             </div>
           ))
@@ -81,24 +82,38 @@ export default function RelatedAdsSidebar({ category, currentAdId }: RelatedAdsS
           mostViewedAds.map((ad, index) => (
             <Fragment key={ad.id}>
                 <Link href={`/ad/${ad.userId}/${ad.id}`} className="block group">
-                  <div className="flex items-start gap-4 p-2 rounded-lg hover:bg-secondary">
-                    <div className="relative w-20 h-20 shrink-0">
+                  <div className="flex flex-col sm:flex-row items-stretch sm:items-start gap-3 p-2 rounded-xl hover:bg-secondary border border-border/40 sm:border-transparent transition-all duration-200">
+                    {/* Image — full width on mobile, 112×112 on desktop */}
+                    <div className="relative w-full h-48 sm:w-28 sm:h-28 shrink-0 rounded-xl overflow-hidden bg-muted shadow-sm">
                         <Image
                             src={ad.imageUrls[0]}
                             alt={ad.title}
                             fill
-                            className="rounded-md object-contain"
+                            sizes="(max-width: 640px) 100vw, 112px"
+                            className="object-cover group-hover:scale-105 transition-transform duration-300"
                         />
+                        {/* Mobile views badge */}
+                        <div className="absolute bottom-2 right-2 sm:hidden bg-black/70 backdrop-blur-sm text-white text-[11px] px-2 py-0.5 rounded-full flex items-center gap-1 font-medium">
+                          <Eye className="h-3 w-3 text-primary" />
+                          <span>{ad.views || 0} مشاهدة</span>
+                        </div>
+                        {/* Desktop rank badge */}
+                        <div className="hidden sm:flex absolute top-1.5 left-1.5 bg-black/70 backdrop-blur-sm text-white text-[10px] w-5 h-5 rounded-full items-center justify-center font-bold">
+                          {index + 1}
+                        </div>
                     </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-semibold truncate group-hover:text-primary">{ad.title}</p>
-                      <div className="flex items-center gap-1 text-primary text-xs font-bold mt-1">
-                          <Tag className="h-3 w-3" />
-                          <span>{ad.price ? currencyFormatter.format(ad.price) : 'عند الطلب'}</span>
-                      </div>
-                       <div className="flex items-center gap-1 text-muted-foreground text-xs mt-1">
-                          <Eye className="h-3 w-3" />
-                          <span>{ad.views || 0}</span>
+                    {/* Text */}
+                    <div className="flex-1 min-w-0 flex flex-col justify-between py-0.5">
+                      <p className="text-sm font-bold line-clamp-2 leading-snug group-hover:text-primary transition-colors">{ad.title}</p>
+                      <div className="flex items-center justify-between gap-2 text-primary text-xs font-bold mt-2">
+                          <div className="flex items-center gap-1">
+                              <Tag className="h-3.5 w-3.5" />
+                              <span>{ad.price ? currencyFormatter.format(ad.price) : 'عند الطلب'}</span>
+                          </div>
+                          <div className="flex items-center gap-1 text-muted-foreground text-xs">
+                              <Eye className="h-3 w-3" />
+                              <span>{ad.views || 0}</span>
+                          </div>
                       </div>
                     </div>
                   </div>

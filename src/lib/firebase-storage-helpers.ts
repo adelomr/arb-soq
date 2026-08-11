@@ -1,17 +1,13 @@
-
 'use client';
 /**
  * firebase-storage-helpers.ts
  *
  * Single-file helpers for reliable upload/delete using Firebase Storage.
+ * - convertToWebP: تحويل الصور تلقائياً إلى صيغة WebP فائقة الضغط والسرعة
  * - uploadFileAndReturnInfo: يرفع ملف ويعيد { url, path, name, size }
  * - buildStorageRefFromEntry: يبني مرجع Storage من URL أو path أو {url,path}
  * - deleteStorageEntry: يحذف عنصر واحد بأمان
  * - deleteMultipleEntries: يحذف مصفوفة عناصر بأمان
- *
- * Usage:
- *  - عند رفع صور لإعلان: خزّن كل عنصر كـ { url, path, name, size } في Firestore (مثلاً حقل imageMeta)
- *  - عند الحذف: استدعي deleteMultipleEntries(user.imageMeta)
  */
 
 import { getStorage, ref, uploadBytes, getDownloadURL, deleteObject, ref as storageRefResolver } from 'firebase/storage';
@@ -26,15 +22,89 @@ function ensureStorage(storage?: FirebaseStorage): FirebaseStorage {
   }
 }
 
+/**
+ * تحويل الصورة المرفوعة من قِبل المستخدم تلقائياً إلى صيغة WebP
+ * مما يقلل حجم الصورة بنسبة 70% إلى 80% مع الحفاظ على الجودة الممتازة
+ */
+export async function convertToWebP(file: File, quality = 0.82, maxWidth = 1920): Promise<Blob | File> {
+  // إذا لم يكن ملف صورة أو كان بالفعل WebP أو SVG، لا نلمسه
+  if (!file.type.startsWith('image/') || file.type === 'image/svg+xml' || file.type === 'image/gif') {
+    return file;
+  }
+
+  return new Promise((resolve) => {
+    const img = new Image();
+    const url = URL.createObjectURL(file);
+
+    img.onload = () => {
+      URL.revokeObjectURL(url);
+      let { width, height } = img;
+
+      // تصغير الأبعاد النسبية إن كانت أكبر من الحد الأقصى
+      if (width > maxWidth) {
+        height = Math.round((height * maxWidth) / width);
+        width = maxWidth;
+      }
+
+      const canvas = document.createElement('canvas');
+      canvas.width = width;
+      canvas.height = height;
+
+      const ctx = canvas.getContext('2d');
+      if (!ctx) {
+        resolve(file);
+        return;
+      }
+
+      ctx.drawImage(img, 0, 0, width, height);
+      canvas.toBlob(
+        (blob) => {
+          if (blob && blob.size < file.size) {
+            resolve(blob);
+          } else {
+            resolve(file); // إذا لم يكن الحجم أصغر، نستخدم الملف الأصلي
+          }
+        },
+        'image/webp',
+        quality
+      );
+    };
+
+    img.onerror = () => {
+      URL.revokeObjectURL(url);
+      resolve(file);
+    };
+
+    img.src = url;
+  });
+}
+
 /** يرفع ملفًا ويعيد كائن يحتوي على url و path (fullPath) وغيرها */
 export async function uploadFileAndReturnInfo(file: File | Blob, basePath: string, storage?: FirebaseStorage) {
   const s = ensureStorage(storage);
-  const safeName = `${Date.now()}_${Math.random().toString(36).slice(2)}_${(file as File).name || 'file'}`.replace(/\s+/g, '_');
+  
+  // تحويل الصور تلقائياً إلى WebP قبل الرفع لتسريع الأداء وتوفير المساحة
+  let fileToUpload = file;
+  if (file instanceof File && file.type.startsWith('image/')) {
+    fileToUpload = await convertToWebP(file);
+  }
+
+  const isWebP = fileToUpload.type === 'image/webp';
+  const originalName = (file as File).name || 'file';
+  const nameWithoutExt = originalName.substring(0, originalName.lastIndexOf('.')) || originalName;
+  const extension = isWebP ? 'webp' : (originalName.split('.').pop() || 'bin');
+
+  const safeName = `${Date.now()}_${Math.random().toString(36).slice(2)}_${nameWithoutExt}.${extension}`.replace(/\s+/g, '_');
   const storageRef = storageRefResolver(s, `${basePath}/${safeName}`);
-  const snapshot = await uploadBytes(storageRef, file as any);
+  
+  const snapshot = await uploadBytes(storageRef, fileToUpload as any, {
+    contentType: fileToUpload.type || 'image/webp',
+    cacheControl: 'public, max-age=31536000, immutable',
+  });
+  
   const url = await getDownloadURL(snapshot.ref);
-  const path = snapshot.ref.fullPath; // مثال: "ads/uid/1600000_xxx.png"
-  return { url, path, name: (file as File).name || safeName, size: (file as File).size || 0 };
+  const path = snapshot.ref.fullPath;
+  return { url, path, name: `${nameWithoutExt}.${extension}`, size: fileToUpload.size || 0 };
 }
 
 /**
@@ -48,7 +118,6 @@ export function buildStorageRefFromEntry(entry: any, storage?: FirebaseStorage):
   const s = ensureStorage(storage);
   if (!entry) return null;
 
-  // إذا كان كائنًا وبه path
   if (typeof entry === 'object') {
     if (entry.path) {
       try { return storageRefResolver(s, entry.path); } catch { /* continue */ }
@@ -61,19 +130,14 @@ export function buildStorageRefFromEntry(entry: any, storage?: FirebaseStorage):
   if (typeof entry !== 'string') return null;
   const str = entry as string;
 
-  // gs://bucket/path
   if (str.startsWith('gs://')) {
     try { return storageRefResolver(s, str); } catch { /* fallthrough */ }
   }
 
-  // download URL pattern: /o/<encodedPath>?
-  // مثال: https://firebasestorage.googleapis.com/v0/b/myapp.appspot.com/o/ads%2Fuid%2Ffile.png?alt=media&token=...
   if (str.startsWith('https://firebasestorage.googleapis.com')) {
     try { return storageRefResolver(s, str); } catch { /* fallthrough */ }
   }
 
-
-  // ربما يكون المسار مباشرًا (fullPath)
   try {
     return storageRefResolver(s, str);
   } catch (e) {
@@ -92,9 +156,7 @@ export async function deleteStorageEntry(entry: any, storage?: FirebaseStorage):
     await deleteObject(storageRef);
     return { success: true, entry };
   } catch (error: any) {
-    // تجاهل خطأ عدم العثور على العنصر إن أردت (object-not-found)
     if (error?.code === 'storage/object-not-found') {
-      // اعتبرها ناجحة لأن الملف غير موجود أساساً
       return { success: true, entry };
     }
     return { success: false, error, entry };
@@ -111,9 +173,9 @@ export async function deleteMultipleEntries(entries: any[] | undefined, storage?
 
   settled.forEach((result, index) => {
     if (result.status === 'fulfilled') {
-      results.push({ entry: entries[index], success: result.value.success, error: result.value.error });
+      results.push({ entry: entries[index], success: (result as any).value.success, error: (result as any).value.error });
     } else {
-      results.push({ entry: entries[index], success: false, error: result.reason });
+      results.push({ entry: entries[index], success: false, error: (result as any).reason });
     }
   });
   

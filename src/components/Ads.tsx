@@ -2,6 +2,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { useAuth } from "@/context/AuthContext";
 
 declare global {
   interface Window {
@@ -20,11 +21,16 @@ export default function Ads({
   type = 'horizontal',
   className = ''
 }: AdsProps) {
+  const { adSenseSettings } = useAuth();
   const adRef = useRef<HTMLDivElement>(null);
   const [isAdVisible, setIsAdVisible] = useState(false);
   const adPushedRef = useRef(false);
 
+  // All hooks MUST come before any early return (Rules of Hooks)
+  const adsEnabled = !!(adSenseSettings && adSenseSettings.adsEnabled);
+
   useEffect(() => {
+    if (!adsEnabled) return;
     if (adPushedRef.current) return;
 
     try {
@@ -35,16 +41,16 @@ export default function Ads({
     } catch (err) {
       console.error(`adsbygoogle.push() error for slot ${slot}:`, err);
     }
-  }, [slot]);
+  }, [slot, adsEnabled]);
 
   useEffect(() => {
+    if (!adsEnabled) return;
     const adElement = adRef.current;
     if (!adElement) return;
 
     const observer = new MutationObserver((mutations) => {
       for (const mutation of mutations) {
         if (mutation.type === 'childList' && adElement.hasChildNodes()) {
-          // Check if what was added is an actual ad
           const iframe = adElement.querySelector('iframe');
           const ins = adElement.querySelector('ins.adsbygoogle') as HTMLElement | null;
           if (iframe || (ins && ins.dataset.adStatus === 'filled')) {
@@ -61,7 +67,6 @@ export default function Ads({
       subtree: true,
     });
     
-    // Fallback timer: if no ad is loaded after a short period, hide the container
     const fallbackTimeout = setTimeout(() => {
       if (!isAdVisible && !adElement.hasChildNodes()) {
           observer.disconnect();
@@ -72,7 +77,12 @@ export default function Ads({
       observer.disconnect();
       clearTimeout(fallbackTimeout);
     };
-  }, [isAdVisible]);
+  }, [isAdVisible, adsEnabled]);
+
+  // Early return AFTER all hooks
+  if (!adsEnabled) {
+    return null;
+  }
   
   const style: React.CSSProperties = {
       display: 'block',
@@ -97,7 +107,7 @@ export default function Ads({
         <ins
           className="adsbygoogle"
           style={style}
-          data-ad-client={process.env.NEXT_PUBLIC_ADSENSE_CLIENT_ID}
+          data-ad-client={process.env.NEXT_PUBLIC_ADSENSE_CLIENT_ID || "ca-pub-4808414573627321"}
           data-ad-slot={slot}
           data-ad-format="auto"
           data-full-width-responsive="true"
