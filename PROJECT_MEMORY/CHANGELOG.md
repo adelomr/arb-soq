@@ -2,6 +2,18 @@
 
 سجل جميع التعديلات المهمة والميزات المضافة للإبقاء على ذاكرة المشروع محدثة.
 
+## [2026-08-11] - الحل الجذرائي لمشكلة توقف ومهلة الرفع (Firebase Deploy Timeout Fix)
+
+### 1. توحيد وإصلاح حزم Genkit و Firebase Functions
+- **التعديل:** توحيد إصدارات جميع حزم Genkit (`genkit`, `@genkit-ai/firebase`, `@genkit-ai/googleai`, `@genkit-ai/next`, `@genkit-ai/google-cloud`) للإصدار `1.41.0` وترقية `firebase-functions` للإصدار `7.3.2`.
+- **السبب:** إزالة التعارض الجذري في شجرة الاعتماديات وأخطاء `ELSPROBLEMS` وتسريع التحميل الأولي للموديولات على السيرفر.
+- **الملفات المتأثرة:** `package.json`, `package-lock.json`.
+
+### 2. تحسين وتنظيف إعدادات البناء والرفع
+- **التعديل:** إزالة `output: 'standalone'` ومصفوفة `outputFileTracingExcludes` من `next.config.ts` لترك تتبع البناء لـ Firebase CLI دون تضارب. رفع الذاكرة لـ `1GiB` وتحديد `minInstances: 0` في `firebase.json`. إضافة سكريبت الرفع الآمن `npm run deploy` مع `FUNCTIONS_EMULATOR_TIMEOUT=60s` وخيار `--force`.
+- **السبب:** ضمان إنهاء فحص واستجابة الدالة السحابية بدون أي توقف نهائياً.
+- **الملفات المتأثرة:** `next.config.ts`, `firebase.json`, `package.json`, `PROJECT_MEMORY/bug-history/BUG-002-firebase-deploy-timeout.md`.
+
 ## [2026-08-11] - عزل وتصفية إعلانات الدول، الروابط الحديثة /p/slug، وتحديثات الفوتر وتفاصيل الإعلانات
 
 ### 1. عزل وتصفية إعلانات الدول عبر أيقونة علم الدولة العلوية

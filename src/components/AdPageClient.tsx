@@ -23,11 +23,16 @@ import {
   Check,
   Layers,
   Search,
-  AlertTriangle
+  AlertTriangle,
+  PlusCircle
 } from 'lucide-react';
+import { useRouter } from 'next/navigation';
+import RequireAuthModal from '@/components/RequireAuthModal';
 import type { Ad, PageData, Category, AdpageStore, AdpageBrand, AdpageConditionFilter } from '@/lib/types';
 import { DEFAULT_ORGANIZED_CATEGORIES } from '@/lib/default-categories';
 import { matchAdToCategory, matchAdToSubcategory, isAdInMarket, getParentCategoryId } from '@/lib/category-utils';
+
+const PHYSICAL_GOODS_CATEGORIES = ['vehicles', 'mobiles', 'electronics', 'furniture', 'fashion', 'baby', 'hobbies', 'trade'];
 
 const UNIVERSAL_GOVERNORATES = [
   { id: 'gov_cairo', name: 'القاهرة' },
@@ -45,8 +50,19 @@ interface AdPageClientProps {
 }
 
 export default function AdPageClient({ page }: AdPageClientProps) {
-  const { getAds, getCategories } = useAuth();
+  const { getAds, getCategories, user } = useAuth();
   const { market } = useMarket();
+  const router = useRouter();
+  const [showAuthModal, setShowAuthModal] = useState(false);
+
+  const handleAddAdClick = () => {
+    if (user) {
+      router.push('/submit');
+    } else {
+      setShowAuthModal(true);
+    }
+  };
+
   const [ads, setAds] = useState<Ad[]>([]);
   const [loading, setLoading] = useState(true);
   const [categories, setCategories] = useState<Category[]>(DEFAULT_ORGANIZED_CATEGORIES);
@@ -364,11 +380,19 @@ export default function AdPageClient({ page }: AdPageClientProps) {
               {page.title}
             </h1>
 
-            <div className="flex flex-wrap items-center justify-center gap-2 pt-1">
-              <Badge variant="outline" className="bg-card text-foreground px-3 py-1 text-xs gap-1.5 border-border">
-                <Sparkles className="h-3 w-3 text-primary" />
+            <div className="flex flex-wrap items-center justify-center gap-2.5 pt-2">
+              <Badge variant="outline" className="bg-card text-foreground px-3 py-1.5 text-xs gap-1.5 border-border">
+                <Sparkles className="h-3.5 w-3.5 text-primary" />
                 قسم {categoryName}
               </Badge>
+              <Button
+                type="button"
+                onClick={handleAddAdClick}
+                className="bg-primary hover:bg-primary/90 text-primary-foreground text-xs font-bold gap-1.5 px-4 py-1.5 h-auto rounded-full shadow-xs cursor-pointer"
+              >
+                <PlusCircle className="h-3.5 w-3.5" />
+                <span>إضافة إعلان في هذا القسم</span>
+              </Button>
             </div>
           </div>
         </section>
@@ -643,41 +667,43 @@ export default function AdPageClient({ page }: AdPageClientProps) {
                     })}
                   </div>
                 ) : (
-                  <div className="flex items-center bg-secondary/50 p-1 rounded-xl gap-1">
-                    <button
-                      type="button"
-                      onClick={() => setSelectedConditionFilter('all')}
-                      className={`px-3.5 py-1.5 text-xs font-bold rounded-lg transition-all ${
-                        selectedConditionFilter === 'all'
-                          ? 'bg-primary text-primary-foreground shadow-xs'
-                          : 'text-muted-foreground hover:text-foreground'
-                      }`}
-                    >
-                      الكل
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setSelectedConditionFilter('new')}
-                      className={`px-3.5 py-1.5 text-xs font-bold rounded-lg transition-all ${
-                        selectedConditionFilter === 'new'
-                          ? 'bg-primary text-primary-foreground shadow-xs'
-                          : 'text-muted-foreground hover:text-foreground'
-                      }`}
-                    >
-                      جديد / ممتاز
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setSelectedConditionFilter('used')}
-                      className={`px-3.5 py-1.5 text-xs font-bold rounded-lg transition-all ${
-                        selectedConditionFilter === 'used'
-                          ? 'bg-primary text-primary-foreground shadow-xs'
-                          : 'text-muted-foreground hover:text-foreground'
-                      }`}
-                    >
-                      مستعمل
-                    </button>
-                  </div>
+                  PHYSICAL_GOODS_CATEGORIES.includes(categoryId || '') ? (
+                    <div className="flex items-center bg-secondary/50 p-1 rounded-xl gap-1">
+                      <button
+                        type="button"
+                        onClick={() => setSelectedConditionFilter('all')}
+                        className={`px-3.5 py-1.5 text-xs font-bold rounded-lg transition-all ${
+                          selectedConditionFilter === 'all'
+                            ? 'bg-primary text-primary-foreground shadow-xs'
+                            : 'text-muted-foreground hover:text-foreground'
+                        }`}
+                      >
+                        الكل
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setSelectedConditionFilter('new')}
+                        className={`px-3.5 py-1.5 text-xs font-bold rounded-lg transition-all ${
+                          selectedConditionFilter === 'new'
+                            ? 'bg-primary text-primary-foreground shadow-xs'
+                            : 'text-muted-foreground hover:text-foreground'
+                        }`}
+                      >
+                        جديد / ممتاز
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setSelectedConditionFilter('used')}
+                        className={`px-3.5 py-1.5 text-xs font-bold rounded-lg transition-all ${
+                          selectedConditionFilter === 'used'
+                            ? 'bg-primary text-primary-foreground shadow-xs'
+                            : 'text-muted-foreground hover:text-foreground'
+                        }`}
+                      >
+                        مستعمل
+                      </button>
+                    </div>
+                  ) : <div />
                 )}
 
                 {/* Right Side: Direct Price & Recency Sort Buttons */}
@@ -732,8 +758,9 @@ export default function AdPageClient({ page }: AdPageClientProps) {
                     <p className="text-sm text-muted-foreground mt-1 mb-4">
                       يمكنك إضافة إعلانك الأول في هذا القسم من خلال زر إضافة إعلان.
                     </p>
-                    <Button asChild className="bg-primary text-primary-foreground">
-                      <Link href="/add-ad">إضافة إعلان جديد</Link>
+                    <Button onClick={handleAddAdClick} className="bg-primary text-primary-foreground font-bold gap-2 cursor-pointer">
+                      <PlusCircle className="h-4 w-4" />
+                      <span>إضافة إعلان جديد</span>
                     </Button>
                   </Card>
                 ) : (
@@ -750,6 +777,7 @@ export default function AdPageClient({ page }: AdPageClientProps) {
       </main>
 
       <Footer />
+      <RequireAuthModal isOpen={showAuthModal} onClose={() => setShowAuthModal(false)} />
     </div>
   );
 }

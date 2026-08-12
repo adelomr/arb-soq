@@ -176,7 +176,7 @@ export default function HomeClient() {
       <main className="flex-1">
         <CategoriesGridHero />
         
-        <div className="container mx-auto px-4 py-12 md:py-16 xl:pt-8">
+        <div className="container mx-auto px-4 py-6 md:py-8 xl:pt-4">
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12">
                 <div className={cn("transition-all duration-300", view === 'grid' ? "lg:col-span-12" : "lg:col-span-8")}>
                     

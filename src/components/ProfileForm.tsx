@@ -394,11 +394,7 @@ export default function ProfileForm() {
         setImageFile(null); 
         toast({ title: t.changesSaved });
 
-        if (data.profession && !hadProfession) {
-             router.push('/labor-market');
-        } else {
-            router.push('/');
-        }
+        router.push('/');
     } catch (error: any) {
         console.error("Profile update error:", error);
         toast({

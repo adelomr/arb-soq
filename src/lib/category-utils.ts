@@ -27,6 +27,8 @@ export const CATEGORY_SLUG_MAP: Record<string, string> = {
   services: 'professional-services',
   crafts: 'crafts-professions',
   cat_1786316040524: 'crafts-professions',
+  transport: 'transport-delivery',
+  'transport-delivery': 'transport-delivery',
 };
 
 export function getCategorySlug(catId: string): string {
@@ -76,6 +78,7 @@ export function getParentCategoryId(subOrCatId: string, categoriesList?: Categor
   if (key.includes('تجارة') || key.includes('trade') || key.includes('commercial')) return 'trade';
   if (key.includes('خدمات') || key.includes('services')) return 'services';
   if (key.includes('مهن') || key.includes('حرف') || key.includes('crafts') || key === 'cat_1786316040524') return 'crafts';
+  if (key.includes('نقل') || key.includes('توصيل') || key.includes('transport')) return 'transport';
 
   return key;
 }

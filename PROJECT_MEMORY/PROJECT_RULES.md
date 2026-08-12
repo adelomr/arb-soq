@@ -65,3 +65,12 @@
 3. لا تنشئ ملفات مكررة.
 4. تشغيل `npx tsc --noEmit` للتحقق من عدم وجود أي خطأ برمجي في TypeScript.
 5. عدم كتابة أو استخدام إعلانات وهمية (Demo Ads) في كود الإنتاج.
+
+---
+
+## 7. ضوابط الرفع والنشر المباشر (Firebase Deployment Directives)
+1. **أمر الرفع المعتمد:** استخدم حصراً `npm run deploy` عند الرفع لـ Firebase لضمان تنفيذ البناء المسبق ورفع مهلة الفحص المبدئي للدالة لـ 60 ثانية ومرور الخيار `--force`.
+2. **توافق مكتبات Genkit و Firebase:** حافظ دائماً على توحيد وتوافق إصدارات حزم `@genkit-ai` وحزمة `firebase-functions` لتفادي تعارض الاعتماديات (`ELSPROBLEMS`).
+3. **إعدادات `next.config.ts`:** لا تضف `output: 'standalone'` أو مصفوفة استبعاد ملفات يدوياً في `next.config.ts` حيث تقوم Firebase CLI المدمجة بتحديد البناء والتتبع التلقائي.
+4. **ذاكرة الدالة:** الذاكرة المعتمدة لـ `frameworksBackend` في `firebase.json` هي `1GiB` مع `minInstances: 0`.
+

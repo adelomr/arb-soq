@@ -24,6 +24,7 @@ const categoryDefaultIcons: { [key: string]: lucideIcons.LucideIcon } = {
     trade: lucideIcons.Factory,
     services: lucideIcons.Wrench,
     crafts: lucideIcons.Wrench,
+    transport: lucideIcons.Truck,
 };
 
 // Comprehensive mapping from string names to Lucide icon components.

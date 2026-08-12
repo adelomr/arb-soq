@@ -41,10 +41,10 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       priority: 0.8,
     },
     {
-      url: `${BASE_URL}/labor-market`,
+      url: `${BASE_URL}/p/crafts-professions`,
       lastModified: new Date(),
       changeFrequency: 'daily',
-      priority: 0.7,
+      priority: 0.9,
     },
   ];
 

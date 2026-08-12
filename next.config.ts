@@ -1,87 +1,11 @@
 import type { NextConfig } from 'next';
 
-// الحزم التي تعمل على المتصفح فقط ولا تحتاجها Cloud Function
-const CLIENT_ONLY_PACKAGES = [
-  // محرر النصوص TipTap - يعمل على المتصفح فقط
-  '@tiptap/react',
-  '@tiptap/starter-kit',
-  '@tiptap/extension-color',
-  '@tiptap/extension-highlight',
-  '@tiptap/extension-image',
-  '@tiptap/extension-link',
-  '@tiptap/extension-placeholder',
-  '@tiptap/extension-text-align',
-  '@tiptap/extension-text-style',
-  '@tiptap/extension-underline',
-  '@tiptap/extension-subscript',
-  '@tiptap/extension-superscript',
-  '@tiptap/extension-table',
-  '@tiptap/extension-table-cell',
-  '@tiptap/extension-table-header',
-  '@tiptap/extension-table-row',
-  '@tiptap/extension-youtube',
-  // ProseMirror (محرك TipTap) - Client only
-  'prosemirror-commands',
-  'prosemirror-dropcursor',
-  'prosemirror-gapcursor',
-  'prosemirror-history',
-  'prosemirror-inputrules',
-  'prosemirror-keymap',
-  'prosemirror-model',
-  'prosemirror-schema-list',
-  'prosemirror-state',
-  'prosemirror-tables',
-  'prosemirror-transform',
-  'prosemirror-view',
-  'prosemirror-changeset',
-  // Radix UI - مكونات واجهة المستخدم
-  '@radix-ui/react-accordion',
-  '@radix-ui/react-alert-dialog',
-  '@radix-ui/react-aspect-ratio',
-  '@radix-ui/react-avatar',
-  '@radix-ui/react-checkbox',
-  '@radix-ui/react-collapsible',
-  '@radix-ui/react-dialog',
-  '@radix-ui/react-dropdown-menu',
-  '@radix-ui/react-label',
-  '@radix-ui/react-menubar',
-  '@radix-ui/react-popover',
-  '@radix-ui/react-progress',
-  '@radix-ui/react-radio-group',
-  '@radix-ui/react-scroll-area',
-  '@radix-ui/react-select',
-  '@radix-ui/react-separator',
-  '@radix-ui/react-slider',
-  '@radix-ui/react-slot',
-  '@radix-ui/react-switch',
-  '@radix-ui/react-tabs',
-  '@radix-ui/react-toast',
-  '@radix-ui/react-tooltip',
-  // أدوات UI أخرى - Client only
-  'embla-carousel-react',
-  'html2canvas',
-  'react-quill',
-  'react-hook-form',
-  'react-day-picker',
-  'pigeon-maps',
-  '@emailjs/browser',
-  '@hookform/resolvers',
-  'lucide-react',
-  // Genkit CLI - أداة تطوير فقط
-  'genkit-cli',
-];
-
 const nextConfig: NextConfig = {
-  output: 'standalone',
   compress: true,
   poweredByHeader: false,
   allowedDevOrigins: ['192.168.1.6'],
   typescript: {
     ignoreBuildErrors: true,
-  },
-  // إقصاء حزم Client-Only من حزمة Cloud Function لتقليل الحجم
-  outputFileTracingExcludes: {
-    '*': CLIENT_ONLY_PACKAGES.map(pkg => `./node_modules/${pkg}/**`),
   },
   experimental: {
     optimizePackageImports: [

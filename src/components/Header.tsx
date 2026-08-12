@@ -17,7 +17,8 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription, SheetTr
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Menu, PlusCircle, User, LayoutDashboard, LogOut, Globe, LogIn, Sun, Moon, Minus, Plus, Undo2, Shield, Bell, Trash2, Info, Wallet, Megaphone, X, BadgeDollarSign, Store, Edit, ShoppingCart, MapPin, Tv, Grid, List, Smartphone } from 'lucide-react';
 import { useState, useEffect, useRef } from 'react';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
+import RequireAuthModal from './RequireAuthModal';
 import { cn } from '@/lib/utils';
 import { Separator } from '@/components/ui/separator';
 import { useAuth } from '@/context/AuthContext';
@@ -204,10 +205,22 @@ export default function Header() {
     prevUnreadCountRef.current = unreadCount;
   }, [unreadCount]);
 
+  const router = useRouter();
+  const [showAuthModal, setShowAuthModal] = useState(false);
+
   const isAuthenticated = !!user;
   const isAdmin = userProfile?.role === 'admin';
   const hasStore = !!userProfile?.store;
   const dateLocale = ar;
+
+  const handleAddAdClick = (e?: React.MouseEvent) => {
+    if (e) e.preventDefault();
+    if (isAuthenticated) {
+      router.push('/submit');
+    } else {
+      setShowAuthModal(true);
+    }
+  };
 
   const handleOpenNotifications = (open: boolean) => {
     if (open && user?.uid && unreadCount > 0) {
@@ -220,8 +233,6 @@ export default function Header() {
       e.preventDefault();
       deleteNotification(notificationId);
   }
-  
-  const laborMarketHref = userProfile?.profession ? `/worker/${user?.uid}` : '/labor-market';
 
   if (!isClient) {
     return (
@@ -244,14 +255,14 @@ export default function Header() {
               <span className="hidden sm:inline text-xl group-hover/logo:text-primary transition-colors">{currentLabels.appName}</span>
             </Link>
 
-            {pathname === '/' && (
-              <Button asChild className="h-9 sm:h-10 px-3 text-xs sm:text-sm font-bold bg-primary hover:bg-primary/90 text-primary-foreground shadow-sm">
-                <Link href="/submit">
-                  <PlusCircle className={direction === 'rtl' ? 'ml-1.5 h-4 w-4' : 'mr-1.5 h-4 w-4'} />
-                  {currentLabels.submitAd}
-                </Link>
-              </Button>
-            )}
+            <Button
+              type="button"
+              onClick={handleAddAdClick}
+              className="h-9 sm:h-10 px-3 text-xs sm:text-sm font-bold bg-primary hover:bg-primary/90 text-primary-foreground shadow-sm cursor-pointer"
+            >
+              <PlusCircle className={direction === 'rtl' ? 'ml-1.5 h-4 w-4' : 'mr-1.5 h-4 w-4'} />
+              {currentLabels.submitAd}
+            </Button>
           </div>
 
           <div className="flex items-center gap-1 sm:gap-2">
@@ -519,14 +530,14 @@ export default function Header() {
                   </Link>
 
                     <Link
-                      href={laborMarketHref}
+                      href="/p/crafts-professions"
                       onClick={() => setSheetOpen(false)}
                       className={cn(
                       'font-medium transition-colors hover:text-primary',
-                      pathname === '/labor-market' || pathname.startsWith('/worker/') ? 'text-primary' : 'text-muted-foreground'
+                      pathname === '/p/crafts-professions' ? 'text-primary' : 'text-muted-foreground'
                       )}
                   >
-                      {currentLabels.laborMarket}
+                      قسم المهن والحرف
                   </Link>
 
                   <Link
@@ -542,20 +553,17 @@ export default function Header() {
 
                   <Separator />
                   <AppDownloadButton variant="default" className="w-full justify-center" onClick={() => setSheetOpen(false)} />
-                  {pathname === '/' && (
-                    <Button asChild>
-                        <Link href="/submit" onClick={() => setSheetOpen(false)}>
-                            <PlusCircle className={direction === 'rtl' ? 'ml-2 h-4 w-4' : 'mr-2 h-4 w-4'} />
-                            {currentLabels.submitAd}
-                        </Link>
-                    </Button>
-                  )}
+                  <Button onClick={(e) => { setSheetOpen(false); handleAddAdClick(e); }} className="w-full justify-center font-bold">
+                    <PlusCircle className={direction === 'rtl' ? 'ml-2 h-4 w-4' : 'mr-2 h-4 w-4'} />
+                    {currentLabels.submitAd}
+                  </Button>
                 </div>
               </SheetContent>
             </Sheet>
           </div>
         </div>
       </header>
+      <RequireAuthModal isOpen={showAuthModal} onClose={() => setShowAuthModal(false)} />
     </>
   );
 }

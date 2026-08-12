@@ -146,4 +146,15 @@ export const DEFAULT_ORGANIZED_CATEGORIES: Category[] = [
       { id: 'sub_c5', name: { ar: 'تكييف وتبريد' }, icon: 'Wrench', parentId: 'crafts' },
     ],
   },
+  {
+    id: 'transport',
+    name: { ar: 'نقل وتوصيل' },
+    icon: 'Truck',
+    subcategories: [
+      { id: 'sub_tr1', name: { ar: 'نقل عفش وأثاث' }, icon: 'Truck', parentId: 'transport' },
+      { id: 'sub_tr2', name: { ar: 'توصيل طلبات وبضائع' }, icon: 'PackageSearch', parentId: 'transport' },
+      { id: 'sub_tr3', name: { ar: 'نقل بضائع وشحن' }, icon: 'Truck', parentId: 'transport' },
+      { id: 'sub_tr4', name: { ar: 'تأجير سيارات نقل وسائقين' }, icon: 'Car', parentId: 'transport' },
+    ],
+  },
 ];

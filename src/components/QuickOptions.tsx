@@ -122,19 +122,7 @@ export default function QuickOptions() {
               <ChevronDown className={cn("h-4 w-4 transition-transform duration-200", activeMenuId === 'stores' && "rotate-180")} />
             </Button>
 
-            {/* 3. "سوق العمال" (Labor Market) */}
-            <Button 
-              variant="ghost" 
-              className={cn(
-                "flex-shrink-0 flex items-center gap-2 font-bold",
-                activeMenuId === 'laborMarket' && "bg-primary text-primary-foreground hover:bg-primary/90 hover:text-primary-foreground"
-              )}
-              onClick={() => toggleMenu('laborMarket')}
-            >
-              <HardHat className="h-4 w-4" />
-              <span>{t.laborMarket}</span>
-              <ChevronDown className={cn("h-4 w-4 transition-transform duration-200", activeMenuId === 'laborMarket' && "rotate-180")} />
-            </Button>
+
 
             {/* 4. Actual Dynamic Categories */}
             {activeCategories.map((cat) => {
@@ -216,17 +204,7 @@ export default function QuickOptions() {
                 </>
               )}
 
-              {/* Labor Market Submenu */}
-              {activeMenuId === 'laborMarket' && (
-                markets.map((m, index) => (
-                  <Link key={index} href={`/labor-market?market=${m.id}`} className="flex-shrink-0" onClick={closeAllMenus}>
-                    <Card className="flex flex-col items-center justify-center p-2 h-24 w-24 text-center transition-all hover:bg-primary/5 hover:shadow-md hover:-translate-y-1">
-                      <FlagIcon code={m.flagCode} />
-                      <p className="text-sm font-semibold text-center w-full truncate mt-2">{m.name[language]}</p>
-                    </Card>
-                  </Link>
-                ))
-              )}
+
 
               {/* Category Submenu */}
               {activeCategoryForMenu && activeCategoryForMenu.subcategories && (

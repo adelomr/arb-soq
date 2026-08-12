@@ -31,9 +31,9 @@
     "frameworksBackend": {
       "region": "us-central1",
       "concurrency": 500,
-      "minInstances": 1,
+      "minInstances": 0,
       "maxInstances": 10,
-      "memory": "512MiB",
+      "memory": "1GiB",
       "timeoutSeconds": 60
     },
     "headers": [

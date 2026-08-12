@@ -6,6 +6,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm, useFieldArray } from 'react-hook-form';
 import { z } from 'zod';
 import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
 import {
   Form,
   FormControl,
@@ -21,7 +22,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 import { useToast } from '@/hooks/use-toast';
-import { DollarSign, FileUp, Sparkles, Send, MapPin, ShoppingBag, Wrench, Handshake, Loader2, CreditCard, Map, Store, PlusCircle, Trash2, X, Globe, Info, Hash, Package, Tv, ImageIcon, Phone } from 'lucide-react';
+import { DollarSign, FileUp, Sparkles, Send, MapPin, ShoppingBag, Wrench, Handshake, Loader2, CreditCard, Map, Store, PlusCircle, Trash2, X, Globe, Info, Hash, Package, Tv, ImageIcon, Phone, Tag } from 'lucide-react';
 import { useState, useMemo, useEffect, Suspense } from 'react';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import type { AdType, AdCondition, Category } from '@/lib/types';
@@ -139,9 +140,8 @@ const translations = {
         singleVideo: "فيديو واحد",
         playlistSource: "قائمة تشغيل (إضافة جماعية)",
         playlistUrlRequired: "يرجى إضافة رابط قائمة التشغيل",
-        phoneNumber: "رقم الهاتف (اختياري)",
+        phoneNumber: "رقم الهاتف",
         phoneNumberPlaceholder: "مثال: 00201234567890",
-        phoneNumberDesc: "سيظهر رقم الهاتف في الإعلان ليتمكن المشترون من التواصل معك مباشرة.",
         mapLocation: "موقعي على الخريطة",
         mapLocationDesc: "حدد موقعك على الخريطة لتسهيل وصول المشترين إليك.",
         openMapPicker: "تحديد على الخريطة",
@@ -178,6 +178,8 @@ const CURRENCIES = [
   { code: 'USD', symbol: '$', name: 'دولار أمريكي' },
 ];
 
+const PHYSICAL_GOODS_CATEGORIES = ['vehicles', 'mobiles', 'electronics', 'furniture', 'fashion', 'baby', 'hobbies', 'trade'];
+
 const getAdFormSchema = (t: typeof translations.ar, isStoreProduct: boolean) => z.object({
   adType: z.enum(['sell-item', 'sell-service', 'request-service', 'video', 'image'], {
     required_error: t.adTypeRequired
@@ -208,6 +210,16 @@ const getAdFormSchema = (t: typeof translations.ar, isStoreProduct: boolean) => 
   locationScope: z.string().optional(),
   phoneNumber: z.string().optional(),
 }).superRefine((data, ctx) => {
+    const phone = (data.phoneNumber || '').trim();
+
+    if (!phone) {
+        ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            message: 'رقم الهاتف أساسي ولا يمكن حفظ الإعلان بدونه.',
+            path: ['phoneNumber'],
+        });
+    }
+
     if (data.adType === 'sell-item' && data.category !== 'store-product') {
         if (!data.category) {
             ctx.addIssue({
@@ -610,10 +622,12 @@ function AdFormContent({ adId, userId, isEditMode, onSuccess }: { adId?: string 
         } else {
             if (data.governorate && data.governorate !== 'country') {
                 calculatedGov = data.governorate;
-                calculatedCity = '';
+                calculatedCity = data.city || '';
                 calculatedVillage = '';
             } else {
-                calculatedGov = ''; calculatedCity = ''; calculatedVillage = '';
+                calculatedGov = ''; 
+                calculatedCity = data.city || ''; 
+                calculatedVillage = '';
             }
         }
 
@@ -625,7 +639,7 @@ function AdFormContent({ adId, userId, isEditMode, onSuccess }: { adId?: string 
             data.locationScope === 'governorate' ? (calculatedGov || marketArabicName) : 
             marketArabicName
         ) : (
-            calculatedGov || marketArabicName
+            calculatedCity ? (calculatedGov && calculatedGov !== 'country' ? `${calculatedGov} - ${calculatedCity}` : calculatedCity) : (calculatedGov || marketArabicName)
         );
 
         // تحويل نوع الإعلان إلى العربي للتوافق مع التطبيق
@@ -780,6 +794,83 @@ function AdFormContent({ adId, userId, isEditMode, onSuccess }: { adId?: string 
                     />
                 )}
             </div>
+
+            {/* حقل حالة المنتج (جديد أو مستعمل) - يظهر فقط وحصراً لفئات السلع المادية (عربيات، أجهزة إلكترونية، موبايلات، أثاث...) ولا يظهر نهائياً في فئة النقل والتوصيل أو الخدمات */}
+            {(() => {
+              const currentCatId = form.watch('category') || selectedCategory?.id || '';
+              const categoryName = selectedCategory?.name?.ar || '';
+              
+              // حظر قاطع لفئة نقل وتوصيل والخدمات والوظائف والحرف والعقارات والزراعة
+              if (
+                currentCatId === 'transport' ||
+                currentCatId === 'transport-delivery' ||
+                currentCatId === 'services' ||
+                currentCatId === 'crafts' ||
+                currentCatId === 'jobs' ||
+                currentCatId === 'realestate' ||
+                currentCatId === 'pets' ||
+                currentCatId === 'ziraa' ||
+                currentCatId === 'agriculture' ||
+                categoryName.includes('نقل') ||
+                categoryName.includes('توصيل') ||
+                categoryName.includes('خدمات') ||
+                categoryName.includes('حرف') ||
+                categoryName.includes('وظائف') ||
+                categoryName.includes('عقارات') ||
+                categoryName.includes('زراعة') ||
+                categoryName.includes('زراعية')
+              ) {
+                return false;
+              }
+
+              // السماح فقط وحصراً لفئات السلع المادية المحتملة
+              return (
+                PHYSICAL_GOODS_CATEGORIES.includes(currentCatId) ||
+                categoryName.includes('عربيات') ||
+                categoryName.includes('سيارات') ||
+                categoryName.includes('موبايل') ||
+                categoryName.includes('إلكترون') ||
+                categoryName.includes('أثاث') ||
+                categoryName.includes('موضة') ||
+                categoryName.includes('أطفال') ||
+                categoryName.includes('تجارة')
+              );
+            })() && (
+              <FormField
+                control={form.control}
+                name="condition"
+                render={({ field }) => (
+                  <FormItem className="flex items-center gap-4 space-y-0 animate-in fade-in py-1">
+                    <FormLabel className="text-base font-semibold shrink-0">{t.condition}:</FormLabel>
+                    <FormControl>
+                      <RadioGroup
+                        onValueChange={field.onChange}
+                        value={field.value || 'used'}
+                        className="flex items-center gap-6"
+                      >
+                        <FormItem className="flex items-center gap-2.5 cursor-pointer space-y-0">
+                          <FormControl>
+                            <RadioGroupItem value="new" id="new" />
+                          </FormControl>
+                          <FormLabel htmlFor="new" className="font-medium cursor-pointer text-sm mr-1.5">
+                            {t.conditionNew}
+                          </FormLabel>
+                        </FormItem>
+                        <FormItem className="flex items-center gap-2.5 cursor-pointer space-y-0">
+                          <FormControl>
+                            <RadioGroupItem value="used" id="used" />
+                          </FormControl>
+                          <FormLabel htmlFor="used" className="font-medium cursor-pointer text-sm mr-1.5">
+                            {t.conditionUsed}
+                          </FormLabel>
+                        </FormItem>
+                      </RadioGroup>
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            )}
             
             <FormField
               control={form.control}
@@ -829,60 +920,60 @@ function AdFormContent({ adId, userId, isEditMode, onSuccess }: { adId?: string 
               )}
             />
 
-            {/* Optional Video Link Field */}
+            {/* حقل صور الإعلان - مباشرة بعد الوصف */}
             <FormField
-              control={form.control}
-              name="videoUrl"
-              render={({ field }) => (
-                <FormItem className="space-y-2 p-4 rounded-xl border border-border/80 bg-secondary/20">
-                  <FormLabel className="text-sm font-bold flex items-center gap-2 text-foreground">
-                    <Tv className="h-4 w-4 text-primary" />
-                    <span>رابط فيديو توضيحي للإعلان (اختياري - يوتيوب / Shorts)</span>
-                  </FormLabel>
-                  <FormControl>
-                    <div className="relative">
-                      <Input placeholder="https://youtube.com/watch?v=... أو Shorts" {...field} className="h-10 text-xs bg-background" />
-                    </div>
-                  </FormControl>
-                  <FormDescription className="text-2xs text-muted-foreground">
-                    يمكنك إرفاق رابط فيديو يوتيوب لعرض شرح توضيحي للمنتج أو الخدمة داخل صفحة تفاصيل الإعلان.
-                  </FormDescription>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            {adType === 'sell-item' && (
-              <FormField
                 control={form.control}
-                name="condition"
+                name="images"
                 render={({ field }) => (
-                  <FormItem className="space-y-3">
-                    <FormLabel className="text-lg">{t.condition}</FormLabel>
-                    <FormControl>
-                      <RadioGroup
-                        onValueChange={field.onChange}
-                        defaultValue={field.value}
-                        className="flex gap-4"
-                      >
-                        <FormItem className="flex items-center space-x-2 rtl:space-x-reverse">
-                          <FormControl>
-                            <RadioGroupItem value="new" id="new" />
-                          </FormControl>
-                          <FormLabel htmlFor="new" className="font-normal cursor-pointer">{t.conditionNew}</FormLabel>
-                        </FormItem>
-                        <FormItem className="flex items-center space-x-2 rtl:space-x-reverse">
-                          <FormControl>
-                            <RadioGroupItem value="used" id="used" />
-                          </FormControl>
-                          <FormLabel htmlFor="used" className="font-normal cursor-pointer">{t.conditionUsed}</FormLabel>
-                        </FormItem>
-                      </RadioGroup>
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
+                    <FormItem>
+                        <FormLabel className="text-lg">{t.uploadImages}</FormLabel>
+                        <FormDescription>{getImageDescription()}</FormDescription>
+                        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
+                            {imageFields.map((image, index) => (
+                                <div key={image.id} className="relative group aspect-square">
+                                    <Image src={image.url} alt={`Preview ${index + 1}`} layout="fill" className={`object-cover rounded-lg border-2 ${index === 0 ? 'border-primary' : 'border-transparent'}`} />
+                                    {/* شارة صورة الغلاف للصورة الأولى */}
+                                    {index === 0 && (
+                                        <div className="absolute bottom-0 left-0 right-0 bg-primary/85 text-primary-foreground text-xs font-bold text-center py-1 rounded-b-lg backdrop-blur-sm pointer-events-none">
+                                            صورة الغلاف
+                                        </div>
+                                    )}
+                                    {/* زر "جعلها صورة الغلاف" للصور الأخرى */}
+                                    {index !== 0 && (
+                                        <button
+                                            type="button"
+                                            onClick={() => {
+                                                const current = form.getValues('images');
+                                                const newOrder = [...current];
+                                                const [moved] = newOrder.splice(index, 1);
+                                                newOrder.unshift(moved);
+                                                form.setValue('images', newOrder);
+                                            }}
+                                            className="absolute bottom-0 left-0 right-0 bg-black/60 text-white text-xs font-bold text-center py-1 rounded-b-lg opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer backdrop-blur-sm"
+                                        >
+                                            اجعلها صورة الغلاف
+                                        </button>
+                                    )}
+                                    <Button type="button" variant="destructive" size="icon" className="absolute top-1 left-1 h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity" onClick={() => removeImage(index)}>
+                                        <X className="h-4 w-4" />
+                                    </Button>
+                                </div>
+                            ))}
+                             {(!isStoreProduct || imageFields.length < 1) && (
+                                <label htmlFor="image-upload" className="flex flex-col items-center justify-center aspect-square border-2 border-dashed rounded-lg cursor-pointer bg-secondary/50 hover:bg-secondary/80 text-muted-foreground">
+                                    <PlusCircle className="w-8 h-8 mb-1" />
+                                    <span className="text-sm">{t.clickToUpload}</span>
+                                </label>
+                             )}
+                            <FormControl>
+                                <Input id="image-upload" type="file" className="hidden" onChange={handleFileChange} accept="image/*" multiple={!isStoreProduct} />
+                            </FormControl>
+                        </div>
+                        <FormMessage />
+                    </FormItem>
                 )}
-              />
-            )}
+            />
+
             
             <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
               {(adType !== 'request-service' && adType !== 'video') && (
@@ -922,10 +1013,12 @@ function AdFormContent({ adId, userId, isEditMode, onSuccess }: { adId?: string 
                           <div className="flex flex-col gap-1.5 flex-1">
                               <label className="text-sm font-medium text-foreground">السعر</label>
                               <FormControl>
-                                  <Input type="number" placeholder="0" className="h-10" {...field}
+                                  <Input type="number" placeholder="أدخل السعر..." className="h-10"
+                                      {...field}
+                                      value={field.value === 0 ? '' : (field.value ?? '')}
                                       step="1"
                                       onKeyDown={(e) => {
-                                          if (e.key === '.') e.preventDefault();
+                                          if (e.key === '.' || e.key === 'e' || e.key === 'E' || e.key === '+' || e.key === '-') e.preventDefault();
                                       }}
                                   />
                               </FormControl>
@@ -958,156 +1051,90 @@ function AdFormContent({ adId, userId, isEditMode, onSuccess }: { adId?: string 
         </>
         
         <div className="space-y-6 pt-6 border-t">
-            <h3 className="text-lg font-bold flex items-center gap-2">
-                <Globe className="h-5 w-5 text-primary" />
-                {t.communicationMode || "وسيلة التواصل"}
-            </h3>
-            <FormField
-                control={form.control}
-                name="showCommIcon"
-                render={({ field }) => (
-                    <FormItem className="space-y-3">
-                        <FormControl>
-                            <RadioGroup
-                                onValueChange={(val) => field.onChange(val === 'true')}
-                                defaultValue={field.value ? 'true' : 'false'}
-                                className="flex flex-col gap-4"
-                            >
-                                <FormItem className="flex items-center gap-2 space-y-0">
-                                    <FormControl>
-                                        <RadioGroupItem value="true" id="comm-app" />
-                                    </FormControl>
-                                    <FormLabel htmlFor="comm-app" className="font-normal text-md cursor-pointer">
-                                        {t.commApp || "تواصل عبر التطبيق (رسائل/اتصال)"}
-                                    </FormLabel>
-                                </FormItem>
-                                <FormItem className="flex items-center gap-2 space-y-0">
-                                    <FormControl>
-                                        <RadioGroupItem value="false" id="comm-web" />
-                                    </FormControl>
-                                    <FormLabel htmlFor="comm-web" className="font-normal text-md cursor-pointer">
-                                        {t.commWebsite || "رابط موقع إلكتروني خارجي"}
-                                    </FormLabel>
-                                </FormItem>
-                            </RadioGroup>
-                        </FormControl>
-                        <FormMessage />
-                    </FormItem>
-                )}
-            />
-            
-            {/* مربع أرقام التواصل — يظهر عند اختيار "تواصل عبر التطبيق" */}
-            {form.watch('showCommIcon') === true && (
-                <div className="space-y-4 animate-in fade-in slide-in-from-top-2 duration-300 p-4 rounded-xl border border-primary/20 bg-primary/5">
-                    <p className="text-sm text-muted-foreground flex items-center gap-2">
-                        <Phone className="h-4 w-4 text-primary flex-shrink-0" />
-                        أضف أرقام التواصل التي ستظهر في إعلانك (واتساب، هاتف، أو كليهما).
-                    </p>
-                    <FormField
-                        control={form.control}
-                        name="phoneNumber"
-                        render={({ field }) => (
-                            <FormItem>
-                                <FormLabel className="flex items-center gap-2">
-                                    <Phone className="h-4 w-4 text-primary" />
-                                    {t.phoneNumber || "رقم الهاتف / واتساب (اختياري)"}
-                                </FormLabel>
-                                <FormControl>
-                                    <div className="relative">
-                                        <Input
-                                            placeholder={t.phoneNumberPlaceholder || "مثال: 00201234567890"}
-                                            {...field}
-                                            dir="ltr"
-                                            className="pl-10"
-                                        />
-                                        <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                                    </div>
-                                </FormControl>
-                                <FormDescription>
-                                    {t.phoneNumberDesc || "سيظهر رقم الهاتف في الإعلان ليتمكن المشترون من التواصل معك مباشرة."}
-                                </FormDescription>
-                                <FormMessage />
-                            </FormItem>
-                        )}
-                    />
-                </div>
-            )}
+            {/* Phone Number Field - Mandatory/Essential */}
+            <div className="space-y-4 p-4 rounded-xl border border-primary/30 bg-primary/5">
+                <FormField
+                    control={form.control}
+                    name="phoneNumber"
+                    render={({ field }) => (
+                        <FormItem>
+                            <FormLabel className="flex items-center gap-2 text-base font-bold text-foreground">
+                                <Phone className="h-4 w-4 text-primary" />
+                                <span>رقم الهاتف / واتساب</span>
+                            </FormLabel>
+                            <FormControl>
+                                <div className="relative">
+                                    <Input
+                                        placeholder={t.phoneNumberPlaceholder || "مثال: 00201234567890"}
+                                        {...field}
+                                        dir="ltr"
+                                        className="pl-10 font-mono"
+                                    />
+                                    <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                                </div>
+                            </FormControl>
+                            <FormMessage />
+                        </FormItem>
+                    )}
+                />
+            </div>
 
-            {/* مربع رابط الموقع الخارجي — يظهر عند اختيار "رابط موقع إلكتروني خارجي" */}
-            {form.watch('showCommIcon') === false && (
-                <div className="animate-in fade-in slide-in-from-top-2 duration-300">
-                    <FormField
-                        control={form.control}
-                        name="websiteUrl"
-                        render={({ field }) => (
-                            <FormItem>
-                                <FormLabel>{t.websiteUrl || "رابط الموقع الإلكتروني الخاص بمشروعك"}</FormLabel>
-                                <FormControl>
-                                    <div className="relative">
-                                        <Input placeholder={t.websitePlaceholder || "https://your-site.com"} {...field} dir="ltr" className="pl-10" />
-                                        <Globe className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                                    </div>
-                                </FormControl>
-                                <FormMessage />
-                            </FormItem>
-                        )}
-                    />
+            {/* Box: Optional Features (ميزات اختيارية) */}
+            <div className="p-5 rounded-2xl border border-border bg-secondary/20 space-y-4">
+                <div className="flex items-center gap-2 pb-3 border-b border-border/60">
+                    <Sparkles className="h-5 w-5 text-amber-500" />
+                    <h3 className="text-base font-bold text-foreground font-headline">ميزات اختيارية</h3>
                 </div>
-            )}
+
+                {/* 1. Website URL Field */}
+                <FormField
+                    control={form.control}
+                    name="websiteUrl"
+                    render={({ field }) => (
+                        <FormItem className="space-y-1.5">
+                            <FormLabel className="text-sm font-bold flex items-center gap-2 text-foreground">
+                                <Globe className="h-4 w-4 text-primary" />
+                                <span>رابط موقع إلكتروني (اختياري)</span>
+                            </FormLabel>
+                            <FormControl>
+                                <div className="relative">
+                                    <Input placeholder={t.websitePlaceholder || "https://your-site.com"} {...field} dir="ltr" className="pl-10 h-10 text-xs bg-background" />
+                                    <Globe className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                                </div>
+                            </FormControl>
+                            <FormDescription className="text-2xs text-muted-foreground">
+                                يمكنك إضافة رابط موقعك الإلكتروني الخارجي لتوجيه الزوار إليه مباشرة.
+                            </FormDescription>
+                            <FormMessage />
+                        </FormItem>
+                    )}
+                />
+
+                {/* 2. Video Link Field */}
+                <FormField
+                    control={form.control}
+                    name="videoUrl"
+                    render={({ field }) => (
+                        <FormItem className="space-y-1.5 pt-3 border-t border-border/40">
+                            <FormLabel className="text-sm font-bold flex items-center gap-2 text-foreground">
+                                <Tv className="h-4 w-4 text-primary" />
+                                <span>رابط فيديو توضيحي (اختياري - يوتيوب / Shorts)</span>
+                            </FormLabel>
+                            <FormControl>
+                                <div className="relative">
+                                    <Input placeholder="https://youtube.com/watch?v=... أو Shorts" {...field} dir="ltr" className="pl-10 h-10 text-xs bg-background" />
+                                    <Tv className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                                </div>
+                            </FormControl>
+                            <FormDescription className="text-2xs text-muted-foreground">
+                                يمكنك إرفاق رابط فيديو يوتيوب لعرض شرح توضيحي للمنتج أو الخدمة داخل صفحة الإعلان.
+                            </FormDescription>
+                            <FormMessage />
+                        </FormItem>
+                    )}
+                />
+            </div>
         </div>
-        
-        <FormField
-            control={form.control}
-            name="images"
-            render={({ field }) => (
-                <FormItem>
-                    <FormLabel className="text-lg">{t.uploadImages}</FormLabel>
-                    <FormDescription>{getImageDescription()}</FormDescription>
-                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
-                        {imageFields.map((image, index) => (
-                            <div key={image.id} className="relative group aspect-square">
-                                <Image src={image.url} alt={`Preview ${index + 1}`} layout="fill" className={`object-cover rounded-lg border-2 ${index === 0 ? 'border-primary' : 'border-transparent'}`} />
-                                {/* شارة صورة الغلاف للصورة الأولى */}
-                                {index === 0 && (
-                                    <div className="absolute bottom-0 left-0 right-0 bg-primary/85 text-primary-foreground text-xs font-bold text-center py-1 rounded-b-lg backdrop-blur-sm pointer-events-none">
-                                        صورة الغلاف
-                                    </div>
-                                )}
-                                {/* زر "جعلها صورة الغلاف" للصور الأخرى */}
-                                {index !== 0 && (
-                                    <button
-                                        type="button"
-                                        onClick={() => {
-                                            const current = form.getValues('images');
-                                            const newOrder = [...current];
-                                            const [moved] = newOrder.splice(index, 1);
-                                            newOrder.unshift(moved);
-                                            form.setValue('images', newOrder);
-                                        }}
-                                        className="absolute bottom-0 left-0 right-0 bg-black/60 text-white text-xs font-bold text-center py-1 rounded-b-lg opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer backdrop-blur-sm"
-                                    >
-                                        اجعلها صورة الغلاف
-                                    </button>
-                                )}
-                                <Button type="button" variant="destructive" size="icon" className="absolute top-1 left-1 h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity" onClick={() => removeImage(index)}>
-                                    <X className="h-4 w-4" />
-                                </Button>
-                            </div>
-                        ))}
-                         {(!isStoreProduct || imageFields.length < 1) && (
-                            <label htmlFor="image-upload" className="flex flex-col items-center justify-center aspect-square border-2 border-dashed rounded-lg cursor-pointer bg-secondary/50 hover:bg-secondary/80 text-muted-foreground">
-                                <PlusCircle className="w-8 h-8 mb-1" />
-                                <span className="text-sm">{t.clickToUpload}</span>
-                            </label>
-                         )}
-                        <FormControl>
-                            <Input id="image-upload" type="file" className="hidden" onChange={handleFileChange} accept="image/*" multiple={!isStoreProduct} />
-                        </FormControl>
-                    </div>
-                    <FormMessage />
-                </FormItem>
-            )}
-        />
         
         {!isEditMode && watchedImages && watchedImages.length > 0 && categoryValue && adType !== 'request-service' && adType !== 'image' && adType !== 'video' && !isStoreProduct && (
             <div className="flex justify-center">
@@ -1169,10 +1196,6 @@ function AdFormContent({ adId, userId, isEditMode, onSuccess }: { adId?: string 
                             </SelectContent>
                         </Select>
                         <FormMessage />
-                        <FormDescription className="text-2xs text-muted-foreground flex items-center gap-1.5 mt-1.5">
-                            <Info className="h-3.5 w-3.5 text-primary flex-shrink-0" />
-                            <span>ملاحظة: سيظهر إعلانك فوراً للمستخدمين عند تصفح سوق هذه الدولة، أو عند اختيار (جميع الدول العربية) من أعلى الموقع.</span>
-                        </FormDescription>
                     </FormItem>
                 )}
             />
@@ -1336,7 +1359,7 @@ function AdFormContent({ adId, userId, isEditMode, onSuccess }: { adId?: string 
                     )}
                 </div>
             ) : (
-                /* 3. إذا اختار بلد آخر غير بلده الأصلي -> يظهر له مربع اختيار المحافظة فقط */
+                /* 3. إذا اختار بلد آخر غير بلده الأصلي -> يظهر له مربع اختيار المحافظة ومربع كتابة الحي/الشارع التفصيلي */
                 <div className="space-y-4 pt-2 animate-in fade-in">
                     <FormField
                         control={form.control}
@@ -1345,12 +1368,12 @@ function AdFormContent({ adId, userId, isEditMode, onSuccess }: { adId?: string 
                             <FormItem>
                                 <FormLabel className="text-md font-semibold flex items-center gap-2">
                                     <MapPin className="h-4 w-4 text-primary" />
-                                    اختر المحافظة المستهدفة في {selectedMarket?.name.ar}
+                                    اختر المدينة / المحافظة المستهدفة في {selectedMarket?.name.ar}
                                 </FormLabel>
                                 <Select onValueChange={field.onChange} value={field.value || 'country'} dir={direction}>
                                     <FormControl>
                                         <SelectTrigger className="h-12 text-base">
-                                            <SelectValue placeholder="اختر المحافظة" />
+                                            <SelectValue placeholder="اختر المدينة / المحافظة" />
                                         </SelectTrigger>
                                     </FormControl>
                                     <SelectContent>
@@ -1364,9 +1387,31 @@ function AdFormContent({ adId, userId, isEditMode, onSuccess }: { adId?: string 
                                         ))}
                                     </SelectContent>
                                 </Select>
-                                <FormDescription>
-                                    اختر المحافظة المستهدفة في {selectedMarket?.name.ar} أو اختر الدولة بالكامل.
-                                </FormDescription>
+                                <FormMessage />
+                            </FormItem>
+                        )}
+                    />
+
+                    {/* حقل تفاصيل الحي أو الشارع للمستهدفين في دول أخرى */}
+                    <FormField
+                        control={form.control}
+                        name="city"
+                        render={({ field }) => (
+                            <FormItem className="pt-1">
+                                <FormLabel className="text-sm font-semibold flex items-center gap-2 text-foreground">
+                                    <MapPin className="h-3.5 w-3.5 text-primary" />
+                                    <span>إضافة حي أو شارع أو منطقة تفصيلية (اختياري)</span>
+                                </FormLabel>
+                                <FormControl>
+                                    <div className="relative">
+                                        <Input
+                                            placeholder="شمال الرياض حي العارض"
+                                            {...field}
+                                            className="h-11 text-sm bg-background pl-10 placeholder:text-muted-foreground/60"
+                                        />
+                                        <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                                    </div>
+                                </FormControl>
                                 <FormMessage />
                             </FormItem>
                         )}

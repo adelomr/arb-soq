@@ -24,9 +24,10 @@ function ensureStorage(storage?: FirebaseStorage): FirebaseStorage {
 
 /**
  * تحويل الصورة المرفوعة من قِبل المستخدم تلقائياً إلى صيغة WebP
- * مما يقلل حجم الصورة بنسبة 70% إلى 80% مع الحفاظ على الجودة الممتازة
+ * مما يقلل حجم الصورة بنسبة 70% إلى 85% مع الحفاظ على الجودة الجيدة
+ * maxWidth=1280 يكفي تماماً لبطاقات الإعلانات وصفحات العرض
  */
-export async function convertToWebP(file: File, quality = 0.82, maxWidth = 1920): Promise<Blob | File> {
+export async function convertToWebP(file: File, quality = 0.72, maxWidth = 1280): Promise<Blob | File> {
   // إذا لم يكن ملف صورة أو كان بالفعل WebP أو SVG، لا نلمسه
   if (!file.type.startsWith('image/') || file.type === 'image/svg+xml' || file.type === 'image/gif') {
     return file;

@@ -106,6 +106,7 @@ export default async function CustomPageDetail({ params }: Props) {
       'commercial-industrial':{ title: 'تجارة وصناعة',    categoryId: 'trade',       shortCode: 'trade',       description: 'سوق المعدات الصناعية والتجارية وأعمال البناء.' },
       'professional-services':{ title: 'خدمات',            categoryId: 'services',    shortCode: 'services',    description: 'دليل الخدمات والشركات والصيانة والحفلات.' },
       'crafts-professions':   { title: 'المهن والحرف',     categoryId: 'crafts',      shortCode: 'crafts',      description: 'سوق المهن والحرف - سباكة، كهرباء، نجارة، دهانات.' },
+      'transport-delivery':   { title: 'نقل وتوصيل',       categoryId: 'transport',   shortCode: 'transport',   description: 'سوق الخدمات النقل والشحن والتوصيل وتأجير سيارات النقل.' },
     };
 
     const spec = knownCategoryPages[slug];

@@ -2,6 +2,29 @@
 
 هذا السجل يوثق التعديلات والتحسينات المعمارية والبرمجية المنجزة لتكون مرجعاً دائمًا لفريق التطوير.
 
+## [تحديث سجل المشروع وتوحيد قاعدة بيانات الأندرويد والويب] - 2026-08-11
+
+### 1. توثيق وتفصيل قاعدة بيانات Firebase Firestore والمزامنة الفورية
+- **المهمة المنجزة:** إنشاء الدليل الشامل والمرجع الموحد لقاعدة البيانات [DATABASE_SCHEMA.md](file:///d:/mashro3/mashroh/arb_soq.wap/arb_soq.wap/PROJECT_MEMORY/DATABASE_SCHEMA.md) لربط وتوحيد هيكلية البيانات بين موقع الويب وتطبيق الأندرويد (Kotlin/Java).
+- **التفاصيل المعمارية المحققة:**
+  - توثيق 10 مجموعات رئيسية وفرعية في Firestore (`/ads`, `/users`, `/categories`, `/notifications`, `/pages`, `/blogs`, `/contact_messages`, `/announcements`, إلخ).
+  - تحديد مواصفة حقول المزامنة المزدوجة وضمان ظهور الإعلانات المضافة عبر التطبيق مباشرة في الموقع والعكس (`imageUrl`, `timestamp`, `isActive`, `country`, `adTypeAr`).
+  - إدراج نماذج الأكواد الكائنية لـ **Kotlin Data Classes** (`AdData`, `UserData`) الجاهزة للنسخ المباشر إلى مشروع تطبيق الأندرويد بـ Android Studio لتوحيد البيانات 100%.
+  - تحديث [ARCHITECTURE.md](file:///d:/mashro3/mashroh/arb_soq.wap/arb_soq.wap/PROJECT_MEMORY/ARCHITECTURE.md) و [PROJECT_MEMORY.md](file:///d:/mashro3/mashroh/arb_soq.wap/arb_soq.wap/PROJECT_MEMORY/PROJECT_MEMORY.md) لإدراج مواصفة قاعدة البيانات كشرط إجباري للتطوير المستقبلي.
+
+---
+
+## [حل مشكلة مهلة الرفع وتحديثات Firebase Deploy] - 2026-08-11
+
+### 1. الحل الجذرائي لمشكلة التوقف (Timeout after 10000)
+- **المشكلة السابقة:** توقف الرفع بالخطأ `Error: User code failed to load. Timeout after 10000` أثناء فحص الدالة محلياً.
+- **الحل المنجز:**
+  - توحيد جميع حزم `@genkit-ai` للإصدار `1.41.0` وحزمة `firebase-functions` للإصدار `7.3.2` وإزالة التعارض في الاعتماديات (`ELSPROBLEMS`).
+  - إزالة `output: 'standalone'` ومصفوفة `outputFileTracingExcludes` من [next.config.ts](file:///d:/mashro3/mashroh/arb_soq.wap/arb_soq.wap/next.config.ts).
+  - رفع ذاكرة الدالة في [firebase.json](file:///d:/mashro3/mashroh/arb_soq.wap/arb_soq.wap/firebase.json) إلى `1GiB` وتحديد `minInstances: 0`.
+  - إضافة سكريبت الرفع المعزز `npm run deploy` بالخيار `--force` ومتغير البيئة `FUNCTIONS_EMULATOR_TIMEOUT=60s`.
+  - توثيق المشكلة بالتفصيل في سجل الأخطاء [BUG-002-firebase-deploy-timeout.md](file:///d:/mashro3/mashroh/arb_soq.wap/arb_soq.wap/PROJECT_MEMORY/bug-history/BUG-002-firebase-deploy-timeout.md).
+
 ---
 
 ## [تحديثات الفئات وتصفية الدول والروابط الحديثة] - 2026-08-11
