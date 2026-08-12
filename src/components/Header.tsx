@@ -237,8 +237,16 @@ export default function Header() {
   if (!isClient) {
     return (
       <header className="sticky top-0 z-40 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-        <div className="container flex h-20 items-center justify-between">
-          {/* Skeleton or placeholder for server render */}
+        <div className="container flex h-20 items-center justify-between gap-2 sm:gap-4">
+          <div className="flex items-center gap-2 md:gap-6">
+            <Link href="/" className="flex items-center gap-2 font-bold text-lg font-headline">
+              <Image src={appIconUrl} alt="App Icon" width={64} height={64} className="h-12 w-12 sm:h-16 sm:w-16" priority />
+              <span className="hidden sm:inline text-xl">{currentLabels.appName}</span>
+            </Link>
+          </div>
+          <div className="flex items-center gap-2">
+            <div className="h-9 w-24 bg-muted/30 rounded-lg animate-pulse" />
+          </div>
         </div>
       </header>
     );
@@ -247,7 +255,7 @@ export default function Header() {
   return (
     <>
       <NotificationBar />
-      <header className="sticky top-0 z-40 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+      <header className="sticky top-0 z-40 w-full max-w-full overflow-hidden border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
         <div className="container flex h-20 items-center justify-between gap-2 sm:gap-4">
           <div className="flex items-center gap-2 md:gap-6">
             <Link href="/" className="flex items-center gap-2 font-bold text-lg font-headline group/logo">

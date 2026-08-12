@@ -44,7 +44,7 @@ export default function CategoriesGridHero() {
     : DEFAULT_ORGANIZED_CATEGORIES;
 
   return (
-    <section className="w-full bg-background border-b py-4 md:py-6" dir="rtl">
+    <section className="w-full max-w-full overflow-hidden bg-background border-b py-4 md:py-6" dir="rtl">
       <div className="container mx-auto px-4">
         {/* Top bar with Title & Toggle Categories Button */}
         <div className="flex flex-col sm:flex-row items-center justify-between gap-4 mb-4 pb-3 border-b border-border/50">

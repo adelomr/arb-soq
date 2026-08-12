@@ -84,15 +84,19 @@ export default function ServiceCard({ service }: ServiceCardProps) {
                     )}
                 </div>
             </div>
-            <div className="w-full h-px bg-border"></div>
-            <div className="flex items-center justify-end w-full text-sm">
-                <div className="text-right">
-                    <p className="text-xs text-muted-foreground uppercase">{t.startingFrom}</p>
-                    <p className="text-base font-bold text-primary">
-                        {service.price !== undefined ? currencyFormatter.format(service.price) : t.negotiable}
-                    </p>
-                </div>
-            </div>
+            {!!service.price && Number(service.price) > 0 && (
+                <>
+                    <div className="w-full h-px bg-border"></div>
+                    <div className="flex items-center justify-end w-full text-sm">
+                        <div className="text-right">
+                            <p className="text-xs text-muted-foreground uppercase">{t.startingFrom}</p>
+                            <p className="text-base font-bold text-primary">
+                                {currencyFormatter.format(Number(service.price))}
+                            </p>
+                        </div>
+                    </div>
+                </>
+            )}
         </CardFooter>
       </Card>
     </Link>

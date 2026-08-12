@@ -106,10 +106,12 @@ export default function RelatedAdsSidebar({ category, currentAdId }: RelatedAdsS
                     <div className="flex-1 min-w-0 flex flex-col justify-between py-0.5">
                       <p className="text-sm font-bold line-clamp-2 leading-snug group-hover:text-primary transition-colors">{ad.title}</p>
                       <div className="flex items-center justify-between gap-2 text-primary text-xs font-bold mt-2">
-                          <div className="flex items-center gap-1">
-                              <Tag className="h-3.5 w-3.5" />
-                              <span>{ad.price ? currencyFormatter.format(ad.price) : 'عند الطلب'}</span>
-                          </div>
+                          {!!ad.price && Number(ad.price) > 0 && (
+                              <div className="flex items-center gap-1">
+                                  <Tag className="h-3.5 w-3.5" />
+                                  <span>{currencyFormatter.format(Number(ad.price))}</span>
+                              </div>
+                          )}
                           <div className="flex items-center gap-1 text-muted-foreground text-xs">
                               <Eye className="h-3 w-3" />
                               <span>{ad.views || 0}</span>

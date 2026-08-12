@@ -429,15 +429,17 @@ export default function AdDetailClient({ initialAd }: { initialAd: Ad }) {
 
                 {/* Sidebar */}
                 <div className="lg:col-span-4 space-y-6 lg:sticky top-28 h-fit">
-                    {/* Price */}
-                    <div className="p-6 bg-primary/10 rounded-lg text-center border border-primary/20">
-                        <div className="flex items-center justify-center gap-2 text-primary">
-                            <Tag className="w-8 h-8" />
+                    {/* Price — Only show if price was added during ad creation */}
+                    {!!ad.price && Number(ad.price) > 0 && (
+                        <div className="p-6 bg-primary/10 rounded-lg text-center border border-primary/20">
+                            <div className="flex items-center justify-center gap-2 text-primary">
+                                <Tag className="w-8 h-8" />
+                            </div>
+                            <p className="text-4xl font-bold text-primary mt-2">
+                                {currencyFormatter.format(Number(ad.price))}
+                            </p>
                         </div>
-                        <p className="text-4xl font-bold text-primary mt-2">
-                            {ad.price !== undefined ? currencyFormatter.format(ad.price) : (ad.adType === 'request-service' ? t.negotiable : t.onDemand)}
-                        </p>
-                    </div>
+                    )}
 
                     {/* Contact/Action Buttons */}
                     <div className="space-y-3">

@@ -85,7 +85,7 @@ export default function QuickOptions() {
   const activeCategoryForMenu = activeCategories.find(c => c.id === activeMenuId);
 
   return (
-    <div className="bg-card border-b shadow-sm sticky top-20 z-30">
+    <div className="bg-card border-b shadow-sm sticky top-20 z-30 w-full max-w-full overflow-hidden">
       <Collapsible open={!!activeMenuId}>
         <div className="container mx-auto px-4">
           <div className="flex items-center gap-2 overflow-x-auto custom-scrollbar py-2 scroll-smooth w-full flex-nowrap">

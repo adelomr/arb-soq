@@ -79,9 +79,27 @@ export default function RootLayout({
         <link rel="preconnect" href="https://firestore.googleapis.com" crossOrigin="anonymous" />
         <link rel="preconnect" href="https://arb-soq.firebaseapp.com" crossOrigin="anonymous" />
         <link rel="dns-prefetch" href="https://pagead2.googlesyndication.com" />
+        <link rel="dns-prefetch" href="https://www.googletagmanager.com" />
+        <script async src="https://www.googletagmanager.com/gtag/js?id=G-EKJ4JF0LZQ" />
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `
+              window.dataLayer = window.dataLayer || [];
+              function gtag(){dataLayer.push(arguments);}
+              gtag('consent', 'default', {
+                'analytics_storage': 'granted',
+                'ad_storage': 'granted',
+                'ad_user_data': 'granted',
+                'ad_personalization': 'granted'
+              });
+              gtag('js', new Date());
+              gtag('config', 'G-EKJ4JF0LZQ');
+            `,
+          }}
+        />
       </head>
-      <body className={`${cairo.variable} min-h-screen bg-background font-body text-base flex flex-col antialiased`} suppressHydrationWarning>
-        <Suspense fallback={<div>Loading...</div>}>
+      <body className={`${cairo.variable} min-h-screen w-full max-w-full overflow-x-hidden bg-background font-body text-base flex flex-col antialiased`} suppressHydrationWarning>
+        <Suspense fallback={<div className="min-h-screen w-full bg-background flex flex-col items-center justify-center" aria-hidden="true" />}>
           <LanguageProvider>
             <ThemeProvider>
                 <FontSizeProvider>

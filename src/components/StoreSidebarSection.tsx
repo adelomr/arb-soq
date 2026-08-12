@@ -69,10 +69,12 @@ export default function StoreSidebarSection() {
             </div>
             <div className="min-w-0">
                 <p className="text-xs font-semibold truncate group-hover:text-primary">{ad.title}</p>
-                <div className="flex items-center gap-1 text-primary text-xs font-bold mt-1">
-                    <Tag className="h-3 w-3" />
-                    <span>{ad.price ? currencyFormatter.format(ad.price) : 'عند الطلب'}</span>
-                </div>
+                {!!ad.price && Number(ad.price) > 0 && (
+                    <div className="flex items-center gap-1 text-primary text-xs font-bold mt-1">
+                        <Tag className="h-3 w-3" />
+                        <span>{currencyFormatter.format(Number(ad.price))}</span>
+                    </div>
+                )}
             </div>
         </div>
     </Link>

@@ -84,17 +84,18 @@ export default function Ads({
     return null;
   }
   
+  const slotMinHeight = type === 'square' ? '250px' : '90px';
+  
   const style: React.CSSProperties = {
       display: 'block',
       width: '100%',
-      minHeight: isAdVisible ? (type === 'square' ? '250px' : '90px') : '0px',
+      minHeight: slotMinHeight,
   };
 
   const containerStyle: React.CSSProperties = {
       overflow: 'hidden',
-      transition: 'all 0.3s ease-out',
-      minHeight: style.minHeight,
-      marginBottom: isAdVisible ? '1.5rem' : '0px',
+      minHeight: slotMinHeight,
+      marginBottom: '1rem',
   };
 
   return (

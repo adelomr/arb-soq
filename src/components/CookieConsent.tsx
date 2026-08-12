@@ -23,6 +23,14 @@ export default function CookieConsent() {
 
   const handleAccept = () => {
     localStorage.setItem('cookie_consent', 'true');
+    if (typeof window !== 'undefined' && (window as any).gtag) {
+      (window as any).gtag('consent', 'update', {
+        analytics_storage: 'granted',
+        ad_storage: 'granted',
+        ad_user_data: 'granted',
+        ad_personalization: 'granted',
+      });
+    }
     setIsVisible(false);
   };
 

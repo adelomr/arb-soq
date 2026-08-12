@@ -35,8 +35,14 @@ const QuickOptions = dynamic(() => import('@/components/QuickOptions'), {
   ssr: false,
   loading: () => <div className="h-14 w-full" aria-hidden="true" />,
 });
-const RelatedAdsSidebar = dynamic(() => import('@/components/RelatedAdsSidebar'), { ssr: false });
-const StoreSidebarSection = dynamic(() => import('@/components/StoreSidebarSection'), { ssr: false });
+const RelatedAdsSidebar = dynamic(() => import('@/components/RelatedAdsSidebar'), {
+  ssr: false,
+  loading: () => <div className="w-full h-80 bg-muted/20 animate-pulse rounded-xl" aria-hidden="true" />,
+});
+const StoreSidebarSection = dynamic(() => import('@/components/StoreSidebarSection'), {
+  ssr: false,
+  loading: () => <div className="w-full h-60 bg-muted/20 animate-pulse rounded-xl" aria-hidden="true" />,
+});
 const CategoriesGridHero = dynamic(() => import('@/components/CategoriesGridHero'), {
   ssr: false,
   loading: () => <div className="w-full" style={{ minHeight: '200px' }} aria-hidden="true" />,
@@ -177,10 +183,10 @@ export default function HomeClient() {
     }, [adsLoading, view])
     
   return (
-    <div className="flex flex-col min-h-screen">
+    <div className="flex flex-col min-h-screen w-full max-w-full overflow-x-hidden">
       <Header />
       <QuickOptions />
-      <main className="flex-1">
+      <main className="flex-1 w-full max-w-full overflow-x-hidden">
         <CategoriesGridHero />
         
         <div className="container mx-auto px-4 py-6 md:py-8 xl:pt-4">

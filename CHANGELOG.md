@@ -2,6 +2,41 @@
 
 هذا السجل يوثق التعديلات والتحسينات المعمارية والبرمجية المنجزة لتكون مرجعاً دائمًا لفريق التطوير.
 
+## [تحديثات توافق الذكاء الاصطناعي (llms.txt)، استقرار التراكم والمرونة الجوالة وإحصاءات جوجل] - 2026-08-13
+
+### 1. معايير تصفح الذكاء الاصطناعي (WebMCP & AI Agent Accessibility - llms.txt)
+- **المهمة المنجزة:** إعادة هيكلة [public/llms.txt](file:///d:/mashro3/mashroh/arb_soq.wap/arb_soq.wap/public/llms.txt) وتوفير [public/llms-full.txt](file:///d:/mashro3/mashroh/arb_soq.wap/arb_soq.wap/public/llms-full.txt).
+- **التفاصيل:**
+  - صياغة روابط المواقع بصيغة Markdown الرسمية `[Title](URL)` لإصلاح خطأ عدم اكتشاف الروابط في أدوات الفحص البرمجي للنماذج اللغوية الكبيرة.
+  - إضافة عنوان رئيسي واحد `# H1` واقتباس ملخص للموقع `> ...` ورؤوس فرعية `## H2` للتطابق 100% مع معيار `llmstxt.org`.
+
+### 2. إصلاح القفزات المرئية للتصميم وتثبيت الأبعاد (Cumulative Layout Shift - CLS)
+- **المهمة المنجزة:** معالجة أسباب الـ CLS لتقليل المقياس من 0.407 إلى ما دون 0.1.
+- **التفاصيل:**
+  - **فتحات الإعلانات:** حجز مساحات ثابتة `min-height` في [src/components/Ads.tsx](file:///d:/mashro3/mashroh/arb_soq.wap/arb_soq.wap/src/components/Ads.tsx) (90px للإعلان الأفقي و 250px للمربع) لمنع قفز المحتوى عند تحميل AdSense.
+  - **غلاف التميؤ:** استبدال نص `Loading...` في [layout.tsx](file:///d:/mashro3/mashroh/arb_soq.wap/arb_soq.wap/src/app/layout.tsx) بحاوية ممتدة `min-h-screen`.
+  - **الهيدر والبطاقات الجانبية:** توحيد أبعاد الهيدر المبدئي في [Header.tsx](file:///d:/mashro3/mashroh/arb_soq.wap/arb_soq.wap/src/components/Header.tsx) وإضافة هياكل تحميل skeletons بارتفاعات محددة لـ `RelatedAdsSidebar` و `StoreSidebarSection` في [HomeClient.tsx](file:///d:/mashro3/mashroh/arb_soq.wap/arb_soq.wap/src/app/HomeClient.tsx).
+
+### 3. تقييد الانزلاق والأفق الجوال (Mobile Overflow & Responsiveness)
+- **المهمة المنجزة:** منع أي اهتزاز أو تمرير أفقي جانبي على كافة الهواتف والشاشات الصغيرة.
+- **التفاصيل:**
+  - إضافة قواعد العرض الأقصى والتدفق `html, body { max-width: 100vw; width: 100%; overflow-x: hidden; position: relative; }` وضبط عناصر الوسائط `img, video, iframe, canvas, svg { max-width: 100%; }` في [globals.css](file:///d:/mashro3/mashroh/arb_soq.wap/arb_soq.wap/src/app/globals.css).
+  - تعزيز `w-full max-w-full overflow-x-hidden` في الأغلفة الرئيسية للمكونات ([layout.tsx](file:///d:/mashro3/mashroh/arb_soq.wap/arb_soq.wap/src/app/layout.tsx), [Header.tsx](file:///d:/mashro3/mashroh/arb_soq.wap/arb_soq.wap/src/components/Header.tsx), [QuickOptions.tsx](file:///d:/mashro3/mashroh/arb_soq.wap/arb_soq.wap/src/components/QuickOptions.tsx), [CategoriesGridHero.tsx](file:///d:/mashro3/mashroh/arb_soq.wap/arb_soq.wap/src/components/CategoriesGridHero.tsx), [HomeClient.tsx](file:///d:/mashro3/mashroh/arb_soq.wap/arb_soq.wap/src/app/HomeClient.tsx)).
+
+### 4. شرط إخفاء مربع وشارة السعر الفارغة (Price Logic)
+- **المهمة المنجزة:** إخفاء مربع وشارات السعر تماماً للإعلانات التي لم يُحدد لها سعر عند الإنشاء.
+- **التفاصيل:**
+  - تحديث [AdDetailClient.tsx](file:///d:/mashro3/mashroh/arb_soq.wap/arb_soq.wap/src/components/AdDetailClient.tsx) لإخفاء مربع السعر الجانبي الكبير كلياً عند عدم وجود سعر.
+  - تحديث [AdCard.tsx](file:///d:/mashro3/mashroh/arb_soq.wap/arb_soq.wap/src/components/AdCard.tsx)، [AdRow.tsx](file:///d:/mashro3/mashroh/arb_soq.wap/arb_soq.wap/src/components/AdRow.tsx)، [RelatedAdsSidebar.tsx](file:///d:/mashro3/mashroh/arb_soq.wap/arb_soq.wap/src/components/RelatedAdsSidebar.tsx)، [StoreSidebarSection.tsx](file:///d:/mashro3/mashroh/arb_soq.wap/arb_soq.wap/src/components/StoreSidebarSection.tsx)، و [ServiceCard.tsx](file:///d:/mashro3/mashroh/arb_soq.wap/arb_soq.wap/src/components/ServiceCard.tsx) لإلغاء أي وسام أو نص سعر افتراضي عندما يكون السعر غير محدد.
+
+### 5. دمج وتفعيل إحصاءات جوجل وإشارات الموافقة (Google Tag G-EKJ4JF0LZQ & Consent Mode)
+- **المهمة المنجزة:** تفعيل تتبع الزيارات واجتياز فحص أداة Tag Assistant.
+- **التفاصيل:**
+  - إدراج كود تتبع `gtag.js` المباشر للمعرف `G-EKJ4JF0LZQ` في [layout.tsx](file:///d:/mashro3/mashroh/arb_soq.wap/arb_soq.wap/src/app/layout.tsx).
+  - تكامل وضع الموافقة (Google Consent Mode) وتمرير إشارات الموافقة عبر [CookieConsent.tsx](file:///d:/mashro3/mashroh/arb_soq.wap/arb_soq.wap/src/components/CookieConsent.tsx) لاستيفاء متطلبات التتبع والـ EEA بنجاح.
+
+---
+
 ## [تحسينات الأداء ومؤشرات Lighthouse وإصلاح فلترة الأسواق] - 2026-08-12
 
 ### 1. تحسين LCP وتقليل زمن تحميل الموارد الحرج (Largest Contentful Paint)
