@@ -31,10 +31,16 @@ import { useToast } from '@/hooks/use-toast';
 import { useView } from '@/context/ViewContext';
 
 const Footer = dynamic(() => import('@/components/Footer'), { ssr: false });
-const QuickOptions = dynamic(() => import('@/components/QuickOptions'), { ssr: false });
+const QuickOptions = dynamic(() => import('@/components/QuickOptions'), {
+  ssr: false,
+  loading: () => <div className="h-14 w-full" aria-hidden="true" />,
+});
 const RelatedAdsSidebar = dynamic(() => import('@/components/RelatedAdsSidebar'), { ssr: false });
 const StoreSidebarSection = dynamic(() => import('@/components/StoreSidebarSection'), { ssr: false });
-const CategoriesGridHero = dynamic(() => import('@/components/CategoriesGridHero'), { ssr: false });
+const CategoriesGridHero = dynamic(() => import('@/components/CategoriesGridHero'), {
+  ssr: false,
+  loading: () => <div className="w-full" style={{ minHeight: '200px' }} aria-hidden="true" />,
+});
 
 const WhatsappIcon = () => (
     <svg role="img" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5">
@@ -101,8 +107,8 @@ export default function HomeClient() {
     fetchTopics();
   }, []);
 
-  const sortAndSetAds = useCallback((allAds: Ad[], location: { latitude: number, longitude: number } | null) => {
-    const validAds = allAds.filter(ad => isAdInMarket(ad, market.id, market.name.ar));
+  const sortAndSetAds = useCallback((allAds: Ad[], location: { latitude: number, longitude: number } | null, currentMarket: { id: string; name: { ar: string } }) => {
+    const validAds = allAds.filter(ad => isAdInMarket(ad, currentMarket.id, currentMarket.name.ar));
 
     if (location) {
         validAds.sort((a, b) => {
@@ -131,12 +137,13 @@ export default function HomeClient() {
     if (!market.id) return;
 
     setAdsLoading(true);
+    const currentMarket = market;
     const unsubscribe = getAds({ market: market.id, status: 'active' }, (allAds) => {
-        sortAndSetAds(allAds, userLocation);
+        sortAndSetAds(allAds, userLocation, currentMarket);
     });
 
     return () => unsubscribe();
-  }, [market.id, getAds, userLocation, sortAndSetAds]);
+  }, [market, getAds, userLocation, sortAndSetAds]);
 
     const renderAdView = useCallback((ads: Ad[]) => {
       if (adsLoading) {
@@ -157,7 +164,7 @@ export default function HomeClient() {
       if (view === 'grid') {
         return (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-              {ads.map(ad => <AdCard key={ad.id} ad={ad} />)}
+              {ads.map((ad, idx) => <AdCard key={ad.id} ad={ad} priority={idx < 2} />)}
           </div>
         )
       }
@@ -248,6 +255,8 @@ export default function HomeClient() {
                           src={topic.imageUrl} 
                           alt={topic.title}
                           fill
+                          loading="lazy"
+                          sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw"
                           className="object-cover group-hover:scale-105 transition-transform duration-500"
                         />
                       ) : (

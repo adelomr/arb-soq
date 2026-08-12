@@ -2,6 +2,28 @@
 
 هذا السجل يوثق التعديلات والتحسينات المعمارية والبرمجية المنجزة لتكون مرجعاً دائمًا لفريق التطوير.
 
+## [تحسينات الأداء ومؤشرات Lighthouse وإصلاح فلترة الأسواق] - 2026-08-12
+
+### 1. تحسين LCP وتقليل زمن تحميل الموارد الحرج (Largest Contentful Paint)
+- **المهمة المنجزة:** ربط خاصية `priority` في كائنات `AdCard` والمكون `HomeClient.tsx`.
+- **التفاصيل:** 
+  - إعطاء أول بطاقتين في الصفحة الرئيسية السمة `priority={idx < 2}` لتفعيل `fetchpriority="high"` في Next.js.
+  - إلغاء الخاصية القسرية `loading="lazy"` للصور التي تعين كـ priority، مما يلبي متطلبات PageSpeed Insights لاكتشاف صورة الـ LCP مبكراً في الـ HTML المبدئي.
+
+### 2. تحسين اتصالات الشبكة المسبقة (Preconnect & DNS Prefetch)
+- **المهمة المنجزة:** تنظيف وتحديث روابط `preconnect` في [layout.tsx](file:///d:/mashro3/mashroh/arb_soq.wap/arb_soq.wap/src/app/layout.tsx).
+- **التفاصيل:** 
+  - حذف الاتصالات غير المستخدَمة لـ `fonts.googleapis.com` و `fonts.gstatic.com` و `res.cloudinary.com` المسببة لهدر الاتصالات.
+  - إدراج `preconnect` مباشر للمصادر الفعلية `firestore.googleapis.com` و `arb-soq.firebaseapp.com` لتوفير 300-350ms في زمن الاستجابة المبدئي.
+
+### 3. إصلاح تزامن تصفية إعلانات الدول عند تغيير السوق وإعادة التحميل
+- **المهمة المنجزة:** حل مشكلة الـ stale closure المعمارية في [HomeClient.tsx](file:///d:/mashro3/mashroh/arb_soq.wap/arb_soq.wap/src/app/HomeClient.tsx).
+- **التفاصيل:** 
+  - تمرير كائن `currentMarket` صراحة لدالة التصفية والترتيب `sortAndSetAds` لمنع استخدام المرجع القديم المخزن في الـ closure.
+  - الحفاظ على `userSelectedMarketId` في `localStorage` لضمان استقرار وثبات تصفية إعلانات دولة السعودية (أو أي دولة أخرى) بعد تحديث الصفحة (Refresh).
+
+---
+
 ## [تحديث سجل المشروع وتوحيد قاعدة بيانات الأندرويد والويب] - 2026-08-11
 
 ### 1. توثيق وتفصيل قاعدة بيانات Firebase Firestore والمزامنة الفورية

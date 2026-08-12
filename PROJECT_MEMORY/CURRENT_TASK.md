@@ -1,11 +1,13 @@
 # CURRENT TASK
 
-اسم المهمة: تفعيل التقييمات الحقيقية فقط وإلغاء التقييمات الافتراضية على كروت الإعلانات
+اسم المهمة: تحسين أداء الموقع ومؤشرات PageSpeed / Lighthouse وتصحيح فلترة الأسواق
 الحالة: مكتملة (Completed) ✅
-التاريخ: 2026-08-06
+التاريخ: 2026-08-12
 الملفات المحدثة:
 - `src/components/AdCard.tsx`
-- `src/components/AdRow.tsx`
+- `src/app/HomeClient.tsx`
+- `src/app/layout.tsx`
+- `src/lib/firebase-storage-helpers.ts`
+- `public/llms.txt`
+- `CHANGELOG.md`
 - `PROJECT_MEMORY/CHANGELOG.md`
-- `PROJECT_MEMORY/CURRENT_TASK.md`
-- `PROJECT_MEMORY/decisions/DEC-004-authentic-ratings-only.md`

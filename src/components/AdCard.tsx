@@ -41,6 +41,7 @@ const translations = {
 
 type AdCardProps = {
   ad: Ad;
+  priority?: boolean;
 };
 
 // Function to generate a consistent color based on the user ID
@@ -64,7 +65,7 @@ const generateStoreColor = (userId: string): { backgroundColor: string; textColo
 };
 
 
-function AdCard({ ad }: AdCardProps) {
+function AdCard({ ad, priority = false }: AdCardProps) {
   const { market } = useMarket();
   const t = translations.ar;
   const direction = 'rtl';
@@ -136,7 +137,8 @@ function AdCard({ ad }: AdCardProps) {
                             src={ad.imageUrls[0]}
                             alt={ad.title}
                             fill
-                            loading="lazy"
+                            priority={priority}
+                            loading={priority ? undefined : "lazy"}
                             decoding="async"
                             className="object-cover transition-transform duration-500 group-hover:scale-105"
                             sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw"

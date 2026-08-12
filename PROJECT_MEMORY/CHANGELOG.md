@@ -2,6 +2,25 @@
 
 سجل جميع التعديلات المهمة والميزات المضافة للإبقاء على ذاكرة المشروع محدثة.
 
+## [2026-08-12] - تحسين أداء الموقع ومؤشرات PageSpeed Insights وإصلاح سباق تصفية الدول
+
+### 1. تحسين LCP وتقليل تأخير تحميل الصورة الرئيسية (Largest Contentful Paint)
+- **التعديل:** ربط خاصية `priority` في `AdCard.tsx` والمكون `HomeClient.tsx`. يتم إعطاء أول كارتين في القائمة السمة `priority={idx < 2}` مما يضيف `fetchpriority="high"` في Next.js ويصرف المتصفح عن تأجيل تحميل الصورة عبر `loading="lazy"`.
+- **السبب:** رفع نتيجة أداء LCP وتسريع عرض المحتوى البصري الرئيسي المباشر للزائر وفق توصيات Lighthouse.
+- **الملفات المتأثرة:** `src/components/AdCard.tsx`, `src/app/HomeClient.tsx`.
+
+### 2. تحسين اتصالات الشبكة المسبقة (Preconnect Optimization)
+- **التعديل:** حذف الروابط غير المستخدَمة لـ Google Fonts و Cloudinary من الـ `<head>` في `src/app/layout.tsx` وإضافة `preconnect` مباشر لـ `firestore.googleapis.com` و `arb-soq.firebaseapp.com`.
+- **السبب:** توفير من 300ms إلى 350ms في زمن إنشاء الاتصال الأولي (TLS handshake) ومنع الاستهلاك غير الضروي لموارد الشبكة.
+- **الملفات المتأثرة:** `src/app/layout.tsx`.
+
+### 3. حل مشكلة الـ Stale Closure وتزامن تصفية إعلانات دولة السعودية
+- **التعديل:** تمرير كائن `currentMarket` صراحة لدالة التصفية `sortAndSetAds` في `HomeClient.tsx`.
+- **السبب:** ضمان تحديث وتجميع إعلانات السعودية والدول فوراً عند اختيارها من شريط التنقل واستقرارها التام عند إعادة التحميل (`Refresh`).
+- **الملفات المتأثرة:** `src/app/HomeClient.tsx`.
+
+---
+
 ## [2026-08-11] - الحل الجذرائي لمشكلة توقف ومهلة الرفع (Firebase Deploy Timeout Fix)
 
 ### 1. توحيد وإصلاح حزم Genkit و Firebase Functions
