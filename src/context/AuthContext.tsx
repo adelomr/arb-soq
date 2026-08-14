@@ -919,7 +919,7 @@ const addAd = useCallback(async (adData: any, imageFiles: File[], user: User, pr
   }, [getUserStore]);
   
 const getAds = useCallback((
-    filters: {
+    filtersOrCallback?: {
         status?: AdStatus;
         userId?: string;
         market?: string;
@@ -927,15 +927,25 @@ const getAds = useCallback((
         adType?: AdType;
         categories?: string[];
         limit?: number;
-        // Hierarchical location filters
         country?: string;
         governorate?: string;
         city?: string;
         village?: string;
         categoryId?: string;
-    },
-    callback: (ads: (Ad & { id: string })[]) => void
+    } | ((ads: (Ad & { id: string })[]) => void),
+    maybeCallback?: (ads: (Ad & { id: string })[]) => void
 ) => {
+    let filters: any = {};
+    let callback: ((ads: (Ad & { id: string })[]) => void) | undefined;
+
+    if (typeof filtersOrCallback === 'function') {
+        callback = filtersOrCallback;
+        filters = {};
+    } else {
+        filters = filtersOrCallback || {};
+        callback = maybeCallback;
+    }
+
     const processSnapshot = async (querySnapshot: any, collectionName: string) => {
         let adsData = querySnapshot.docs.map((doc: any) => {
             const adData = doc.data() as Ad;
@@ -1007,7 +1017,9 @@ const getAds = useCallback((
           });
       }
       
-      callback(finalAds);
+      if (typeof callback === 'function') {
+          callback(finalAds);
+      }
     }
     
     const adQueryConstraints: QueryConstraint[] = [];

@@ -78,8 +78,12 @@ export default function BottomNav() {
     isLongPressRef.current = false;
     longPressTimerRef.current = setTimeout(() => {
       isLongPressRef.current = true;
-      if (typeof navigator !== 'undefined' && navigator.vibrate) {
-        navigator.vibrate(60);
+      try {
+        if (typeof navigator !== 'undefined' && navigator.vibrate) {
+          navigator.vibrate(60);
+        }
+      } catch {
+        // Ignored
       }
       setShowLocationModal(true);
     }, 550); // 550ms للضغطة المطولة

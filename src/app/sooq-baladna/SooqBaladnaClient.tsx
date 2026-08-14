@@ -70,18 +70,17 @@ export default function SooqBaladnaClient() {
 
   // جلب الإعلانات
   useEffect(() => {
-    const fetchAds = async () => {
-      try {
-        setLoading(true);
-        const data = await getAds();
-        setAllAds(data || []);
-      } catch (err) {
-        console.error('Failed to load ads for Sooq Baladna:', err);
-      } finally {
-        setLoading(false);
+    setLoading(true);
+    const unsubscribe = getAds({ status: 'active' }, (ads) => {
+      setAllAds(ads || []);
+      setLoading(false);
+    });
+
+    return () => {
+      if (typeof unsubscribe === 'function') {
+        unsubscribe();
       }
     };
-    fetchAds();
   }, [getAds]);
 
   // حساب المسافة الجغرافية (Haversine)

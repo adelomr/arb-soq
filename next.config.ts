@@ -43,15 +43,15 @@ const nextConfig: NextConfig = {
 
   async headers() {
     const isProd = process.env.NODE_ENV === 'production';
+    if (!isProd) {
+      return [];
+    }
+
     const securityHeaders = [
-      ...(isProd
-        ? [
-            {
-              key: 'Strict-Transport-Security',
-              value: 'max-age=31536000; includeSubDomains; preload',
-            },
-          ]
-        : []),
+      {
+        key: 'Strict-Transport-Security',
+        value: 'max-age=31536000; includeSubDomains; preload',
+      },
       {
         key: 'X-Content-Type-Options',
         value: 'nosniff',
@@ -94,7 +94,7 @@ const nextConfig: NextConfig = {
           "object-src 'none'",
           "base-uri 'self'",
           "form-action 'self'",
-          ...(isProd ? ["upgrade-insecure-requests"] : []),
+          "upgrade-insecure-requests",
         ].join('; '),
       },
     ];
