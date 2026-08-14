@@ -52,18 +52,56 @@ export default function BaladnaLocationModal({
     }
   }, [isOpen]);
 
-  const handleDetectGPS = () => {
-    if (!navigator.geolocation) {
-      toast({
-        title: 'غير مدعوم',
-        description: 'متصفحك لا يدعم تحديد الموقع الجغرافي.',
-        variant: 'destructive',
-      });
-      return;
+  const detectFromIP = async () => {
+    try {
+      const res = await fetch('https://ipapi.co/json/');
+      const data = await res.json();
+      const city = data.city || data.region || data.country_name || '';
+      if (city) {
+        setCityName(city);
+        setDetectedDetails(`${city}، ${data.country_name || ''}`);
+        if (data.latitude && data.longitude) {
+          setCoords({ lat: data.latitude, lng: data.longitude });
+        }
+        toast({
+          title: 'تم تحديد منطقتك عبر الشبكة 🌐',
+          description: `تم التعرف على: ${city}`,
+        });
+        return true;
+      }
+    } catch {
+      try {
+        const res2 = await fetch('https://ipinfo.io/json');
+        const data2 = await res2.json();
+        const city2 = data2.city || data2.region || data2.country || '';
+        if (city2) {
+          setCityName(city2);
+          setDetectedDetails(city2);
+          if (data2.loc) {
+            const [lat, lng] = data2.loc.split(',').map(Number);
+            if (lat && lng) setCoords({ lat, lng });
+          }
+          toast({
+            title: 'تم تحديد منطقتك عبر الشبكة 🌐',
+            description: `تم التعرف على: ${city2}`,
+          });
+          return true;
+        }
+      } catch {
+        // Ignored
+      }
     }
+    return false;
+  };
 
+  const handleDetectGPS = () => {
     setIsDetecting(true);
     setDetectedDetails(null);
+
+    if (!navigator.geolocation) {
+      detectFromIP().finally(() => setIsDetecting(false));
+      return;
+    }
 
     navigator.geolocation.getCurrentPosition(
       async (pos) => {
@@ -89,7 +127,7 @@ export default function BaladnaLocationModal({
           setDetectedDetails(fullDetails);
 
           toast({
-            title: 'تم تحديد موقعك بنجاح',
+            title: 'تم تحديد موقعك بدقة ✨',
             description: `تم التعرف على: ${fullDetails}`,
           });
         } catch (e) {
@@ -112,19 +150,18 @@ export default function BaladnaLocationModal({
           setIsDetecting(false);
         }
       },
-      (error) => {
+      async (_error) => {
+        // في حال تعذر GPS أو عدم إعطاء الإذن، نستخدم تحديد الموقع عبر الـ IP تلقائياً دون إزعاج المستخدم
+        const ipOk = await detectFromIP();
         setIsDetecting(false);
-        let msg = 'تعذر الوصول إلى الموقع الجغرافي. يمكنك كتابة اسم بلدك يدوياً.';
-        if (error.code === 1) {
-          msg = 'يرجى إعطاء صلاحية الموقع لتحديد بلدك تلقائياً، أو كتابته يدوياً.';
+        if (!ipOk) {
+          toast({
+            title: 'تنبيه الموقع',
+            description: 'يمكنك كتابة اسم قريتك أو مدينتك في الحقل أدناه وحفظها بنقرة واحدة.',
+          });
         }
-        toast({
-          title: 'تنبيه الموقع',
-          description: msg,
-          variant: 'destructive',
-        });
       },
-      { enableHighAccuracy: true, timeout: 10000 }
+      { enableHighAccuracy: true, timeout: 6000, maximumAge: 30000 }
     );
   };
 
