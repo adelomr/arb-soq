@@ -52,56 +52,18 @@ export default function BaladnaLocationModal({
     }
   }, [isOpen]);
 
-  const detectFromIP = async () => {
-    try {
-      const res = await fetch('https://ipapi.co/json/');
-      const data = await res.json();
-      const city = data.city || data.region || data.country_name || '';
-      if (city) {
-        setCityName(city);
-        setDetectedDetails(`${city}، ${data.country_name || ''}`);
-        if (data.latitude && data.longitude) {
-          setCoords({ lat: data.latitude, lng: data.longitude });
-        }
-        toast({
-          title: 'تم تحديد منطقتك عبر الشبكة 🌐',
-          description: `تم التعرف على: ${city}`,
-        });
-        return true;
-      }
-    } catch {
-      try {
-        const res2 = await fetch('https://ipinfo.io/json');
-        const data2 = await res2.json();
-        const city2 = data2.city || data2.region || data2.country || '';
-        if (city2) {
-          setCityName(city2);
-          setDetectedDetails(city2);
-          if (data2.loc) {
-            const [lat, lng] = data2.loc.split(',').map(Number);
-            if (lat && lng) setCoords({ lat, lng });
-          }
-          toast({
-            title: 'تم تحديد منطقتك عبر الشبكة 🌐',
-            description: `تم التعرف على: ${city2}`,
-          });
-          return true;
-        }
-      } catch {
-        // Ignored
-      }
-    }
-    return false;
-  };
-
   const handleDetectGPS = () => {
-    setIsDetecting(true);
-    setDetectedDetails(null);
-
     if (!navigator.geolocation) {
-      detectFromIP().finally(() => setIsDetecting(false));
+      toast({
+        title: 'غير مدعوم',
+        description: 'جهازك لا يدعم تحديد الموقع عبر GPS.',
+        variant: 'destructive',
+      });
       return;
     }
+
+    setIsDetecting(true);
+    setDetectedDetails(null);
 
     navigator.geolocation.getCurrentPosition(
       async (pos) => {
@@ -109,13 +71,13 @@ export default function BaladnaLocationModal({
         setCoords({ lat: latitude, lng: longitude });
 
         try {
-          // جلب اسم المدينة والقرية بالعربية عبر BigDataCloud
+          // جلب اسم القرية / الحي / المدينة الدقيق بالعربية
           const res = await fetch(
             `https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${latitude}&longitude=${longitude}&localityLanguage=ar`
           );
           const data = await res.json();
 
-          const locality = data.locality || data.city || data.principalSubdivision || '';
+          const locality = data.locality || data.city || '';
           const subDiv = data.principalSubdivision || '';
           const country = data.countryName || '';
 
@@ -127,18 +89,18 @@ export default function BaladnaLocationModal({
           setDetectedDetails(fullDetails);
 
           toast({
-            title: 'تم تحديد موقعك بدقة ✨',
+            title: 'تم تحديد موقع الـ GPS بنجاح 🛰️',
             description: `تم التعرف على: ${fullDetails}`,
           });
         } catch (e) {
-          // محاولة ثانية عبر OpenStreetMap إذا فشل المصدر الأول
+          // محاولة عبر OpenStreetMap
           try {
             const osmRes = await fetch(
               `https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}&accept-language=ar`
             );
             const osmData = await osmRes.json();
             const addr = osmData.address || {};
-            const local = addr.village || addr.town || addr.city || addr.suburb || addr.state || '';
+            const local = addr.village || addr.hamlet || addr.suburb || addr.town || addr.city || addr.state || '';
             if (local) {
               setCityName(local);
               setDetectedDetails(osmData.display_name || local);
@@ -150,18 +112,23 @@ export default function BaladnaLocationModal({
           setIsDetecting(false);
         }
       },
-      async (_error) => {
-        // في حال تعذر GPS أو عدم إعطاء الإذن، نستخدم تحديد الموقع عبر الـ IP تلقائياً دون إزعاج المستخدم
-        const ipOk = await detectFromIP();
+      (error) => {
         setIsDetecting(false);
-        if (!ipOk) {
-          toast({
-            title: 'تنبيه الموقع',
-            description: 'يمكنك كتابة اسم قريتك أو مدينتك في الحقل أدناه وحفظها بنقرة واحدة.',
-          });
+        let msg = 'تعذر قراءة إشارة الـ GPS. تأكد من تفعيل الموقع (GPS) في هاتفك.';
+        if (error.code === 1) {
+          msg = 'يرجى إعطاء صلاحية الموقع (GPS) للتطبيق لتحديد بلدك بدقة.';
+        } else if (error.code === 2) {
+          msg = 'إشارة الـ GPS غير متوفرة حالياً، يرجى التواجد في مكان مفتوح أو تفعيل الموقع.';
+        } else if (error.code === 3) {
+          msg = 'استغرق البحث عن إشارة GPS وقتاً طويلاً، يرجى المحاولة مجدداً.';
         }
+        toast({
+          title: 'تنبيه الـ GPS',
+          description: msg,
+          variant: 'destructive',
+        });
       },
-      { enableHighAccuracy: true, timeout: 6000, maximumAge: 30000 }
+      { enableHighAccuracy: true, timeout: 20000, maximumAge: 0 }
     );
   };
 
