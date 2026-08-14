@@ -1,11 +1,12 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { Home, LayoutGrid, Plus, MapPin, User, LogIn, Bell, Sparkles } from 'lucide-react';
+import { Home, LayoutGrid, Plus, MapPin, User, LogIn, Sparkles } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import RequireAuthModal from '@/components/RequireAuthModal';
+import BaladnaLocationModal, { BALADNA_STORAGE_KEY } from '@/components/BaladnaLocationModal';
 import { cn } from '@/lib/utils';
 
 export default function BottomNav() {
@@ -14,12 +15,26 @@ export default function BottomNav() {
   const { user, getUserNotifications } = useAuth();
   const [unreadCount, setUnreadCount] = useState(0);
   const [showAuthModal, setShowAuthModal] = useState(false);
+  const [showLocationModal, setShowLocationModal] = useState(false);
   const [authModalMessage, setAuthModalMessage] = useState('يجب تسجيل الدخول حتى تتمكن من إضافة إعلان');
   const [authModalRedirect, setAuthModalRedirect] = useState('/submit');
   const [mounted, setMounted] = useState(false);
+  const [savedBalad, setSavedBalad] = useState<string>('');
+
+  // Long press refs
+  const longPressTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const isLongPressRef = useRef(false);
 
   useEffect(() => {
     setMounted(true);
+    const updateSavedBalad = () => {
+      const b = localStorage.getItem(BALADNA_STORAGE_KEY) || '';
+      setSavedBalad(b);
+    };
+    updateSavedBalad();
+
+    window.addEventListener('baladna-location-changed', updateSavedBalad);
+    return () => window.removeEventListener('baladna-location-changed', updateSavedBalad);
   }, []);
 
   useEffect(() => {
@@ -56,6 +71,42 @@ export default function BottomNav() {
       e.preventDefault();
       router.push('/login?redirectUrl=/profile');
     }
+  };
+
+  // معالجة الضغطة المطولة على زر سوق بلدنا
+  const handleBaladnaTouchStart = () => {
+    isLongPressRef.current = false;
+    longPressTimerRef.current = setTimeout(() => {
+      isLongPressRef.current = true;
+      if (typeof navigator !== 'undefined' && navigator.vibrate) {
+        navigator.vibrate(60);
+      }
+      setShowLocationModal(true);
+    }, 550); // 550ms للضغطة المطولة
+  };
+
+  const handleBaladnaTouchEnd = (e: React.MouseEvent | React.TouchEvent) => {
+    if (longPressTimerRef.current) {
+      clearTimeout(longPressTimerRef.current);
+      longPressTimerRef.current = null;
+    }
+  };
+
+  const handleBaladnaClick = (e: React.MouseEvent) => {
+    if (isLongPressRef.current) {
+      e.preventDefault();
+      isLongPressRef.current = false;
+      return;
+    }
+
+    // إذا لم يكن المستخدم قد حدد بلده مسبقاً، نفتح له نافذة التحديد لأول مرة
+    const currentSaved = localStorage.getItem(BALADNA_STORAGE_KEY);
+    if (!currentSaved) {
+      e.preventDefault();
+      setShowLocationModal(true);
+      return;
+    }
+    // إذا كان محدداً، ينتقل لصفحة سوق بلدنا بشكل طبيعي
   };
 
   const isHomeActive = pathname === '/';
@@ -129,22 +180,35 @@ export default function BottomNav() {
             </span>
           </div>
 
-          {/* 4. سوق بلدنا */}
+          {/* 4. سوق بلدنا (مع دعم الضغطة المطولة لتحديد/تغيير البلد) */}
           <Link
             href="/sooq-baladna"
+            onClick={handleBaladnaClick}
+            onTouchStart={handleBaladnaTouchStart}
+            onTouchEnd={handleBaladnaTouchEnd}
+            onMouseDown={handleBaladnaTouchStart}
+            onMouseUp={handleBaladnaTouchEnd}
+            onContextMenu={(e) => {
+              e.preventDefault();
+              setShowLocationModal(true);
+            }}
+            title={savedBalad ? `سوق بلدنا (${savedBalad}) - اضغط مطولاً لتغيير البلد` : 'سوق بلدنا - اضغط مطولاً لتحديد بلدك'}
             className={cn(
               "flex flex-col items-center justify-center flex-1 py-1 px-1 rounded-xl transition-all duration-200 group relative",
               isBaladnaActive ? "text-primary font-bold" : "text-muted-foreground hover:text-foreground active:scale-95"
             )}
           >
             <div className="relative p-1">
-              <MapPin className={cn("w-5 h-5 transition-transform duration-200", isBaladnaActive ? "scale-110 stroke-[2.4]" : "group-hover:scale-105")} />
+              <MapPin className={cn("w-5 h-5 transition-transform duration-200", isBaladnaActive ? "scale-110 stroke-[2.4] text-primary" : "group-hover:scale-105")} />
+              {savedBalad && !isBaladnaActive && (
+                <span className="absolute top-0 right-0 w-2 h-2 bg-emerald-500 rounded-full ring-1 ring-background" title={`محدد: ${savedBalad}`} />
+              )}
               {isBaladnaActive && (
                 <span className="absolute -bottom-0.5 left-1/2 -translate-x-1/2 w-1.5 h-1.5 bg-primary rounded-full animate-pulse" />
               )}
             </div>
-            <span className={cn("text-[11px] tracking-tight transition-all duration-200 mt-0.5", isBaladnaActive ? "font-bold text-primary" : "font-medium")}>
-              سوق بلدنا
+            <span className={cn("text-[11px] tracking-tight transition-all duration-200 mt-0.5 truncate max-w-[70px]", isBaladnaActive ? "font-bold text-primary" : "font-medium")}>
+              {savedBalad ? savedBalad : 'سوق بلدنا'}
             </span>
           </Link>
 
@@ -189,6 +253,12 @@ export default function BottomNav() {
         onClose={() => setShowAuthModal(false)}
         message={authModalMessage}
         redirectUrl={authModalRedirect}
+      />
+
+      {/* نافذة تحديد وحفظ البلد / القرية لسوق بلدنا */}
+      <BaladnaLocationModal
+        isOpen={showLocationModal}
+        onClose={() => setShowLocationModal(false)}
       />
     </>
   );
