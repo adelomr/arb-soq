@@ -3,7 +3,7 @@ import type { NextConfig } from 'next';
 const nextConfig: NextConfig = {
   compress: true,
   poweredByHeader: false,
-  allowedDevOrigins: ['192.168.1.6'],
+  allowedDevOrigins: ['192.168.1.3', '192.168.1.6', 'localhost'],
   typescript: {
     ignoreBuildErrors: true,
   },
