@@ -2,7 +2,7 @@
 'use client';
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
-import { User, MapPin, Target, MessageCircle, StarHalf, Loader2 } from "lucide-react";
+import { User, MapPin, Target, MessageCircle, StarHalf, Loader2, BadgeCheck } from "lucide-react";
 import { useEffect, useState, use } from "react";
 import { doc, getDoc } from "firebase/firestore";
 import { firestore } from "@/lib/firebase";
@@ -86,9 +86,14 @@ export default function UserProfilePage({ params }: Props) {
                 
                 <div className="flex-grow mb-2">
                     <div className="flex flex-col md:flex-row md:items-center gap-2 md:gap-4 mb-2">
-                        <h1 className="text-2xl md:text-3xl font-bold font-headline text-slate-900 dark:text-white">
-                            {user.name}
-                        </h1>
+                        <div className="flex items-center gap-2">
+                            <h1 className="text-2xl md:text-3xl font-bold font-headline text-slate-900 dark:text-white">
+                                {user.name}
+                            </h1>
+                            {user.verified && (
+                                <BadgeCheck className="h-6 w-6 text-blue-500 fill-blue-500/10 flex-shrink-0 animate-in zoom-in duration-300" />
+                            )}
+                        </div>
                         <span className="bg-primary/10 text-primary px-3 py-1 rounded-full text-xs font-bold w-fit">
                             عضو {user.role === 'admin' ? 'إدارة' : 'نشط'}
                         </span>

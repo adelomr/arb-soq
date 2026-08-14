@@ -108,6 +108,15 @@ export default function PricingPage() {
         if (planId === 'free') {
             router.push('/submit');
         } else {
+             if (userProfile && !userProfile.verified) {
+                 toast({
+                     title: "توثيق الحساب مطلوب للترقية",
+                     description: "لتتمكن من ترقية إعلانك، يجب توثيق حسابك أولاً بالاسم ورقم الهاتف والعنوان.",
+                     variant: "destructive"
+                 });
+                 router.push('/profile');
+                 return;
+             }
              handlePayment(planId, price);
         }
     };

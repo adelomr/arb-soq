@@ -11,7 +11,7 @@
     "lint": "next lint",
     "typecheck": "tsc --noEmit",
     "postinstall": "patch-package",
-    "deploy": "cmd /c \"set FUNCTIONS_EMULATOR_TIMEOUT=60s && next build && firebase deploy --force\"",
+    "deploy": "cmd /c \"set FUNCTIONS_EMULATOR_TIMEOUT=120s && set FUNCTIONS_DISCOVERY_TIMEOUT=120s && set FUNCTIONS_CONTROL_PLANE_TIMEOUT=120s && next build && firebase deploy --force\"",
     "upload": "git add . && git commit -m \"تحديث الموقع\" && git push"
   },
   "engines": {

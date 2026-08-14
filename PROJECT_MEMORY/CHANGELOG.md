@@ -2,6 +2,36 @@
 
 سجل جميع التعديلات المهمة والميزات المضافة للإبقاء على ذاكرة المشروع محدثة.
 
+## [2026-08-14] - تبسيط تسجيل الدخول بجوجل ونظام توثيق الحساب وإصلاح الصور بعد النشر
+
+### 1. حل مشكلة اختفاء الصور بعد النشر (Image Optimization on Firebase Hosting)
+- **التعديل:** إعادة تمكين خاصية `unoptimized: true` في قسم `images` بداخل ملف `next.config.ts`.
+- **السبب:** لا تدعم وظائف Firebase Cloud Functions المخصصة لاستضافة Next.js معالجة الصور ديناميكياً بدون وجود Sharp أو تهيئة معقدة، مما يؤدي لظهور أخطاء (broken images) وتوقف عرض الصور بعد الرفع بينما تعمل محلياً بشكل سليم. تفعيل `unoptimized: true` يسمح بتحميل الصور مباشرة من Firebase Storage دون وساطة معالجة سيرفرية.
+- **الملفات المتأثرة:** `next.config.ts`.
+
+### 2. تفعيل تسجيل الدخول التلقائي بنقرة واحدة (Google One Tap)
+- **التعديل:**
+  - إنشاء مكون عميل جديد `GoogleOneTap.tsx` وربطه في `layout.tsx`.
+  - تحديث سياسة أمان المحتوى (Content Security Policy) في `next.config.ts` لإضافة `https://accounts.google.com` إلى توجيهات `script-src` و `connect-src` و `frame-src`.
+  - وضع معرّف العميل `NEXT_PUBLIC_GOOGLE_CLIENT_ID` في ملف البيئة `.env.local`.
+- **السبب:** تلبية رغبة المستخدم في تبسيط الدخول للموقع لجذب أكبر عدد من الزوار.
+- **الملفات المتأثرة:** `src/components/GoogleOneTap.tsx`, `src/app/layout.tsx`, `next.config.ts`, `.env.local`.
+
+### 3. نظام توثيق الحسابات التفاعلي والربط بالترقيات
+- **التعديل:**
+  - إدراج خيار توثيق الحساب الاختياري في صفحة تعديل الملف الشخصي `ProfileForm.tsx`.
+  - حظر ترقية الإعلانات في صفحة الأسعار `pricing/page.tsx` للأعضاء غير الموثقين وتوجيههم لصفحة الإعدادات للتوثيق أولاً.
+  - إظهار شارات التحقق الزرقاء بجوار الاسم في كروت الإعلانات `AdCard.tsx` وتفاصيل الإعلان `AdDetailClient.tsx` والملف الشخصي العام.
+- **السبب:** تلبية وتوثيق رغبة المستخدم في تحفيز الأعضاء على التوثيق عند الرغبة في الترقية لزيادة المصداقية.
+- **الملفات المتأثرة:** `src/components/ProfileForm.tsx`, `src/app/pricing/page.tsx`, `src/components/AdCard.tsx`, `src/components/AdDetailClient.tsx`, `src/app/profile/[id]/page.tsx`, `src/lib/types.ts`.
+
+### 4. إصلاح أخطاء رسم أيقونات SVG (WhatsApp Icon Path Fixes)
+- **التعديل:** استبدال كود أيقونة الواتساب `WhatsappIcon` الطويل والمعقد بكود مسار رسم (SVG Path) قياسي وموثوق وخالٍ من الأخطاء.
+- **السبب:** تفادي تعطل واجهة كرت الإعلان في المتصفحات بسبب تعذر قراءة حروف مسار الرسم.
+- **الملفات المتأثرة:** `src/components/AdCard.tsx`, `src/components/AdDetailClient.tsx`.
+
+---
+
 ## [2026-08-12] - تحسين أداء الموقع ومؤشرات PageSpeed Insights وإصلاح سباق تصفية الدول
 
 ### 1. تحسين LCP وتقليل تأخير تحميل الصورة الرئيسية (Largest Contentful Paint)

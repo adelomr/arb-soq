@@ -52,7 +52,7 @@ interface AuthContextType {
   saveAnnouncement: (announcement: Omit<Announcement, 'id' | 'updatedAt' | 'message' | 'linkText'> & { message: { ar: string }, linkText?: { ar: string } }) => Promise<void>;
   getAdSenseSettings: () => Promise<AdSenseSettings | null>;
   saveAdSenseSettings: (settings: AdSenseSettings) => Promise<void>;
-  addAd: (adData: any, imageFiles: File[], user: User, progressCallback: (message: string) => void) => Promise<{ success: boolean; error?: string; }>;
+  addAd: (adData: any, imageFiles: File[], user: User, progressCallback: (message: string) => void) => Promise<{ success: boolean; error?: string; isCraftDuplicate?: boolean; existingAdId?: string; existingAd?: any; }>;
   updateAd: (userId: string, adId: string, adData: Partial<Ad>, newImageFiles: File[], progressCallback: (message: string) => void) => Promise<void>;
   deleteAd: (userId: string, adId: string, adData: Ad) => Promise<void>;
   getAdsForModeration: (callback: (ads: (Ad & { id: string })[]) => void, setLoading: (loading: boolean) => void) => () => void;
@@ -165,8 +165,33 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setUserProfile(fullProfile);
       return fullProfile;
     } else {
-      // New user, redirect to signup to complete profile
-      router.push('/signup');
+      // New user: auto-create initial profile seamlessly without forcing signup form
+      const finalAvatarUrl = firebaseUser.photoURL || `https://avatar.vercel.sh/${firebaseUser.uid}.png`;
+      const newProfileData: Omit<UserProfile, 'id' | 'store'> = {
+        name: firebaseUser.displayName || 'مستخدم جديد',
+        email: firebaseUser.email || '',
+        phoneNumber: firebaseUser.phoneNumber || '',
+        avatarUrl: finalAvatarUrl,
+        phoneVerified: !!firebaseUser.phoneNumber,
+        role: 'user',
+        status: 'active',
+        walletBalance: 0,
+        reviewCount: 0,
+        rating: 0,
+        profession: '',
+        specialization: '',
+        portfolioImages: [],
+      };
+
+      try {
+        await setDoc(userDocRef, newProfileData);
+      } catch (err) {
+        console.error("Failed to auto-create user profile", err);
+      }
+
+      const fullProfile: UserProfile = { id: firebaseUser.uid, ...newProfileData };
+      setUserProfile(fullProfile);
+      return fullProfile;
     }
   }, [router, getUserStore]);
 
@@ -369,14 +394,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const result = await signInWithPopup(auth, provider);
       const googleUser = result.user;
       
-      const userDoc = await getDoc(doc(firestore, 'users', googleUser.uid));
-      if (userDoc.exists()) {
-          await fetchUserProfile(googleUser);
-          router.push('/');
-      } else {
-          router.push('/signup');
-      }
-
+      await fetchUserProfile(googleUser);
+      router.push('/');
     } catch (error: any) {
       if (error.code === 'auth/popup-closed-by-user') {
         return;
@@ -547,7 +566,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setAdSenseSettings(settings);
   }, []);
 
-const addAd = useCallback(async (adData: any, imageFiles: File[], user: User, progressCallback: (message: string) => void): Promise<{ success: boolean; error?: string; }> => {
+const addAd = useCallback(async (adData: any, imageFiles: File[], user: User, progressCallback: (message: string) => void): Promise<{ success: boolean; error?: string; isCraftDuplicate?: boolean; existingAdId?: string; existingAd?: any; }> => {
     if (!userProfile) return { success: false, error: "لم يتم تحميل ملف المستخدم الشخصي" };
 
     try {
@@ -606,6 +625,56 @@ const addAd = useCallback(async (adData: any, imageFiles: File[], user: User, pr
             if (!userProfile.store) return { success: false, error: "المستخدم ليس لديه متجر" };
             collectionRef = collection(firestore, 'users', user.uid, 'store', userProfile.store.id, 'products');
         } else {
+            // التحقق من عدم تكرار الإعلان لنفس الفئة والمستخدم
+            try {
+                progressCallback("جاري التحقق من عدم تكرار الإعلان...");
+                const adsRef = collection(firestore, 'ads');
+                const q = query(adsRef, where('userId', '==', user.uid));
+                const querySnapshot = await getDocs(q);
+
+                const targetCategory = newAdData.category;
+                const targetSubcategory = newAdData.subcategory;
+
+                if (targetCategory === 'crafts') {
+                    // في فئة المهن والحرف، يمنع نشر أكثر من إعلان واحد لنفس المهنة الفرعية
+                    const existingCraftAdDoc = querySnapshot.docs.find(doc => {
+                        const data = doc.data();
+                        return data.status === 'active' && 
+                               data.category === 'crafts' && 
+                               data.subcategory === targetSubcategory;
+                    });
+
+                    if (existingCraftAdDoc) {
+                        return {
+                            success: false,
+                            isCraftDuplicate: true,
+                            existingAdId: existingCraftAdDoc.id,
+                            existingAd: { id: existingCraftAdDoc.id, ...existingCraftAdDoc.data() }
+                        };
+                    }
+                } else {
+                    // للفئات الأخرى، نمنع فقط نشر إعلان متطابق في العنوان لنفس الفئة
+                    const normalize = (str: string) => str.trim().toLowerCase().replace(/\s+/g, ' ');
+                    const targetTitle = normalize(newAdData.title || '');
+
+                    const isDuplicate = querySnapshot.docs.some(doc => {
+                        const data = doc.data();
+                        return data.status === 'active' && 
+                               data.category === targetCategory && 
+                               normalize(data.title || '') === targetTitle;
+                    });
+
+                    if (isDuplicate) {
+                        return { 
+                            success: false, 
+                            error: "لقد قمت بنشر إعلان بنفس العنوان في هذه الفئة بالفعل. يرجى تعديل الإعلان الحالي أو استخدام عنوان مختلف." 
+                        };
+                    }
+                }
+            } catch (err: any) {
+                console.error("خطأ أثناء التحقق من تكرار الإعلان:", err);
+            }
+
             // Write to top-level 'ads' for Android synchronization
             collectionRef = collection(firestore, 'ads');
         }

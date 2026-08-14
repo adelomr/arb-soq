@@ -436,6 +436,39 @@ export default function ProfileForm() {
     }
   };
 
+  const handleVerifyAccount = async () => {
+    if (!user || !userProfile) return;
+    
+    const nameVal = form.getValues('name');
+    const countryVal = form.getValues('country');
+    const provinceVal = form.getValues('province');
+    const cityVal = form.getValues('city');
+    const phoneVerified = userProfile.phoneVerified;
+
+    if (!nameVal || !countryVal || !provinceVal || !cityVal) {
+        toast({ title: "بيانات غير مكتملة", description: "يرجى تعبئة الاسم والعنوان بالكامل قبل التوثيق.", variant: "destructive" });
+        return;
+    }
+
+    if (!phoneVerified) {
+        toast({ title: "الهاتف غير مؤكد", description: "يرجى تأكيد رقم الهاتف أولاً عبر كود التفعيل.", variant: "destructive" });
+        return;
+    }
+
+    setIsSaving(true);
+    try {
+        await updateUserProfile(user.uid, {
+            verified: true
+        });
+        toast({ title: "تم توثيق الحساب!", description: "مبروك! تم توثيق حسابك بنجاح وستظهر شارة التوثيق على إعلاناتك." });
+        await refreshUserProfile();
+    } catch (e: any) {
+        toast({ title: "خطأ أثناء التوثيق", description: e.message || "حدث خطأ غير متوقع", variant: "destructive" });
+    } finally {
+        setIsSaving(false);
+    }
+  };
+
   const watchedProfessionId = form.watch('profession');
   const selectedProfessionData = professions.find(p => p.id === watchedProfessionId);
   const showSpecialization = selectedProfessionData?.hasSpecialization === true || (selectedProfessionData?.name?.ar && ['طبيب', 'معلم'].includes(selectedProfessionData.name.ar));
@@ -726,6 +759,52 @@ export default function ProfileForm() {
         </Button>
       </form>
     </Form>
+
+    {/* Account Verification Section */}
+    <div className="mt-8 rounded-2xl border p-6 bg-card shadow-sm space-y-4">
+      <div className="flex items-center gap-2 pb-3 border-b">
+        <BadgeCheck className="h-6 w-6 text-blue-500 fill-blue-500/10" />
+        <h3 className="text-lg font-bold">توثيق الحساب (اختياري)</h3>
+      </div>
+      
+      {userProfile?.verified ? (
+        <div className="flex items-center gap-3 p-4 rounded-xl bg-green-500/10 border border-green-500/30 text-green-700 dark:text-green-400">
+          <BadgeCheck className="h-8 w-8 text-green-500 fill-green-500/10 flex-shrink-0 animate-bounce" />
+          <div>
+            <h4 className="font-bold text-sm">حسابك موثق بنجاح!</h4>
+            <p className="text-xs opacity-90 mt-1">تظهر شارة التوثيق الآن على جميع إعلاناتك وصفحتك الشخصية لزيادة المصداقية وجذب المشترين.</p>
+          </div>
+        </div>
+      ) : (
+        <div className="space-y-4">
+          <p className="text-sm text-muted-foreground">قم بتوثيق حسابك لتظهر إعلاناتك بشارة موثوقة وجذابة للمشترين. متطلبات التوثيق:</p>
+          
+          <div className="space-y-2.5">
+            <div className="flex items-center gap-2 text-sm">
+              <span className={`w-2.5 h-2.5 rounded-full ${form.watch('name') ? 'bg-green-500' : 'bg-slate-300'}`} />
+              <span className={form.watch('name') ? 'text-foreground' : 'text-muted-foreground'}>الاسم الكامل</span>
+            </div>
+            <div className="flex items-center gap-2 text-sm">
+              <span className={`w-2.5 h-2.5 rounded-full ${form.watch('country') && form.watch('province') && form.watch('city') ? 'bg-green-500' : 'bg-slate-300'}`} />
+              <span className={form.watch('country') && form.watch('province') && form.watch('city') ? 'text-foreground' : 'text-muted-foreground'}>العنوان بالكامل (البلد، المحافظة، المدينة)</span>
+            </div>
+            <div className="flex items-center gap-2 text-sm">
+              <span className={`w-2.5 h-2.5 rounded-full ${userProfile?.phoneVerified ? 'bg-green-500' : 'bg-slate-300'}`} />
+              <span className={userProfile?.phoneVerified ? 'text-foreground' : 'text-muted-foreground'}>رقم هاتف تم تأكيده برمز التفعيل</span>
+            </div>
+          </div>
+
+          <Button 
+            type="button" 
+            onClick={handleVerifyAccount}
+            disabled={isSaving || !form.watch('name') || !form.watch('country') || !form.watch('province') || !form.watch('city') || !userProfile?.phoneVerified}
+            className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl h-11"
+          >
+            {isSaving ? <Loader2 className="animate-spin h-4 w-4" /> : "توثيق الحساب الآن"}
+          </Button>
+        </div>
+      )}
+    </div>
 
     <Separator className="my-8" />
     

@@ -5,14 +5,15 @@ import Image from "next/image";
 import { appIconUrl } from '@/lib/data';
 import dynamic from 'next/dynamic';
 
+import { useAuth } from '@/context/AuthContext';
+import { BadgeCheck } from 'lucide-react';
+
 const Header = dynamic(() => import('@/components/Header'), { ssr: false });
 
-const t = {
-    title: "ملفي الشخصي",
-    description: "قم بتحديث معلوماتك الشخصية وصورة ملفك الشخصي.",
-};
-
 export default function ProfilePage() {
+  const { userProfile } = useAuth();
+  const isVerified = !!userProfile?.verified;
+
   return (
     <div className="flex flex-col min-h-screen">
       <Header />
@@ -23,9 +24,16 @@ export default function ProfilePage() {
                <div className="flex justify-center mb-4">
                   <Image src={appIconUrl} alt="App Icon" width={128} height={128} className="h-24 w-24 md:h-32 md:w-32" />
               </div>
-              <h1 className="text-3xl md:text-4xl font-bold font-headline">{t.title}</h1>
-              <p className="text-muted-foreground mt-2">
-                {t.description}
+              <div className="flex items-center justify-center gap-2">
+                <h1 className="text-3xl md:text-4xl font-bold font-headline">
+                  {isVerified ? "تعديل بياناتي" : "توثيق حسابي"}
+                </h1>
+                {isVerified && <BadgeCheck className="h-7 w-7 text-blue-500 fill-blue-500/10" />}
+              </div>
+              <p className="text-muted-foreground mt-2 text-sm sm:text-base">
+                {isVerified 
+                  ? "يمكنك تعديل معلوماتك الشخصية وعنوانك وتفاصيل ملفك في أي وقت." 
+                  : "أدخل معلوماتك وعنوانك ورقم هاتفك للحصول على شارة التوثيق الرسمية في سوق العرب."}
               </p>
             </div>
             <ProfileForm />

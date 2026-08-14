@@ -2,6 +2,47 @@
 
 هذا السجل يوثق التعديلات والتحسينات المعمارية والبرمجية المنجزة لتكون مرجعاً دائمًا لفريق التطوير.
 
+## [تبسيط الدخول عبر Google One Tap ونظام توثيق الحساب الاختياري والمرتبط بالترقية] - 2026-08-14
+
+### 1. تبسيط تسجيل الدخول بجوجل (Google One Tap Login)
+- **المهمة المنجزة:** تمكين تسجيل الدخول التلقائي بنقرة واحدة لزوار الموقع الجدد.
+- **التفاصيل:**
+  - إنشاء مكون عميل جديد [GoogleOneTap.tsx](file:///d:/mashro3/mashroh/arb-soq/arb_soq.wap/arb_soq.wap/src/components/GoogleOneTap.tsx) لاستدعاء مكتبة `gsi/client` من جوجل وإطلاق نافذة One Tap.
+  - ربط المكون في تخطيط الموقع الرئيسي [layout.tsx](file:///d:/mashro3/mashroh/arb-soq/arb_soq.wap/arb_soq.wap/src/app/layout.tsx) ليعمل لجميع المستخدمين غير المسجلين.
+  - تهيئة المتغير المحلي `NEXT_PUBLIC_GOOGLE_CLIENT_ID` في ملف البيئة [env.local](file:///d:/mashro3/mashroh/arb-soq/arb_soq.wap/arb_soq.wap/.env.local).
+  - تحديث سياسة أمان المحتوى (Content Security Policy) في [next.config.ts](file:///d:/mashro3/mashroh/arb-soq/arb_soq.wap/arb_soq.wap/next.config.ts) للسماح بمصادر نص وإطارات (script-src, connect-src, frame-src) الخاص بـ `https://accounts.google.com`.
+
+### 2. نظام توثيق الحساب الاختياري (Account Verification Flow)
+- **المهمة المنجزة:** تمكين المستخدم من توثيق حسابه بالاسم ورقم الهاتف المفعل والعنوان ليحصل على شارة التوثيق.
+- **التفاصيل:**
+  - إضافة حقل `verified?: boolean` للنوع `UserProfile` في [types.ts](file:///d:/mashro3/mashroh/arb-soq/arb_soq.wap/arb_soq.wap/src/lib/types.ts).
+  - تحديث صفحة الإعدادات [ProfileForm.tsx](file:///d:/mashro3/mashroh/arb-soq/arb_soq.wap/arb_soq.wap/src/components/ProfileForm.tsx) لإضافة قسم تفاعلي جديد بالكامل يعرض حالة وشروط التوثيق (الاسم الكامل، العنوان بالبلد والمحافظة والمدينة، رقم الهاتف المؤكد عبر كود التفعيل OTP) وتوفير زر التوثيق الفوري.
+
+### 3. إظهار شارات التوثيق (Verified Badge) في الواجهات
+- **المهمة المنجزة:** إبراز الحسابات الموثقة لزيادة مصداقية الإعلانات.
+- **التفاصيل:**
+  - **بطاقة الإعلان:** تعديل [AdCard.tsx](file:///d:/mashro3/mashroh/arb-soq/arb_soq.wap/arb_soq.wap/src/components/AdCard.tsx) لعرض شارة التوثيق `BadgeCheck` الزرقاء بجانب اسم الناشر للمنتج أو المتجر الموثق.
+  - **تفاصيل الإعلان:** إدراج بطاقة معلومات الناشر متكاملة بالاسم والمهنة وشارة التوثيق في الشريط الجانبي داخل [AdDetailClient.tsx](file:///d:/mashro3/mashroh/arb-soq/arb_soq.wap/arb_soq.wap/src/components/AdDetailClient.tsx).
+  - **الملف الشخصي العام:** تحديث صفحة الملف الشخصي العام للمستخدم [page.tsx](file:///d:/mashro3/mashroh/arb-soq/arb_soq.wap/arb_soq.wap/src/app/profile/%5Bid%5D/page.tsx) لعرض شارة التوثيق الموثقة بجانب الاسم.
+
+### 4. ربط ترقية الإعلانات بالتوثيق (Verification gate for upgrades)
+- **المهمة المنجزة:** إلزام الأعضاء بتوثيق حساباتهم قبل الاشتراك في الباقات المميزة أو الترقية.
+- **التفاصيل:**
+  - تحديث صفحة الباقات والأسعار [page.tsx](file:///d:/mashro3/mashroh/arb-soq/arb_soq.wap/arb_soq.wap/src/app/pricing/page.tsx) لفحص حالة التوثيق `userProfile.verified` عند محاولة الاشتراك في باقة مدفوعة، وتوجيهه تلقائياً لاستكمال التوثيق في الإعدادات مع ظهور تنبيه توضيحي.
+
+### 5. إصلاح أخطاء رسم أيقونات SVG (WhatsApp Icon Path Fixes)
+- **المهمة المنجزة:** حل مشكلة تعطل الواجهة والـ crash المسبب لخطأ attribute d: Expected number.
+- **التفاصيل:**
+  - إعادة صياغة واستبدال كود أيقونة الواتساب `WhatsappIcon` الطويل والمعقد بكود مسار رسم (SVG Path) بسيط وقياسي 100% وخالٍ من الأخطاء في كل من [AdCard.tsx](file:///d:/mashro3/mashroh/arb-soq/arb_soq.wap/arb_soq.wap/src/components/AdCard.tsx) و [AdDetailClient.tsx](file:///d:/mashro3/mashroh/arb-soq/arb_soq.wap/arb_soq.wap/src/components/AdDetailClient.tsx).
+
+### 6. إصلاح تعطل عرض الصور بعد النشر (Unoptimized Images on Deploy)
+- **المهمة المنجزة:** حل مشكلة اختفاء صور المنتجات والإعلانات بعد الرفع على خوادم Firebase.
+- **التفاصيل:**
+  - إعادة تعيين خيار `unoptimized: true` داخل إعدادات `images` في ملف [next.config.ts](file:///d:/mashro3/mashroh/arb-soq/arb_soq.wap/arb_soq.wap/next.config.ts).
+  - **السبب:** لا تدعم بيئات تشغيل Firebase Cloud Functions (Hosting serverless Next.js frameworks) معالجة الصور ومحرك تحسين الصور الافتراضي لـ Next.js بشكل سليم، مما يسبب أخطاء 400 واختفاء الصور بعد النشر على الاستضافة الفعلية بينما تعمل محلياً بشكل سليم. تفعيل `unoptimized: true` يجبر المتصفح على طلب الصور بروابطها المباشرة الأصلية من Firebase Storage دون الحاجة لمعالجة سيرفرية.
+
+---
+
 ## [تحديثات توافق الذكاء الاصطناعي (llms.txt)، استقرار التراكم والمرونة الجوالة وإحصاءات جوجل] - 2026-08-13
 
 ### 1. معايير تصفح الذكاء الاصطناعي (WebMCP & AI Agent Accessibility - llms.txt)

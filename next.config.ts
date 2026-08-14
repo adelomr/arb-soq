@@ -24,9 +24,21 @@ const nextConfig: NextConfig = {
     ],
   },
   images: {
-    // تعطيل محسّن الصور تماماً لتجاوز قيود remotePatterns وعرض جميع الصور مباشرة من مصادرها
-    // هذا يحل مشكلة عدم عرض صور Firebase Storage و Google على السيرفر
     unoptimized: true,
+    remotePatterns: [
+      {
+        protocol: 'https',
+        hostname: 'firebasestorage.googleapis.com',
+      },
+      {
+        protocol: 'https',
+        hostname: 'lh3.googleusercontent.com',
+      },
+      {
+        protocol: 'https',
+        hostname: 'flagcdn.com',
+      }
+    ],
   },
 
   async headers() {
@@ -76,13 +88,13 @@ const nextConfig: NextConfig = {
         key: 'Content-Security-Policy',
         value: [
           "default-src 'self'",
-          "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://www.googletagmanager.com https://www.google-analytics.com https://apis.google.com https://js.stripe.com",
+          "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://www.googletagmanager.com https://www.google-analytics.com https://apis.google.com https://js.stripe.com https://accounts.google.com",
           "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
           "font-src 'self' https://fonts.gstatic.com",
           "img-src 'self' data: blob: https: http:",
           "media-src 'self' blob: https:",
-          "connect-src 'self' https: wss: https://*.googleapis.com https://*.firebaseio.com https://*.cloudfunctions.net https://ip-api.com https://ipapi.co https://ipinfo.io",
-          "frame-src 'self' https://www.youtube.com https://www.youtube-nocookie.com https://*.firebaseapp.com",
+          "connect-src 'self' https: wss: https://*.googleapis.com https://*.firebaseio.com https://*.cloudfunctions.net https://ip-api.com https://ipapi.co https://ipinfo.io https://accounts.google.com",
+          "frame-src 'self' https://www.youtube.com https://www.youtube-nocookie.com https://*.firebaseapp.com https://accounts.google.com",
           "object-src 'none'",
           "base-uri 'self'",
           "form-action 'self'",

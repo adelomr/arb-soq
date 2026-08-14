@@ -15,7 +15,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription, SheetTrigger } from '@/components/ui/sheet';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Menu, PlusCircle, User, LayoutDashboard, LogOut, Globe, LogIn, Sun, Moon, Minus, Plus, Undo2, Shield, Bell, Trash2, Info, Wallet, Megaphone, X, BadgeDollarSign, Store, Edit, ShoppingCart, MapPin, Tv, Grid, List, Smartphone } from 'lucide-react';
+import { Menu, PlusCircle, User, LayoutDashboard, LogOut, Globe, LogIn, Sun, Moon, Minus, Plus, Undo2, Shield, Bell, Trash2, Info, Wallet, Megaphone, X, BadgeDollarSign, Store, Edit, ShoppingCart, MapPin, Tv, Grid, List, Smartphone, BadgeCheck } from 'lucide-react';
 import { useState, useEffect, useRef } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import RequireAuthModal from './RequireAuthModal';
@@ -240,7 +240,7 @@ export default function Header() {
         <div className="container flex h-20 items-center justify-between gap-2 sm:gap-4">
           <div className="flex items-center gap-2 md:gap-6">
             <Link href="/" className="flex items-center gap-2 font-bold text-lg font-headline">
-              <Image src={appIconUrl} alt="App Icon" width={64} height={64} className="h-12 w-12 sm:h-16 sm:w-16" priority />
+              <Image src={appIconUrl} alt="App Icon" width={64} height={64} className="h-12 w-12 sm:h-16 sm:w-16 shrink-0" priority />
               <span className="hidden sm:inline text-xl">{currentLabels.appName}</span>
             </Link>
           </div>
@@ -259,7 +259,7 @@ export default function Header() {
         <div className="container flex h-20 items-center justify-between gap-2 sm:gap-4">
           <div className="flex items-center gap-2 md:gap-6">
             <Link href="/" className="flex items-center gap-2 font-bold text-lg font-headline group/logo">
-              <Image src={appIconUrl} alt="App Icon" width={64} height={64} className="h-12 w-12 sm:h-16 sm:w-16 animate-breath transition-transform" />
+              <Image src={appIconUrl} alt="App Icon" width={64} height={64} className="h-12 w-12 sm:h-16 sm:w-16 shrink-0 animate-breath transition-transform" />
               <span className="hidden sm:inline text-xl group-hover/logo:text-primary transition-colors">{currentLabels.appName}</span>
             </Link>
 
@@ -478,7 +478,21 @@ export default function Header() {
                       <Link href="/pricing"><BadgeDollarSign className={direction === 'rtl' ? 'ml-2 h-4 w-4' : 'mr-2 h-4 w-4'} />{currentLabels.pricing}</Link>
                     </DropdownMenuItem>
                     <DropdownMenuItem asChild>
-                      <Link href="/profile"><User className={direction === 'rtl' ? 'ml-2 h-4 w-4' : 'mr-2 h-4 w-4'} />{currentLabels.profile}</Link>
+                      <Link href="/profile" className="flex items-center justify-between w-full">
+                        <span className="flex items-center">
+                          {userProfile?.verified ? (
+                            <User className={direction === 'rtl' ? 'ml-2 h-4 w-4 text-primary' : 'mr-2 h-4 w-4 text-primary'} />
+                          ) : (
+                            <BadgeCheck className={direction === 'rtl' ? 'ml-2 h-4 w-4 text-blue-500' : 'mr-2 h-4 w-4 text-blue-500'} />
+                          )}
+                          {userProfile?.verified ? 'تعديل بياناتي' : 'توثيق حسابي'}
+                        </span>
+                        {!userProfile?.verified && (
+                          <span className="text-[10px] bg-blue-500/15 text-blue-600 dark:text-blue-400 font-bold px-1.5 py-0.5 rounded-full">
+                            موصى به
+                          </span>
+                        )}
+                      </Link>
                     </DropdownMenuItem>
                     <DropdownMenuSeparator />
                     <DropdownMenuItem onClick={signOutUser}>

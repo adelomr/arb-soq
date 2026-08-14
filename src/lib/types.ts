@@ -168,6 +168,7 @@ export interface UserProfile {
   phoneNumber?: string;
   phone?: string;
   phoneVerified?: boolean;
+  verified?: boolean;
   fullName?: string;
   jobType?: string;
   country?: string;

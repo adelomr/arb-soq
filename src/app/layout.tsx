@@ -17,6 +17,8 @@ import { Toaster } from "@/components/ui/toaster";
 import AdminNodeInitializer from '@/components/AdminNodeInitializer';
 import LinkInterceptor from '@/components/LinkInterceptor';
 import GoogleAdSenseLoader from '@/components/GoogleAdSenseLoader';
+import GoogleOneTap from '@/components/GoogleOneTap';
+import BottomNav from '@/components/BottomNav';
 
 const cairo = Cairo({
   subsets: ['arabic', 'latin'],
@@ -106,6 +108,7 @@ export default function RootLayout({
                     <MarketProvider>
                       <AuthProvider>
                         <GoogleAdSenseLoader />
+                        <GoogleOneTap />
                         <CartProvider>
                           <ViewProvider>
                           <FontSizeApplier>
@@ -132,6 +135,7 @@ export default function RootLayout({
                             <CookieConsent />
                             <div id="recaptcha-container"></div>
                             <Toaster />
+                            <BottomNav />
                           </FontSizeApplier>
                           </ViewProvider>
                         </CartProvider>

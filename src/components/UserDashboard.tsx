@@ -43,6 +43,7 @@ import { useAuth } from '@/context/AuthContext';
 import { useEffect, useState } from 'react';
 import type { Ad } from '@/lib/types';
 import { Skeleton } from './ui/skeleton';
+import AdPlaceholder from '@/components/AdPlaceholder';
 import Link from 'next/link';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
@@ -262,14 +263,20 @@ const AdTable = ({ ads, isLoading, isAdmin, noItemsMessage, isStoreProduct = fal
                     return (
                         <TableRow key={ad.id} className={needsCatUpdate ? 'bg-amber-500/5' : undefined}>
                             <TableCell>
-                            <Image
-                                alt={ad.title}
-                                className="aspect-square rounded-md object-cover transition-all hover:scale-105"
-                                height={64}
-                                src={(ad.imageUrls && ad.imageUrls.length > 0) ? ad.imageUrls[0] : (ad as any).imageUrl || '/pattern-placeholder.jpg'}
-                                width={64}
-                                data-ai-hint={(ad.imageHints && ad.imageHints.length > 0) ? ad.imageHints[0] : ''}
-                            />
+                             {(ad.imageUrls && ad.imageUrls.length > 0) || (ad as any).imageUrl ? (
+                               <Image
+                                   alt={ad.title}
+                                   className="aspect-square rounded-md object-cover transition-all hover:scale-105"
+                                   height={64}
+                                   src={(ad.imageUrls && ad.imageUrls.length > 0) ? ad.imageUrls[0] : (ad as any).imageUrl}
+                                   width={64}
+                                   data-ai-hint={(ad.imageHints && ad.imageHints.length > 0) ? ad.imageHints[0] : ''}
+                               />
+                             ) : (
+                               <div className="w-16 h-16 rounded-md overflow-hidden">
+                                 <AdPlaceholder category={ad.category} iconClassName="h-6 w-6" />
+                               </div>
+                             )}
                             </TableCell>
                             <TableCell className="font-medium">
                               <div>

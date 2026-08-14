@@ -170,7 +170,7 @@ export default function HomeClient() {
       if (view === 'grid') {
         return (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-              {ads.map((ad, idx) => <AdCard key={ad.id} ad={ad} priority={idx < 2} />)}
+              {ads.map((ad, idx) => <AdCard key={ad.id} ad={ad} priority={idx < 4} />)}
           </div>
         )
       }
@@ -197,28 +197,36 @@ export default function HomeClient() {
                        <h2 className="text-3xl font-bold font-headline">{promotedAds.length > 0 ? t.promotedAds : t.latestAds}</h2>
                     </div>
                     
-                    {promotedAds.length > 0 && (
-                      <section className="mb-12">
-                        {renderAdView(promotedAds)}
+                    {adsLoading ? (
+                      <section>
+                        {renderAdView([])}
                       </section>
-                    )}
+                    ) : (
+                      <>
+                        {promotedAds.length > 0 && (
+                          <section className="mb-12">
+                            {renderAdView(promotedAds)}
+                          </section>
+                        )}
 
-                    <section>
-                      {promotedAds.length > 0 && (
-                        <div className="flex justify-between items-center mb-8">
-                           <h2 className="text-3xl font-bold font-headline">{t.latestAds}</h2>
-                        </div>
-                      )}
-                      {renderAdView(latestAds)}
-                    </section>
-                    
-                    {usedAds.length > 0 && (
-                      <section className="mt-12 content-auto">
-                         <div className="flex justify-between items-center mb-8">
-                           <h2 className="text-3xl font-bold font-headline">{t.usedMarket}</h2>
-                        </div>
-                        {renderAdView(usedAds)}
-                      </section>
+                        <section>
+                          {promotedAds.length > 0 && (
+                            <div className="flex justify-between items-center mb-8">
+                               <h2 className="text-3xl font-bold font-headline">{t.latestAds}</h2>
+                            </div>
+                          )}
+                          {renderAdView(latestAds)}
+                        </section>
+                        
+                        {usedAds.length > 0 && (
+                          <section className="mt-12 content-auto">
+                             <div className="flex justify-between items-center mb-8">
+                               <h2 className="text-3xl font-bold font-headline">{t.usedMarket}</h2>
+                            </div>
+                            {renderAdView(usedAds)}
+                          </section>
+                        )}
+                      </>
                     )}
                 </div>
 
@@ -230,8 +238,8 @@ export default function HomeClient() {
         </div>
 
         {/* Topics Section */}
-        {recentTopics.length > 0 && (
-          <section className="bg-secondary/30 border-t border-b py-16 my-8 content-auto">
+        {(topicsLoading || recentTopics.length > 0) && (
+          <section className="bg-secondary/30 border-t border-b py-16 my-8 content-auto min-h-[400px]">
             <div className="container mx-auto px-4">
               <div className="flex justify-between items-center mb-10 text-right font-headline" dir="rtl">
                 <div>
@@ -247,6 +255,26 @@ export default function HomeClient() {
                 </Link>
               </div>
 
+              {topicsLoading ? (
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+                  {[...Array(4)].map((_, i) => (
+                    <div key={i} className="bg-card border border-border/80 rounded-2xl overflow-hidden flex flex-col h-[380px]">
+                      <Skeleton className="w-full h-44 rounded-none" />
+                      <div className="p-4 flex flex-col flex-grow justify-between gap-4">
+                        <div className="space-y-3">
+                          <Skeleton className="h-5 w-1/4" />
+                          <Skeleton className="h-6 w-full" />
+                          <Skeleton className="h-6 w-3/4" />
+                        </div>
+                        <div className="pt-3 border-t border-border/40 flex justify-between">
+                          <Skeleton className="h-4 w-1/4" />
+                          <Skeleton className="h-4 w-1/4" />
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
                 {recentTopics.map((topic) => (
                   <Link 
@@ -386,6 +414,7 @@ export default function HomeClient() {
                   </Link>
                 ))}
               </div>
+              )}
 
               <div className="mt-8 text-center sm:hidden">
                 <Link href="/blog">

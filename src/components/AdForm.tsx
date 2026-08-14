@@ -37,6 +37,15 @@ import { Skeleton } from './ui/skeleton';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Separator } from './ui/separator';
 import { markets } from '@/lib/markets';
+import {
+  AlertDialog,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 
 const translations = {
     ar: {
@@ -246,7 +255,7 @@ const LocationPicker = dynamic(() => import('./LocationPicker'), {
 
 function AdFormContent({ adId, userId, isEditMode, onSuccess }: { adId?: string | null, userId?: string | null, isEditMode: boolean, onSuccess?: () => void }) {
   const { market } = useMarket();
-  const { user, userProfile, addAd, updateAd, getAdById, categories, professions } = useAuth();
+  const { user, userProfile, addAd, updateAd, deleteAd, getAdById, categories, professions } = useAuth();
   const t = translations.ar;
   const direction = 'rtl';
   
@@ -260,6 +269,12 @@ function AdFormContent({ adId, userId, isEditMode, onSuccess }: { adId?: string 
   type AdFormValues = z.infer<typeof adFormSchema>;
 
   const [isSuggesting, setIsSuggesting] = useState(false);
+  const [duplicateCraftAdInfo, setDuplicateCraftAdInfo] = useState<{
+    existingAdId: string;
+    existingAd: any;
+    newAdData: any;
+    newImageFiles: File[];
+  } | null>(null);
   const [isMapOpen, setMapOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState<Category | null>(null);
@@ -682,10 +697,33 @@ function AdFormContent({ adId, userId, isEditMode, onSuccess }: { adId?: string 
             } : {}),
         };
 
+        let result = { success: true, error: undefined, isCraftDuplicate: false, existingAdId: undefined, existingAd: undefined };
         if (isEditMode && adId && userId) {
             await updateAd(userId, adId, adDataToSave, newImageFiles, (message: string) => toast({ title: message }));
         } else {
-            await addAd(adDataToSave, newImageFiles, user, (message: string) => toast({ title: message }));
+            const addResult = await addAd(adDataToSave, newImageFiles, user, (message: string) => toast({ title: message }));
+            result = {
+                success: addResult.success,
+                error: addResult.error as any,
+                isCraftDuplicate: (addResult as any).isCraftDuplicate,
+                existingAdId: (addResult as any).existingAdId,
+                existingAd: (addResult as any).existingAd
+            };
+        }
+
+        if (!result.success) {
+            if (result.isCraftDuplicate && result.existingAdId && result.existingAd) {
+                setDuplicateCraftAdInfo({
+                    existingAdId: result.existingAdId,
+                    existingAd: result.existingAd,
+                    newAdData: adDataToSave,
+                    newImageFiles: newImageFiles
+                });
+                return;
+            } else {
+                toast({ title: t.submissionFailed, description: result.error || t.submissionError, variant: 'destructive' });
+                return;
+            }
         }
 
         toast({
@@ -710,6 +748,48 @@ function AdFormContent({ adId, userId, isEditMode, onSuccess }: { adId?: string 
         setIsSubmitting(false);
     }
   }
+
+  const handleUpdateDuplicate = () => {
+      if (!duplicateCraftAdInfo) return;
+      const { existingAdId } = duplicateCraftAdInfo;
+      setDuplicateCraftAdInfo(null);
+      router.push(`/submit?id=${existingAdId}&userId=${user?.uid}`);
+  };
+
+  const handleDeleteAndPostNew = async () => {
+      if (!duplicateCraftAdInfo || !user) return;
+      const { existingAdId, existingAd, newAdData, newImageFiles } = duplicateCraftAdInfo;
+      setDuplicateCraftAdInfo(null);
+      setIsSubmitting(true);
+      try {
+          toast({ title: "جاري حذف الإعلان القديم..." });
+          await deleteAd(user.uid, existingAdId, existingAd);
+          
+          toast({ title: "جاري نشر الإعلان الجديد..." });
+          const res = await addAd(newAdData, newImageFiles, user, (message: string) => toast({ title: message }));
+          if (res.success) {
+              toast({
+                  title: t.adSent,
+                  description: t.adSentDesc,
+              });
+              form.reset();
+              form.setValue('images', []);
+              setSelectedCategory(null);
+              if (onSuccess) {
+                  onSuccess();
+              } else {
+                  router.push('/dashboard');
+              }
+          } else {
+              toast({ title: t.submissionFailed, description: res.error, variant: 'destructive' });
+          }
+      } catch (err: any) {
+          console.error("Error during delete & repost:", err);
+          toast({ title: t.submissionFailed, description: t.submissionError, variant: 'destructive' });
+      } finally {
+          setIsSubmitting(false);
+      }
+  };
   
   const getImageDescription = () => {
       switch(adType) {
@@ -1435,6 +1515,31 @@ function AdFormContent({ adId, userId, isEditMode, onSuccess }: { adId?: string 
         </Button>
       </form>
 
+      {duplicateCraftAdInfo && (
+        <AlertDialog open={!!duplicateCraftAdInfo} onOpenChange={(open) => !open && setDuplicateCraftAdInfo(null)}>
+          <AlertDialogContent className="max-w-md">
+            <AlertDialogHeader className="text-right">
+              <AlertDialogTitle className="text-xl font-bold font-headline text-right">إعلان مكرر في فئة المهن والحرف</AlertDialogTitle>
+              <AlertDialogDescription className="text-right text-base text-muted-foreground mt-3">
+                لقد قمت بالإعلان عن هذه المهنة الفرعية من قبل. 
+                <br />
+                هل تريد تحديث الإعلان القديم أم حذفه ونشر إعلان جديد؟
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter className="flex flex-col-reverse sm:flex-row-reverse sm:justify-start gap-2 mt-6">
+              <Button onClick={handleDeleteAndPostNew} variant="destructive" className="w-full sm:w-auto">
+                حذف ونشر الجديد
+              </Button>
+              <Button onClick={handleUpdateDuplicate} variant="outline" className="w-full sm:w-auto">
+                تحديث الإعلان القديم
+              </Button>
+              <AlertDialogCancel onClick={() => setDuplicateCraftAdInfo(null)} className="w-full sm:w-auto mt-0">
+                إلغاء
+              </AlertDialogCancel>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+      )}
     </Form>
   );
 }

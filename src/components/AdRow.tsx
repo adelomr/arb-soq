@@ -19,6 +19,7 @@ import { Button } from './ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { safeParseDate } from '@/lib/utils';
 import { memo } from 'react';
+import AdPlaceholder from '@/components/AdPlaceholder';
 
 
 const WhatsappIcon = () => (
@@ -88,9 +89,7 @@ function AdRow({ ad }: AdRowProps) {
                     sizes="(max-width: 768px) 100vw, (max-width: 1200px) 30vw, 25vw"
                 />
               ) : (
-                <div className="w-full h-full flex items-center justify-center bg-secondary">
-                    <ImageIcon className="h-12 w-12 text-muted-foreground/30" />
-                </div>
+                <AdPlaceholder category={ad.category} iconClassName="h-12 w-12" />
               )}
           </div>
         </div>
