@@ -42,48 +42,44 @@ const nextConfig: NextConfig = {
   },
 
   async headers() {
+    const isProd = process.env.NODE_ENV === 'production';
     const securityHeaders = [
-      // HSTS — إجبار HTTPS لمدة سنة كاملة مع subdomains
-      {
-        key: 'Strict-Transport-Security',
-        value: 'max-age=31536000; includeSubDomains; preload',
-      },
-      // منع تخمين نوع المحتوى (MIME sniffing)
+      ...(isProd
+        ? [
+            {
+              key: 'Strict-Transport-Security',
+              value: 'max-age=31536000; includeSubDomains; preload',
+            },
+          ]
+        : []),
       {
         key: 'X-Content-Type-Options',
         value: 'nosniff',
       },
-      // الحماية من Clickjacking
       {
         key: 'X-Frame-Options',
         value: 'SAMEORIGIN',
       },
-      // COOP — عزل النطاق بشكل صحيح
       {
         key: 'Cross-Origin-Opener-Policy',
         value: 'same-origin-allow-popups',
       },
-      // COEP — منع تحميل الموارد غير الآمنة
       {
         key: 'Cross-Origin-Embedder-Policy',
         value: 'unsafe-none',
       },
-      // CORP
       {
         key: 'Cross-Origin-Resource-Policy',
         value: 'cross-origin',
       },
-      // سياسة الإحالة
       {
         key: 'Referrer-Policy',
         value: 'strict-origin-when-cross-origin',
       },
-      // تقليل صلاحيات المتصفح
       {
         key: 'Permissions-Policy',
-        value: 'camera=(), microphone=(), geolocation=(self), interest-cohort=()',
+        value: 'camera=(), microphone=(), geolocation=(self)',
       },
-      // CSP — سياسة أمان المحتوى
       {
         key: 'Content-Security-Policy',
         value: [
@@ -93,12 +89,12 @@ const nextConfig: NextConfig = {
           "font-src 'self' https://fonts.gstatic.com",
           "img-src 'self' data: blob: https: http:",
           "media-src 'self' blob: https:",
-          "connect-src 'self' https: wss: https://*.googleapis.com https://*.firebaseio.com https://*.cloudfunctions.net https://ip-api.com https://ipapi.co https://ipinfo.io https://accounts.google.com",
+          "connect-src 'self' https: http: wss: ws: https://*.googleapis.com https://*.firebaseio.com https://*.cloudfunctions.net https://ip-api.com https://ipapi.co https://ipinfo.io https://accounts.google.com https://api.bigdatacloud.net https://nominatim.openstreetmap.org",
           "frame-src 'self' https://www.youtube.com https://www.youtube-nocookie.com https://*.firebaseapp.com https://accounts.google.com",
           "object-src 'none'",
           "base-uri 'self'",
           "form-action 'self'",
-          "upgrade-insecure-requests",
+          ...(isProd ? ["upgrade-insecure-requests"] : []),
         ].join('; '),
       },
     ];
