@@ -348,13 +348,22 @@ function AdFormContent({ adId, userId, isEditMode, onSuccess }: { adId?: string 
         const fetchAd = async () => {
             const ad = await getAdById(userId, adId, isStoreProduct);
             if (ad) {
+                const normalizedMarket = markets.find(m => m.id === ad.market || m.name.ar === ad.market)?.id || ad.market || userProfile?.country || market.id;
+                let inferredScope = (ad as any).locationScope;
+                if (!inferredScope) {
+                    if (ad.village) inferredScope = 'village';
+                    else if (ad.city) inferredScope = 'city';
+                    else if (ad.governorate && ad.governorate !== 'country') inferredScope = 'governorate';
+                    else inferredScope = 'country';
+                }
+
                 form.reset({
                     adType: ad.adType as any,
                     title: ad.title,
                     description: ad.description,
                     price: ad.price || 0,
                     productCode: ad.productCode || '',
-                    market: ad.market,
+                    market: normalizedMarket,
                     province: ad.province,
                     location: ad.location,
                     latitude: ad.latitude,
@@ -369,6 +378,7 @@ function AdFormContent({ adId, userId, isEditMode, onSuccess }: { adId?: string 
                     governorate: ad.governorate || '',
                     city: ad.city || '',
                     village: ad.village || '',
+                    locationScope: inferredScope,
                     currency: ad.currency || 'EGP',
                     phoneNumber: ad.phoneNumber || '',
                 });
@@ -411,7 +421,9 @@ function AdFormContent({ adId, userId, isEditMode, onSuccess }: { adId?: string 
   const userVillageName = useMemo(() => userProfile?.village || '', [userProfile]);
 
   const isHomeCountryTarget = useMemo(() => {
-    return !marketValue || marketValue === userHomeCountryId;
+    const currentMarket = marketValue || userHomeCountryId;
+    const normalizedCurrent = markets.find(m => m.id === currentMarket || m.name.ar === currentMarket)?.id || currentMarket;
+    return !currentMarket || normalizedCurrent === userHomeCountryId;
   }, [marketValue, userHomeCountryId]);
 
   // ضبط التحديد الافتراضي لبلد المستخدم الأصلي
@@ -1341,7 +1353,7 @@ function AdFormContent({ adId, userId, isEditMode, onSuccess }: { adId?: string 
                                                     <span className="font-bold text-sm">المحافظة بالكامل</span>
                                                 </div>
                                                 <span className="text-xs font-semibold text-primary bg-primary/10 px-2 py-1 rounded-md max-w-[130px] truncate">
-                                                    {userGovName || 'غير محددة'}
+                                                    {userGovName || form.watch('governorate') || 'غير محددة'}
                                                 </span>
                                             </FormLabel>
                                         </FormItem>
@@ -1365,7 +1377,7 @@ function AdFormContent({ adId, userId, isEditMode, onSuccess }: { adId?: string 
                                                     <span className="font-bold text-sm">المدينة بالكامل</span>
                                                 </div>
                                                 <span className="text-xs font-semibold text-primary bg-primary/10 px-2 py-1 rounded-md max-w-[130px] truncate">
-                                                    {userCityName || 'غير محددة'}
+                                                    {userCityName || form.watch('city') || 'غير محددة'}
                                                 </span>
                                             </FormLabel>
                                         </FormItem>
@@ -1389,7 +1401,7 @@ function AdFormContent({ adId, userId, isEditMode, onSuccess }: { adId?: string 
                                                     <span className="font-bold text-sm">القرية بالكامل</span>
                                                 </div>
                                                 <span className="text-xs font-semibold text-primary bg-primary/10 px-2 py-1 rounded-md max-w-[130px] truncate">
-                                                    {userVillageName || 'غير محددة'}
+                                                    {userVillageName || form.watch('village') || 'غير محددة'}
                                                 </span>
                                             </FormLabel>
                                         </FormItem>

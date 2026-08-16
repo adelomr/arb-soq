@@ -64,6 +64,7 @@ export type Ad = {
   governorate?: string;
   city?: string;
   village?: string;
+  locationScope?: string;
   showCommIcon?: boolean;
   websiteUrl?: string;
   isActive?: boolean; // Android compatibility
