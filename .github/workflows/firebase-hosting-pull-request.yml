@@ -22,7 +22,7 @@ jobs:
       - uses: FirebaseExtended/action-hosting-deploy@v0
         with:
           repoToken: ${{ secrets.GITHUB_TOKEN }}
-          firebaseServiceAccount: '${{ secrets.FIREBASE_SERVICE_ACCOUNT_ARB_SOOQ }}'
-          projectId: arb-sooq
+          firebaseServiceAccount: '${{ secrets.FIREBASE_SERVICE_ACCOUNT_ARB_SOQ || secrets.FIREBASE_SERVICE_ACCOUNT_ARB_SOOQ }}'
+          projectId: arb-soq
         env:
           FIREBASE_CLI_EXPERIMENTS: webframeworks
