@@ -82,7 +82,6 @@ import {
 } from 'lucide-react';
 import type { Category, SubCategory } from '@/lib/types';
 import { getCategoryIcon } from '@/lib/data';
-import { DEFAULT_ORGANIZED_CATEGORIES } from '@/lib/default-categories';
 
 // ─── DnD Kit ───────────────────────────────────────────────────────────────
 import {
@@ -371,23 +370,19 @@ export default function CategoryManager() {
     setIsFetching(true);
     try {
       const data = await getCategories();
-      if (!data || data.length === 0) {
-        setCategories(DEFAULT_ORGANIZED_CATEGORIES);
-      } else {
-        const sanitized = (data || []).map((cat) => ({
-          ...cat,
-          icon: cat.icon || 'Shapes',
-          subcategories: (cat.subcategories || []).map((sub) => ({
-            ...sub,
-            icon: sub.icon || 'Shapes',
-            parentId: sub.parentId || cat.id,
-          })),
-        }));
-        setCategories(sanitized);
-      }
+      const sanitized = (data || []).map((cat) => ({
+        ...cat,
+        icon: cat.icon || 'Shapes',
+        subcategories: (cat.subcategories || []).map((sub) => ({
+          ...sub,
+          icon: sub.icon || 'Shapes',
+          parentId: sub.parentId || cat.id,
+        })),
+      }));
+      setCategories(sanitized);
     } catch {
-      setCategories(DEFAULT_ORGANIZED_CATEGORIES);
-      toast({ title: 'تنبيه', description: 'تم تحميل الفئات المنسقة الافتراضية.' });
+      setCategories([]);
+      toast({ title: 'خطأ', description: 'حدث خطأ أثناء تحميل الفئات.', variant: 'destructive' });
     } finally {
       setIsFetching(false);
     }
@@ -544,21 +539,6 @@ export default function CategoryManager() {
     }
   };
 
-  // ── Reset & Sync Clean Categories ───────────────────────────────────────
-  const handleResetAndSyncCleanCategories = async () => {
-    if (!window.confirm('هل أنت متأكد من مزامنة وتوحيد جميع الفئات؟ سيتم الاعتماد على الفئات الموحدة الـ 13 وإزالة أي فئات أو مهن قديمة غير مستخدمة.')) return;
-    setIsSaving(true);
-    try {
-      setCategories(DEFAULT_ORGANIZED_CATEGORIES);
-      await saveCategories(DEFAULT_ORGANIZED_CATEGORIES);
-      toast({ title: 'تمت المزامنة بنجاح!', description: 'تم اعتماد وتوحيد جميع الفئات وحفظها في قاعدة البيانات.' });
-    } catch {
-      toast({ title: 'خطأ', description: 'حدث خطأ أثناء المزامنة.', variant: 'destructive' });
-    } finally {
-      setIsSaving(false);
-    }
-  };
-
   // ── Loading screen ────────────────────────────────────────────────────────
   if (isFetching) {
     return (
@@ -601,15 +581,6 @@ export default function CategoryManager() {
 
           {/* Action Buttons */}
           <div className="flex items-center gap-2 flex-wrap">
-            <Button
-              onClick={handleResetAndSyncCleanCategories}
-              disabled={isSaving}
-              variant="outline"
-              className="font-bold flex items-center gap-2 border-primary/40 text-primary hover:bg-primary/10"
-            >
-              <Sparkles className="h-4 w-4" />
-              <span>مزامنة الفئات الموحدة</span>
-            </Button>
             <Button
               onClick={openCreateDialog}
               className="font-bold flex items-center gap-2 bg-primary hover:bg-primary/90 text-primary-foreground"

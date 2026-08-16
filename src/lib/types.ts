@@ -48,6 +48,8 @@ export type Ad = {
   isPromoted: boolean;
   views: number;
   clicks: number;
+  callClicks?: number; // Number of clicks on call button
+  whatsappClicks?: number; // Number of clicks on whatsapp button
   postedAt: string; // ISO 8601 string
   user?: UserProfile;
   adType: AdType;
@@ -332,6 +334,7 @@ export interface PageData {
   updatedAt?: any;
   countdown?: number;
   views?: number;
+  order?: number;          // ترتيب الصفحة في القائمة (للفرز اليدوي)
   // === حقول صفحات الهبوط الاحترافية ===
   landingCategory?: string;    // قسم صفحة الهبوط (مثال: furniture-moving, home-cleaning, etc.)
   coverImageUrl?: string;      // صورة الغلاف الكبيرة (Hero)
@@ -363,6 +366,38 @@ export interface PageData {
   adpageConditionFilters?: AdpageConditionFilter[]; // أزرار الفلترة المخصصة لكل فئة (جديد، مستعمل، تمليك، إلخ)
 }
 
+// === أنواع سجل الإعلان والنشاطات (Ad Activity Log & Stats) ===
+export type AdActivityEventType = 'view' | 'call' | 'whatsapp' | 'share';
+export type AdTimeframe = '24h' | '7d' | '30d' | 'all';
 
+export interface AdActivityEvent {
+  id?: string;
+  adId: string;
+  userId?: string;
+  type: AdActivityEventType;
+  timestamp: string; // ISO 8601 string
+  device?: 'mobile' | 'desktop' | 'tablet';
+  dateStr?: string; // YYYY-MM-DD
+}
 
+export interface AdActivityDailyPoint {
+  date: string; // YYYY-MM-DD
+  formattedDate: string; // e.g. 'السبت 15 أغسطس'
+  views: number;
+  callClicks: number;
+  whatsappClicks: number;
+  total: number;
+}
 
+export interface AdActivityStats {
+  adId: string;
+  timeframe: AdTimeframe;
+  views: number;
+  callClicks: number;
+  whatsappClicks: number;
+  totalInteractions: number;
+  interactionRate: number; // percentage (e.g. 4.5%)
+  dailyBreakdown: AdActivityDailyPoint[];
+  recentEvents: AdActivityEvent[];
+  lastUpdated: string;
+}

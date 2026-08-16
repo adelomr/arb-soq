@@ -4,7 +4,6 @@ import { useEffect, useState, useRef } from 'react';
 import { handleRevalidatePage } from '@/app/actions';
 import { useAuth } from '@/context/AuthContext';
 import type { Ad } from '@/lib/types';
-import { DEFAULT_ORGANIZED_CATEGORIES } from '@/lib/default-categories';
 import { 
   getAllPages, 
   createPage, 
@@ -53,7 +52,9 @@ import {
   RefreshCw,
   Sparkles,
   Tag,
-  SlidersHorizontal
+  SlidersHorizontal,
+  ChevronUp,
+  ChevronDown
 } from 'lucide-react';
 import RichTextEditor from './RichTextEditor';
 import Image from 'next/image';
@@ -79,20 +80,8 @@ export default function PageManager({ initialFilter = 'all' }: PageManagerProps)
   const [actionLoading, setActionLoading] = useState(false);
   const [activeFilter, setActiveFilter] = useState<'all' | 'landing' | 'site' | 'adpages'>(initialFilter as any);
   // Dynamic Category state loaded from Category Management (Firestore DB)
-  const { getCategories } = useAuth();
-  const [dbCategories, setDbCategories] = useState<Category[]>(DEFAULT_ORGANIZED_CATEGORIES);
-
-  useEffect(() => {
-    let isMounted = true;
-    if (typeof getCategories === 'function') {
-      getCategories().then((data) => {
-        if (isMounted && data && data.length > 0) {
-          setDbCategories(data);
-        }
-      }).catch(err => console.error("Error fetching categories for PageManager:", err));
-    }
-    return () => { isMounted = false; };
-  }, [getCategories]);
+  const { categories: authCategories } = useAuth();
+  const dbCategories = authCategories || [];
 
   // Adpage customizable form states
   const [adpageCategoryId, setAdpageCategoryId] = useState('');
@@ -108,60 +97,6 @@ export default function PageManager({ initialFilter = 'all' }: PageManagerProps)
   const [adpageConditionFilters, setAdpageConditionFilters] = useState<AdpageConditionFilter[]>([]);
   const [adpageCoverUploading, setAdpageCoverUploading] = useState(false);
   const adpageCoverInputRef = useRef<HTMLInputElement>(null);
-
-  const generateDefaultVehicleStores = () => {
-    setAdpageStores([
-      { id: 'v1', name: 'Ellaithy Auto Group', logoText: 'Ellaithy Auto', subText: 'معرض معتمد', active: true },
-      { id: 'v2', name: 'Al Fakharany Automotive', logoText: 'Al Fakharany', subText: 'شركة موثقة' },
-      { id: 'v3', name: 'Khaled Hanoura Motors', logoText: 'Khaled Hanoura', subText: 'معرض مميز' },
-      { id: 'v4', name: 'GOLF STAR Automotive', logoText: 'GOLF STAR', subText: 'معرض معتمد' },
-      { id: 'v5', name: 'Auto Dynamics Egypt', logoText: 'Auto Dynamics', subText: 'شركة موثقة' },
-    ]);
-    toast({ title: 'تم توليد المعارض', description: 'تمت إضافة معارض السيارات الافتراضية بنجاح.' });
-  };
-
-  const generateDefaultVehicleBrands = () => {
-    setAdpageBrands([
-      { id: 'b_all', name: 'الكل' },
-      { id: 'b_toyota', name: 'تويوتا' },
-      { id: 'b_mercedes', name: 'مرسيدس' },
-      { id: 'b_bmw', name: 'بي ام دبليو' },
-      { id: 'b_kia', name: 'كيا' },
-      { id: 'b_hyundai', name: 'هيونداي' },
-      { id: 'b_skoda', name: 'سكودا' },
-      { id: 'b_renault', name: 'رينو' },
-      { id: 'b_chevrolet', name: 'شفروليه' },
-      { id: 'b_mg', name: 'ام جي' },
-    ]);
-    toast({ title: 'تم توليد الماركات', description: 'تمت إضافة ماركات السيارات الافتراضية بنجاح.' });
-  };
-
-  const generateDefaultConditionFilters = () => {
-    if (adpageCategoryId === 'realestate') {
-      setAdpageConditionFilters([
-        { id: 'cf_all', name: 'الكل', value: 'all' },
-        { id: 'cf_sale', name: 'شقق فلل للبيع', value: 'sale' },
-        { id: 'cf_rent', name: 'للإيجار', value: 'rent' },
-        { id: 'cf_new', name: 'تحت الإنشاء', value: 'new' },
-        { id: 'cf_ver', name: 'مطورون معتمدون', value: 'verified' },
-      ]);
-    } else if (adpageCategoryId === 'mobiles' || adpageCategoryId === 'electronics') {
-      setAdpageConditionFilters([
-        { id: 'cf_all', name: 'الكل', value: 'all' },
-        { id: 'cf_new', name: 'جديد كسر زيرو', value: 'new' },
-        { id: 'cf_used', name: 'مستعمل بحالة الجوال', value: 'used' },
-        { id: 'cf_ver', name: 'ضمان ومتاجر موثقة', value: 'verified' },
-      ]);
-    } else {
-      setAdpageConditionFilters([
-        { id: 'cf_all', name: 'الكل', value: 'all' },
-        { id: 'cf_new', name: 'جديد / ممتاز', value: 'new' },
-        { id: 'cf_used', name: 'مستعمل', value: 'used' },
-        { id: 'cf_ver', name: 'حسابات ومتاجر موثقة', value: 'verified' },
-      ]);
-    }
-    toast({ title: 'تم توليد أزرار الفلترة', description: 'تمت إضافة أزرار الفلترة المناسبة للفئة بنجاح.' });
-  };
 
   
   // View states: 'list' | 'create' | 'edit'
@@ -326,191 +261,6 @@ export default function PageManager({ initialFilter = 'all' }: PageManagerProps)
     });
   };
 
-  const handleCleanupArabicPages = async () => {
-    const arabicPages = pages.filter(p => /[\u0600-\u06FF]/.test(p.slug || ''));
-    if (arabicPages.length === 0) {
-      toast({
-        title: 'لا توجد صفحات بنصوص عربية',
-        description: 'جميع روابط الصفحات الحالية مصممة باللغة الإنجليزية وتتبع أفضل الممارسات.',
-      });
-      return;
-    }
-
-    if (!confirm(`هل أنت تأكد من حذف ${arabicPages.length} صفحة تحتوي على روابط باللغة العربية؟`)) {
-      return;
-    }
-
-    setActionLoading(true);
-    let deleted = 0;
-    try {
-      for (const p of arabicPages) {
-        if (p.id) {
-          await deletePage(p.id);
-          deleted++;
-        }
-      }
-      toast({
-        title: 'تم تنظيف الصفحات',
-        description: `تم حذف ${deleted} صفحة تحتوي على روابط باللغة العربية بنجاح.`,
-      });
-      fetchPages();
-    } catch {
-      toast({
-        title: 'خطأ أثناء الحذف',
-        description: 'حدث خطأ أثناء حذف بعض الصفحات.',
-        variant: 'destructive',
-      });
-    } finally {
-      setActionLoading(false);
-    }
-  };
-
-  const handleGenerateAllCategoryPages = async () => {
-    if (!confirm('هل تريد حذف صفحات الفئات القديمة وإعادة توليد صفحات إعلانية جديدة بكافة الفئات بروابط إنجليزية أنيقة وموافقة للـ SEO؟')) {
-      return;
-    }
-
-    setActionLoading(true);
-    try {
-      // 1. Clean up old adpages or Arabic pages
-      const oldAdPages = pages.filter(p => p.pageType === 'adpage' || /[\u0600-\u06FF]/.test(p.slug || ''));
-      for (const p of oldAdPages) {
-        if (p.id) {
-          await deletePage(p.id);
-        }
-      }
-
-      // 2. Mapping of clean English slugs & metadata for each main category
-      const categoryPageSpecs = [
-        {
-          id: 'vehicles',
-          title: 'عربيات وقطع غيار',
-          slug: 'cars-auto-parts',
-          shortCode: 'cars',
-          description: 'سوق السيارات المركبات وقطع الغيار الشامل - سيارات للبيع وإيجار وموتوسيكلات.',
-        },
-        {
-          id: 'realestate',
-          title: 'عقارات',
-          slug: 'real-estate',
-          shortCode: 'realestate',
-          description: 'سوق العقارات الشامل - شقق وفلل ومحلات وأراضي للبيع وللإيجار.',
-        },
-        {
-          id: 'mobiles',
-          title: 'موبايلات وتابلت',
-          slug: 'mobiles-tablets',
-          shortCode: 'mobiles',
-          description: 'سوق الهواتف والموبايلات والتابلت وإكسسواراتها وساعات ذكية.',
-        },
-        {
-          id: 'jobs',
-          title: 'وظائف',
-          slug: 'jobs-careers',
-          shortCode: 'jobs',
-          description: 'سوق الفرص الوظيفية والمهنية - هندسة ومحاسبة وتصميم وخدمة عملاء.',
-        },
-        {
-          id: 'furniture',
-          title: 'أثاث المنزل والمكتب - ديكور',
-          slug: 'home-office-furniture',
-          shortCode: 'furniture',
-          description: 'سوق الأثاث المنزلي والمكتبي والديكور وأدوات المطبخ والحمام.',
-        },
-        {
-          id: 'electronics',
-          title: 'أجهزة إلكترونية',
-          slug: 'electronics-appliances',
-          shortCode: 'electronics',
-          description: 'سوق الأجهزة الإلكترونية والشاشات وأجهزة الكمبيوتر والألعاب.',
-        },
-        {
-          id: 'fashion',
-          title: 'الموضة والجمال',
-          slug: 'fashion-beauty',
-          shortCode: 'fashion',
-          description: 'سوق الموضة والجمال والملابس والإكسسوارات والساعات والعطور.',
-        },
-        {
-          id: 'pets',
-          title: 'حيوانات أليفة - طيور - أسماك',
-          slug: 'pets-animals',
-          shortCode: 'pets',
-          description: 'سوق الحيوانات الأليفة والكلاب والقطط والطيور وأسماك الزينة.',
-        },
-        {
-          id: 'baby',
-          title: 'مستلزمات أطفال',
-          slug: 'baby-kids',
-          shortCode: 'baby',
-          description: 'سوق مستلزمات وحاجيات الرضع والأطفال والعناية وصحة الأم.',
-        },
-        {
-          id: 'hobbies',
-          title: 'هوايات وتسلية',
-          slug: 'hobbies-sports',
-          shortCode: 'hobbies',
-          description: 'سوق الهوايات والرياضة والدراجات والمقتنيات والكتب والألعاب.',
-        },
-        {
-          id: 'trade',
-          title: 'تجارة وصناعة',
-          slug: 'commercial-industrial',
-          shortCode: 'trade',
-          description: 'سوق المعدات الصناعية والتجارية وأعمال البناء والمستلزمات الطبية.',
-        },
-        {
-          id: 'services',
-          title: 'خدمات',
-          slug: 'professional-services',
-          shortCode: 'services',
-          description: 'دليل الخدمات والشركات والصيانة والحفلات والصحة والجمال.',
-        },
-        {
-          id: 'crafts',
-          title: 'المهن والحرف',
-          slug: 'crafts-professions',
-          shortCode: 'crafts',
-          description: 'سوق المهن والحرف والخدمات اليدوية - سباكة، كهرباء، نجارة، دهانات، وتكييف.',
-        },
-      ];
-
-      // 3. Create published SEO Ad Pages for each category
-      let created = 0;
-      for (const spec of categoryPageSpecs) {
-        await createPage({
-          title: spec.title,
-          slug: spec.slug,
-          shortCode: spec.shortCode,
-          content: spec.description,
-          isPublished: true,
-          pageType: 'adpage',
-          adpageMode: 'showcase',
-          adpageCategoryId: spec.id,
-          adpageDescription: spec.description,
-          adpageSubtitle: `تصفح أفضل عروض ومحلات ${spec.title}`,
-          adpageButtonText: 'تصفح الإعلانات',
-          views: 0,
-        });
-        created++;
-      }
-
-      toast({
-        title: 'تم إنشاء صفحات الفئات بنجاح',
-        description: `تم إنشاء ${created} صفحة إعلانية بروابط إنجليزية أنيقة وموافقة لمحركات البحث (SEO).`,
-      });
-      fetchPages();
-    } catch (err) {
-      console.error(err);
-      toast({
-        title: 'خطأ أثناء الإنشاء',
-        description: 'حدث خطأ أثناء إعادة توليد صفحات الفئات.',
-        variant: 'destructive',
-      });
-    } finally {
-      setActionLoading(false);
-    }
-  };
 
   const resetLandingFields = () => {
     setCoverImageUrl('');
@@ -932,6 +682,45 @@ export default function PageManager({ initialFilter = 'all' }: PageManagerProps)
     }
   };
 
+  const handleReorderPage = async (pageId: string, direction: 'up' | 'down') => {
+    // Work on the currently-filtered list so the move is relative to what's visible
+    const currentFiltered = pages.filter(p => {
+      if (activeFilter === 'landing') return p.pageType === 'landing';
+      if (activeFilter === 'site') return p.pageType !== 'landing' && p.pageType !== 'adpage';
+      if (activeFilter === 'adpages') return p.pageType === 'adpage';
+      return true;
+    }).slice().sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+
+    const idx = currentFiltered.findIndex(p => p.id === pageId);
+    if (idx === -1) return;
+    const targetIdx = direction === 'up' ? idx - 1 : idx + 1;
+    if (targetIdx < 0 || targetIdx >= currentFiltered.length) return;
+
+    // Swap in the filtered list
+    const reordered = [...currentFiltered];
+    [reordered[idx], reordered[targetIdx]] = [reordered[targetIdx], reordered[idx]];
+
+    // Assign new order values
+    const updates: Promise<void>[] = reordered.map((p, i) => {
+      if (p.id) return updatePage(p.id, { order: i });
+      return Promise.resolve();
+    });
+
+    // Optimistically update local state
+    setPages(prev => {
+      const map = new Map(prev.map(p => [p.id, p]));
+      reordered.forEach((p, i) => { if (p.id && map.has(p.id)) map.set(p.id, { ...map.get(p.id)!, order: i }); });
+      return Array.from(map.values()).sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+    });
+
+    try {
+      await Promise.all(updates);
+    } catch {
+      toast({ title: 'فشل الترتيب', description: 'حدث خطأ أثناء حفظ الترتيب.', variant: 'destructive' });
+      fetchPages(); // re-sync on failure
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex flex-col items-center justify-center p-12 gap-4">
@@ -949,7 +738,7 @@ export default function PageManager({ initialFilter = 'all' }: PageManagerProps)
     if (activeFilter === 'site') return p.pageType !== 'landing' && p.pageType !== 'adpage';
     if (activeFilter === 'adpages') return p.pageType === 'adpage';
     return true;
-  });
+  }).sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
 
   return (
     <Card className="border border-border bg-card">
@@ -1002,24 +791,7 @@ export default function PageManager({ initialFilter = 'all' }: PageManagerProps)
                 ترحيل الروابط
               </Button>
             )}
-            <Button 
-              variant="outline" 
-              onClick={handleGenerateAllCategoryPages} 
-              disabled={actionLoading}
-              className="border-emerald-500 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-950/30 flex items-center justify-center gap-2 font-bold"
-            >
-              <Sparkles className="h-4 w-4" />
-              توليد صفحات الفئات (SEO)
-            </Button>
-            <Button 
-              variant="outline" 
-              onClick={handleCleanupArabicPages} 
-              disabled={actionLoading}
-              className="border-rose-300 text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/30 flex items-center justify-center gap-2"
-            >
-              <Trash2 className="h-4 w-4" />
-              تنظيف الروابط العربية
-            </Button>
+
             <Button onClick={handleOpenCreate} className="bg-primary hover:bg-primary/90 text-primary-foreground flex items-center justify-center gap-2">
               <Plus className="h-4 w-4" />
               {activeFilter === 'landing' ? 'إضافة صفحة هبوط جديدة' : activeFilter === 'adpages' ? 'إنشاء صفحة إعلانية جديدة' : 'إضافة صفحة جديدة'}
@@ -1092,6 +864,7 @@ export default function PageManager({ initialFilter = 'all' }: PageManagerProps)
               <table className="w-full text-right border-collapse">
                 <thead>
                   <tr className="border-b border-border text-muted-foreground text-sm">
+                    <th className="pb-3 pt-1 font-semibold w-8 text-center">الترتيب</th>
                     <th className="pb-3 pt-1 font-semibold">عنوان الصفحة</th>
                     <th className="pb-3 pt-1 font-semibold">الرابط</th>
                     <th className="pb-3 pt-1 font-semibold text-center">النوع</th>
@@ -1105,8 +878,34 @@ export default function PageManager({ initialFilter = 'all' }: PageManagerProps)
                     const isSystemSlug = SYSTEM_SLUGS.includes(page.slug);
                     const pageUrl = isSystemSlug ? `/${page.slug}` : `/p/${page.slug}`;
 
+                    const isFirst = filteredPages[0]?.id === page.id;
+                    const isLast = filteredPages[filteredPages.length - 1]?.id === page.id;
+
                     return (
                       <tr key={page.id} className="hover:bg-muted/40 transition-colors">
+                        {/* Reorder column */}
+                        <td className="py-2 text-center">
+                          <div className="flex flex-col items-center gap-0.5">
+                            <button
+                              type="button"
+                              onClick={() => page.id && handleReorderPage(page.id, 'up')}
+                              disabled={isFirst}
+                              title="نقل للأعلى"
+                              className="p-1 rounded hover:bg-primary/10 text-muted-foreground hover:text-primary disabled:opacity-25 disabled:cursor-not-allowed transition-colors"
+                            >
+                              <ChevronUp className="h-4 w-4" />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => page.id && handleReorderPage(page.id, 'down')}
+                              disabled={isLast}
+                              title="نقل للأسفل"
+                              className="p-1 rounded hover:bg-primary/10 text-muted-foreground hover:text-primary disabled:opacity-25 disabled:cursor-not-allowed transition-colors"
+                            >
+                              <ChevronDown className="h-4 w-4" />
+                            </button>
+                          </div>
+                        </td>
                         <td className="py-4 font-medium text-foreground">
                           <div>{page.title}</div>
                           {page.pageType === 'adpage' && page.adpageCategoryId && (
@@ -1518,33 +1317,21 @@ export default function PageManager({ initialFilter = 'all' }: PageManagerProps)
                       <Building2 className="h-4 w-4 text-primary" />
                       الشركات والمعارض المميزة (Featured Showrooms)
                     </Label>
-                    <div className="flex gap-2">
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        className="flex items-center gap-1 text-xs text-primary hover:bg-primary/10"
-                        onClick={generateDefaultVehicleStores}
-                      >
-                        <Sparkles className="h-3.5 w-3.5" />
-                        توليد معارض السيارات
-                      </Button>
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        onClick={() => setAdpageStores(prev => [...prev, { id: `store_${Date.now()}`, name: '', logoText: '', subText: 'معرض معتمد' }])}
-                        className="flex items-center gap-1 text-xs"
-                      >
-                        <Plus className="h-3.5 w-3.5" />
-                        إضافة معرض
-                      </Button>
-                    </div>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setAdpageStores(prev => [...prev, { id: `store_${Date.now()}`, name: '', logoText: '', subText: 'معرض معتمد' }])}
+                      className="flex items-center gap-1 text-xs"
+                    >
+                      <Plus className="h-3.5 w-3.5" />
+                      إضافة معرض
+                    </Button>
                   </div>
 
                   {adpageStores.length === 0 ? (
                     <div className="text-center py-3 border border-dashed border-border rounded-lg text-muted-foreground text-2xs">
-                      لا توجد معارض مميزة مضافة — اضغط "توليد معارض السيارات" أو "إضافة معرض".
+                      لا توجد معارض مميزة مضافة — اضغط "إضافة معرض" لإضافة معرض أو شركة.
                     </div>
                   ) : (
                     <div className="space-y-2">
@@ -1613,16 +1400,6 @@ export default function PageManager({ initialFilter = 'all' }: PageManagerProps)
                     <div className="flex flex-wrap items-center gap-2">
                       <Button
                         type="button"
-                        variant="ghost"
-                        size="sm"
-                        className="flex items-center gap-1 text-xs text-primary hover:bg-primary/10"
-                        onClick={generateDefaultConditionFilters}
-                      >
-                        <Sparkles className="h-3.5 w-3.5" />
-                        توليد أزرار الفلترة حسب الفئة
-                      </Button>
-                      <Button
-                        type="button"
                         variant="outline"
                         size="sm"
                         onClick={() => setAdpageConditionFilters(prev => [...prev, { id: `cfilter_${Date.now()}_all`, name: 'الكل', value: 'all' }])}
@@ -1634,10 +1411,28 @@ export default function PageManager({ initialFilter = 'all' }: PageManagerProps)
                         type="button"
                         variant="outline"
                         size="sm"
-                        onClick={() => setAdpageConditionFilters(prev => [...prev, { id: `cfilter_${Date.now()}_new`, name: 'جديد / ممتاز', value: 'new' }])}
+                        onClick={() => setAdpageConditionFilters(prev => [...prev, { id: `cfilter_${Date.now()}_recent`, name: 'الأحدث', value: 'recent' }])}
                         className="text-2xs h-7 px-2 bg-secondary/40"
                       >
-                        + جديد / ممتاز
+                        + الأحدث
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setAdpageConditionFilters(prev => [...prev, { id: `cfilter_${Date.now()}_top`, name: '⭐ الأعلى تقييماً', value: 'top_rated' }])}
+                        className="text-2xs h-7 px-2 bg-secondary/40"
+                      >
+                        + الأعلى تقييماً
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setAdpageConditionFilters(prev => [...prev, { id: `cfilter_${Date.now()}_new`, name: 'جديد', value: 'new' }])}
+                        className="text-2xs h-7 px-2 bg-secondary/40"
+                      >
+                        + جديد
                       </Button>
                       <Button
                         type="button"
@@ -1652,10 +1447,46 @@ export default function PageManager({ initialFilter = 'all' }: PageManagerProps)
                         type="button"
                         variant="outline"
                         size="sm"
-                        onClick={() => setAdpageConditionFilters(prev => [...prev, { id: `cfilter_${Date.now()}_top`, name: 'الأعلى تقييماً', value: 'top_rated' }])}
+                        onClick={() => setAdpageConditionFilters(prev => [...prev, { id: `cfilter_${Date.now()}_low`, name: 'الأقل سعراً', value: 'price_low' }])}
                         className="text-2xs h-7 px-2 bg-secondary/40"
                       >
-                        + الأعلى تقييماً
+                        + الأقل سعراً
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setAdpageConditionFilters(prev => [...prev, { id: `cfilter_${Date.now()}_high`, name: 'الأعلى سعراً', value: 'price_high' }])}
+                        className="text-2xs h-7 px-2 bg-secondary/40"
+                      >
+                        + الأعلى سعراً
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setAdpageConditionFilters(prev => [...prev, { id: `cfilter_${Date.now()}_sale`, name: 'للبيع / تمليك', value: 'sale' }])}
+                        className="text-2xs h-7 px-2 bg-secondary/40"
+                      >
+                        + للبيع
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setAdpageConditionFilters(prev => [...prev, { id: `cfilter_${Date.now()}_rent`, name: 'للإيجار', value: 'rent' }])}
+                        className="text-2xs h-7 px-2 bg-secondary/40"
+                      >
+                        + للإيجار
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setAdpageConditionFilters(prev => [...prev, { id: `cfilter_${Date.now()}_ver`, name: 'حسابات موثقة', value: 'verified' }])}
+                        className="text-2xs h-7 px-2 bg-secondary/40"
+                      >
+                        + موثق
                       </Button>
                       <Button
                         type="button"
@@ -1666,12 +1497,21 @@ export default function PageManager({ initialFilter = 'all' }: PageManagerProps)
                       >
                         + الأكثر اختياراً
                       </Button>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setAdpageConditionFilters(prev => [...prev, { id: `cfilter_${Date.now()}_custom`, name: 'زر مخصص', value: 'custom' }])}
+                        className="text-2xs h-7 px-2 bg-secondary/40"
+                      >
+                        + زر مخصص
+                      </Button>
                     </div>
                   </div>
 
                   {adpageConditionFilters.length === 0 ? (
                     <div className="text-center py-3 border border-dashed border-border rounded-lg text-muted-foreground text-2xs">
-                      لا توجد أزرار فلترة مضافة — اضغط "توليد أزرار الفلترة حسب الفئة" أو اختر أحد الأزرار الجاهزة أعلاه.
+                      لا توجد أزرار فلترة مضافة — يمكنك اختيار أحد الأزرار أعلاه أو إضافة زر مخصص.
                     </div>
                   ) : (
                     <div className="space-y-2">
@@ -1724,7 +1564,7 @@ export default function PageManager({ initialFilter = 'all' }: PageManagerProps)
                               n[i] = { ...n[i], name: e.target.value };
                               setAdpageConditionFilters(n);
                             }}
-                            placeholder="اسم الزر (مثال: جديد / ممتاز / الأعلى تقييماً)"
+                            placeholder="اسم الزر المعروض (مثال: الكل / الأحدث / الأعلى تقييماً)"
                             className="bg-background text-xs h-8"
                           />
                           <select
@@ -1737,12 +1577,17 @@ export default function PageManager({ initialFilter = 'all' }: PageManagerProps)
                             className="w-full rounded-lg border border-border bg-background text-foreground text-right px-2 py-1 text-xs h-8 focus:outline-none"
                           >
                             <option value="all">الكل (عرض جميع الإعلانات)</option>
-                            <option value="new">جديد / ممتاز</option>
+                            <option value="recent">الأحدث (ترتيب حسب أحدث الإعلانات)</option>
+                            <option value="top_rated">الأعلى تقييماً (ترتيب حسب التقييم)</option>
+                            <option value="price_low">الأقل سعراً (ترتيب تصاعدي)</option>
+                            <option value="price_high">الأعلى سعراً (ترتيب تنازلي)</option>
+                            <option value="new">جديد</option>
                             <option value="used">مستعمل</option>
-                            <option value="top_rated">الأعلى تقييماً</option>
+                            <option value="sale">للبيع / تمليك</option>
+                            <option value="rent">للإيجار</option>
                             <option value="popular">الأكثر اختياراً / رواجاً</option>
                             <option value="verified">حسابات ومتاجر موثقة</option>
-                            <option value="custom">تصفية بحسب اسم الزر بالضبط</option>
+                            <option value="custom">تصفية بحسب نص اسم الزر بالضبط</option>
                           </select>
                           <Button
                             type="button"
@@ -1767,33 +1612,21 @@ export default function PageManager({ initialFilter = 'all' }: PageManagerProps)
                       <SlidersHorizontal className="h-4 w-4 text-primary" />
                       ماركات السيارات وأزرار الفلترة السريعة (Brand Pills)
                     </Label>
-                    <div className="flex gap-2">
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        className="flex items-center gap-1 text-xs text-primary hover:bg-primary/10"
-                        onClick={generateDefaultVehicleBrands}
-                      >
-                        <Sparkles className="h-3.5 w-3.5" />
-                        توليد ماركات السيارات
-                      </Button>
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        onClick={() => setAdpageBrands(prev => [...prev, { id: `brand_${Date.now()}`, name: '' }])}
-                        className="flex items-center gap-1 text-xs"
-                      >
-                        <Plus className="h-3.5 w-3.5" />
-                        إضافة ماركة
-                      </Button>
-                    </div>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setAdpageBrands(prev => [...prev, { id: `brand_${Date.now()}`, name: '' }])}
+                      className="flex items-center gap-1 text-xs"
+                    >
+                      <Plus className="h-3.5 w-3.5" />
+                      إضافة ماركة
+                    </Button>
                   </div>
 
                   {adpageBrands.length === 0 ? (
                     <div className="text-center py-3 border border-dashed border-border rounded-lg text-muted-foreground text-2xs">
-                      لا توجد ماركات مضافة — اضغط "توليد ماركات السيارات" لإضافة الماركات الشهيرة.
+                      لا توجد ماركات مضافة — اضغط "إضافة ماركة" لإضافة ماركة جديدة.
                     </div>
                   ) : (
                     <div className="flex flex-wrap gap-2">
@@ -1949,35 +1782,13 @@ export default function PageManager({ initialFilter = 'all' }: PageManagerProps)
                 <div className="space-y-3">
                   <div className="flex items-center justify-between">
                     <Label className="font-medium flex items-center gap-2"><Check className="h-4 w-4 text-primary" />مميزات الخدمة/المنتج</Label>
-                    <div className="flex gap-2">
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        className="flex items-center gap-1 text-xs text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-950/40"
-                        onClick={() => {
-                          const name = serviceName || title || 'خدمتنا';
-                          setFeatures([
-                            { title: `خبرة عالية في ${name}`, desc: `فريق متخصص ومحترف يمتلك خبرة واسعة في مجال ${name} لضمان أفضل النتائج`, iconName: 'star' },
-                            { title: 'أسعار منافسة ومناسبة', desc: 'نقدم خدماتنا بأسعار تنافسية تناسب جميع الميزانيات مع ضمان الجودة العالية', iconName: 'quality' },
-                            { title: 'سرعة التنفيذ والالتزام', desc: 'نلتزم بالمواعيد المحددة وننجز العمل في أسرع وقت ممكن دون المساس بالجودة', iconName: 'clock' },
-                            { title: 'ضمان رضا العميل', desc: 'نضمن رضاكم التام عن الخدمة ونوفر دعماً مستمراً بعد إتمام العمل', iconName: 'shield' },
-                            { title: 'فريق متاح على مدار الساعة', desc: 'فريقنا متاح للرد على استفساراتكم وطلباتكم في أي وقت طوال اليوم', iconName: 'phone' },
-                            { title: 'معدات واحترافية متطورة', desc: 'نستخدم أحدث الأدوات والمعدات الاحترافية لإنجاز العمل بكفاءة عالية', iconName: 'quality' },
-                          ]);
-                        }}
-                      >
-                        <Sparkles className="h-3.5 w-3.5" />
-                        توليد تلقائي
-                      </Button>
-                      <Button type="button" variant="outline" size="sm" onClick={() => setFeatures(prev => [...prev, { title: '', desc: '', iconName: 'star' }])} className="flex items-center gap-1 text-xs">
-                        <Plus className="h-3.5 w-3.5" />إضافة ميزة
-                      </Button>
-                    </div>
+                    <Button type="button" variant="outline" size="sm" onClick={() => setFeatures(prev => [...prev, { title: '', desc: '', iconName: 'star' }])} className="flex items-center gap-1 text-xs">
+                      <Plus className="h-3.5 w-3.5" />إضافة ميزة
+                    </Button>
                   </div>
                   {features.length === 0 && (
                     <div className="text-center py-6 border border-dashed border-border rounded-xl text-muted-foreground text-xs">
-                      لا توجد مميزات بعد — اضغط "توليد تلقائي" لإضافة مميزات جاهزة أو "إضافة ميزة" لإضافة ميزة مخصصة
+                      لا توجد مميزات مضافة — اضغط "إضافة ميزة" لإضافة ميزة جديدة
                     </div>
                   )}
                   {features.map((feat, i) => (

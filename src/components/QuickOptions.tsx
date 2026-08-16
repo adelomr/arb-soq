@@ -16,8 +16,6 @@ import Image from 'next/image';
 import { useAuth } from '@/context/AuthContext';
 import type { UserProfile, Category } from '@/lib/types';
 import { getCategoryIcon } from '@/lib/data';
-import { DEFAULT_ORGANIZED_CATEGORIES } from '@/lib/default-categories';
-import { getCategorySlug } from '@/lib/category-utils';
 
 const translations = {
   ar: {
@@ -50,7 +48,7 @@ export default function QuickOptions() {
   const t = translations[language];
   const [activeMenuId, setActiveMenuId] = useState<string | null>(null);
 
-  const { getUsersWithStores, categories: authCategories } = useAuth();
+  const { getUsersWithStores, categories: authCategories, getPageUrlForCategory } = useAuth();
   const [stores, setStores] = useState<(UserProfile & { id: string })[]>([]);
 
   useEffect(() => {
@@ -65,10 +63,10 @@ export default function QuickOptions() {
     fetchStores();
   }, [getUsersWithStores]);
 
-  // Use actual dynamic categories from Firebase/AuthContext if loaded, fallback to default organized categories dataset
-  const activeCategories: Category[] = (authCategories && authCategories.length > 0)
-    ? authCategories.filter(c => c.id !== 'stores' && c.id !== 'store-product')
-    : DEFAULT_ORGANIZED_CATEGORIES;
+  // Use actual dynamic categories from Firebase/AuthContext
+  const activeCategories: Category[] = (authCategories || []).filter(
+    (c) => c.id !== 'stores' && c.id !== 'store-product'
+  );
 
   const closeAllMenus = () => {
     setActiveMenuId(null);
@@ -108,28 +106,13 @@ export default function QuickOptions() {
               </Link>
             </Button>
 
-            {/* 2. "المتاجر" (Stores) */}
-            <Button 
-              variant="ghost" 
-              className={cn(
-                "flex-shrink-0 flex items-center gap-2 font-bold",
-                activeMenuId === 'stores' && "bg-primary text-primary-foreground hover:bg-primary/90 hover:text-primary-foreground"
-              )}
-              onClick={() => toggleMenu('stores')}
-            >
-              <Store className="h-4 w-4" />
-              <span>{t.stores}</span>
-              <ChevronDown className={cn("h-4 w-4 transition-transform duration-200", activeMenuId === 'stores' && "rotate-180")} />
-            </Button>
-
-
-
-            {/* 4. Actual Dynamic Categories */}
+            {/* 2. الفئات الديناميكية من قاعدة البيانات */}
             {activeCategories.map((cat) => {
               const CategoryIcon = getCategoryIcon(cat.icon, cat.id);
               const catName = cat.name?.ar || cat.id;
               const hasSubs = cat.subcategories && cat.subcategories.length > 0;
               const isOpen = activeMenuId === cat.id;
+              const catHref = getPageUrlForCategory ? getPageUrlForCategory(cat.id, undefined, catName) : `/search?q=${encodeURIComponent(catName)}`;
 
               if (hasSubs) {
                 return (
@@ -156,13 +139,27 @@ export default function QuickOptions() {
                   asChild
                   className="flex-shrink-0 flex items-center gap-2 font-semibold"
                 >
-                  <Link href={`/p/${getCategorySlug(cat.id)}`} onClick={closeAllMenus}>
+                  <Link href={catHref} onClick={closeAllMenus}>
                     <CategoryIcon className="h-4 w-4" />
                     <span>{catName}</span>
                   </Link>
                 </Button>
               );
             })}
+
+            {/* 3. "المتاجر" (Stores) - في نهاية شريط التنقل */}
+            <Button 
+              variant="ghost" 
+              className={cn(
+                "flex-shrink-0 flex items-center gap-2 font-bold",
+                activeMenuId === 'stores' && "bg-primary text-primary-foreground hover:bg-primary/90 hover:text-primary-foreground"
+              )}
+              onClick={() => toggleMenu('stores')}
+            >
+              <Store className="h-4 w-4" />
+              <span>{t.stores}</span>
+              <ChevronDown className={cn("h-4 w-4 transition-transform duration-200", activeMenuId === 'stores' && "rotate-180")} />
+            </Button>
           </div>
         </div>
 
@@ -204,27 +201,44 @@ export default function QuickOptions() {
                 </>
               )}
 
-
-
               {/* Category Submenu */}
-              {activeCategoryForMenu && activeCategoryForMenu.subcategories && (
-                activeCategoryForMenu.subcategories.map((sub, index) => {
-                  const SubIcon = getCategoryIcon(sub.icon, sub.id);
-                  const subName = typeof sub.name === 'string' ? sub.name : sub.name?.ar || sub.id;
-                  const catSlug = getCategorySlug(activeCategoryForMenu.id);
-                  const subHref = `/p/${catSlug}?sub=${sub.id}&q=${encodeURIComponent(subName)}`;
+              {activeCategoryForMenu && (
+                <>
+                  {/* Direct link to main category page */}
+                  {(() => {
+                    const MainCatIcon = getCategoryIcon(activeCategoryForMenu.icon, activeCategoryForMenu.id);
+                    const mainCatName = activeCategoryForMenu.name?.ar || activeCategoryForMenu.id;
+                    const mainCatHref = getPageUrlForCategory ? getPageUrlForCategory(activeCategoryForMenu.id, undefined, mainCatName) : `/search?q=${encodeURIComponent(mainCatName)}`;
 
-                  return (
-                    <Link key={index} href={subHref} className="flex-shrink-0" onClick={closeAllMenus}>
-                      <Card className="flex flex-col items-center justify-center p-2 h-24 w-24 text-center transition-all hover:bg-primary/5 hover:shadow-md hover:-translate-y-1">
-                        <div className="p-2 rounded-full bg-secondary mb-1">
-                          <SubIcon className="h-5 w-5 text-primary" />
-                        </div>
-                        <p className="text-xs font-semibold text-center w-full truncate">{subName}</p>
-                      </Card>
-                    </Link>
-                  );
-                })
+                    return (
+                      <Link href={mainCatHref} className="flex-shrink-0" onClick={closeAllMenus}>
+                        <Card className="flex flex-col items-center justify-center p-2 h-24 w-24 text-center transition-all bg-primary/10 border-primary/30 hover:bg-primary/20 hover:shadow-md hover:-translate-y-1">
+                          <div className="p-2 rounded-full bg-primary text-primary-foreground mb-1 shadow-xs">
+                            <MainCatIcon className="h-5 w-5" />
+                          </div>
+                          <p className="text-xs font-bold text-primary text-center w-full truncate">عرض الكل</p>
+                        </Card>
+                      </Link>
+                    );
+                  })()}
+
+                  {activeCategoryForMenu.subcategories && activeCategoryForMenu.subcategories.map((sub, index) => {
+                    const SubIcon = getCategoryIcon(sub.icon, sub.id);
+                    const subName = typeof sub.name === 'string' ? sub.name : sub.name?.ar || sub.id;
+                    const subHref = getPageUrlForCategory ? getPageUrlForCategory(activeCategoryForMenu.id, sub.id, subName) : `/search?q=${encodeURIComponent(subName)}`;
+
+                    return (
+                      <Link key={index} href={subHref} className="flex-shrink-0" onClick={closeAllMenus}>
+                        <Card className="flex flex-col items-center justify-center p-2 h-24 w-24 text-center transition-all hover:bg-primary/5 hover:shadow-md hover:-translate-y-1">
+                          <div className="p-2 rounded-full bg-secondary mb-1">
+                            <SubIcon className="h-5 w-5 text-primary" />
+                          </div>
+                          <p className="text-xs font-semibold text-center w-full truncate">{subName}</p>
+                        </Card>
+                      </Link>
+                    );
+                  })}
+                </>
               )}
             </div>
           </div>

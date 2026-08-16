@@ -21,6 +21,11 @@ export function serializeFirestoreData(data: any): any {
     return data.map(item => serializeFirestoreData(item));
   }
 
+  // Handle Date instances
+  if (data instanceof Date) {
+    return data.toISOString();
+  }
+
   // Handle Firestore Timestamps
   if (data && typeof data === 'object' && ('seconds' in data) && ('nanoseconds' in data) && typeof data.toDate === 'function') {
     return {

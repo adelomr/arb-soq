@@ -35,7 +35,7 @@ const translations = {
 }
 
 export default function Footer() {
-    const { getStats } = useAuth();
+    const { getStats, categories, getPageUrlForCategory } = useAuth();
     const t = translations.ar;
     const [stats, setStats] = useState<SiteStats | null>(null);
     const [loading, setLoading] = useState(true);
@@ -156,7 +156,7 @@ export default function Footer() {
               >
                 <span>فئات الأقسام</span>
                 <span className="inline-flex items-center justify-center h-4.5 min-w-4.5 px-1 rounded-full bg-primary/10 text-primary text-2xs font-bold">
-                  13
+                  {categories.length}
                 </span>
                 <ChevronDown className={`h-4 w-4 text-muted-foreground group-hover:text-primary transition-transform duration-200 ${categoryDrawerOpen ? 'rotate-180' : 'rotate-0'}`} />
               </button>
@@ -167,30 +167,30 @@ export default function Footer() {
                   opacity: 1,
                 }}
               >
-                {[
-                  { title: 'عربيات وقطع غيار', href: '/p/cars-auto-parts' },
-                  { title: 'عقارات', href: '/p/real-estate' },
-                  { title: 'موبايلات وتابلت', href: '/p/mobiles-tablets' },
-                  { title: 'أثاث وديكور', href: '/p/home-office-furniture' },
-                  { title: 'أجهزة إلكترونية', href: '/p/electronics-appliances' },
-                  { title: 'وظائف', href: '/p/jobs-careers' },
-                  { title: 'الموضة والجمال', href: '/p/fashion-beauty' },
-                  { title: 'المهن والحرف', href: '/p/crafts-professions' },
-                  { title: 'خدمات إعلانية', href: '/p/professional-services' },
-                  { title: 'تجارة وصناعة', href: '/p/commercial-industrial' },
-                  { title: 'حيوانات أليفة', href: '/p/pets-animals' },
-                  { title: 'مستلزمات أطفال', href: '/p/baby-kids' },
-                  { title: 'هوايات وتسلية', href: '/p/hobbies-sports' },
-                ].map((cat, idx) => (
+                {categories.length > 0 ? (
+                  categories.map((cat) => {
+                    const catName = cat.name?.ar || cat.id;
+                    const catHref = getPageUrlForCategory ? getPageUrlForCategory(cat.id, undefined, catName) : `/search?q=${encodeURIComponent(catName)}`;
+                    return (
+                      <Link
+                        key={cat.id}
+                        href={catHref}
+                        className="text-sm text-muted-foreground hover:text-primary transition-colors flex items-center gap-1.5"
+                      >
+                        <span className="w-1.5 h-1.5 rounded-full bg-primary/30 flex-shrink-0" />
+                        <span className="truncate">{catName}</span>
+                      </Link>
+                    );
+                  })
+                ) : (
                   <Link
-                    key={idx}
-                    href={cat.href}
+                    href="/categories"
                     className="text-sm text-muted-foreground hover:text-primary transition-colors flex items-center gap-1.5"
                   >
                     <span className="w-1.5 h-1.5 rounded-full bg-primary/30 flex-shrink-0" />
-                    <span className="truncate">{cat.title}</span>
+                    <span>تصفح الفئات</span>
                   </Link>
-                ))}
+                )}
               </nav>
             </div>
 

@@ -28,7 +28,7 @@ import {
 } from "@/components/ui/alert-dialog"
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { MoreHorizontal, Pencil, Trash2, Loader2, LayoutDashboard, Store, PlusCircle, Building, Edit, Eye, MousePointerClick, RotateCcw, AlertTriangle } from 'lucide-react';
+import { MoreHorizontal, Pencil, Trash2, Loader2, LayoutDashboard, Store, PlusCircle, Building, Edit, Eye, MousePointerClick, RotateCcw, AlertTriangle, Activity, BarChart3 } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -40,8 +40,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useLanguage } from '@/context/LanguageContext';
 import { useMarket } from '@/context/MarketContext';
 import { useAuth } from '@/context/AuthContext';
-import { useEffect, useState } from 'react';
-import type { Ad } from '@/lib/types';
+import { useState, useEffect } from 'react';
+import type { Ad, Category, SubCategory, UserProfile } from '@/lib/types';
 import { Skeleton } from './ui/skeleton';
 import AdPlaceholder from '@/components/AdPlaceholder';
 import Link from 'next/link';
@@ -49,7 +49,6 @@ import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import StoreCard from './StoreCard';
 import { useSearchParams } from 'next/navigation';
-import { UserProfile } from '@/lib/types';
 
 const translations = {
     ar: {
@@ -98,6 +97,7 @@ const translations = {
         createNewStore: "إنشاء متجر جديد",
         editStore: "تعديل المتجر",
         viewStore: "عرض المتجر",
+        adLog: "السجل",
     }
 }
 
@@ -108,10 +108,21 @@ type DialogState = {
   action: 'delete' | 'reset';
 }
 
-const checkNeedsCategoryUpdate = (ad: Ad): boolean => {
+const checkNeedsCategoryUpdate = (ad: Ad, dynamicCategories: Category[] = []): boolean => {
   if (!ad) return false;
   const catId = (ad.categoryId || ad.category || '').toString().toLowerCase().trim();
   if (!catId) return true;
+  if (catId === 'store-product') return false;
+
+  // Check if matches any dynamic category or its subcategories
+  if (dynamicCategories && dynamicCategories.length > 0) {
+    const matched = dynamicCategories.some(c => 
+      c.id.toLowerCase() === catId || 
+      (c.name?.ar && c.name.ar.toLowerCase() === catId) ||
+      c.subcategories?.some((s: SubCategory) => s.id.toLowerCase() === catId || (s.name?.ar && s.name.ar.toLowerCase() === catId))
+    );
+    if (matched) return false;
+  }
   
   const knownCategories = [
     'vehicles', 'cars', 'عربيات', 'سيارات', 'مركبات',
@@ -138,10 +149,10 @@ const AdTable = ({ ads, isLoading, isAdmin, noItemsMessage, isStoreProduct = fal
     const { market } = useMarket();
     const t = translations.ar;
     const [dialogState, setDialogState] = useState<DialogState>({ isOpen: false, ad: null, action: 'delete' });
-    const { deleteAd, resetAdCounters } = useAuth();
+    const { deleteAd, resetAdCounters, categories } = useAuth();
     const { toast } = useToast();
 
-    const needsCategoryUpdateCount = ads.filter(checkNeedsCategoryUpdate).length;
+    const needsCategoryUpdateCount = ads.filter(a => checkNeedsCategoryUpdate(a, categories)).length;
 
     const openDialog = (ad: Ad, action: 'delete' | 'reset') => {
         setDialogState({ isOpen: true, ad, action });
@@ -240,8 +251,8 @@ const AdTable = ({ ads, isLoading, isAdmin, noItemsMessage, isStoreProduct = fal
             <span className="text-2xs bg-amber-200 dark:bg-amber-800 px-2 py-0.5 rounded-full">تنبيه فئات الإعلانات</span>
           </div>
         )}
-        <div className="w-full overflow-x-auto">
-            <Table>
+        <div className="w-full overflow-x-auto" dir="rtl">
+            <Table dir="rtl">
             <TableHeader>
                 <TableRow>
                 <TableHead className="w-[64px] sm:w-[80px]">{t.image}</TableHead>
@@ -249,11 +260,7 @@ const AdTable = ({ ads, isLoading, isAdmin, noItemsMessage, isStoreProduct = fal
                 {isAdmin && <TableHead className="hidden lg:table-cell">{t.user}</TableHead>}
                 <TableHead className="hidden sm:table-cell">{t.status}</TableHead>
                 <TableHead>{t.price}</TableHead>
-                <TableHead>{t.views}</TableHead>
-                <TableHead>{t.clicks}</TableHead>
-                <TableHead>
-                    <span className="sr-only">{t.actions}</span>
-                </TableHead>
+                <TableHead className="text-center min-w-[160px]">{t.actions}</TableHead>
                 </TableRow>
             </TableHeader>
             <TableBody>
@@ -315,43 +322,35 @@ const AdTable = ({ ads, isLoading, isAdmin, noItemsMessage, isStoreProduct = fal
                                 {ad.price ? currencyFormatter.format(ad.price) : '-'}
                             </TableCell>
                             <TableCell>
-                                <div className="flex items-center gap-1">
-                                    <Eye className="h-4 w-4 text-muted-foreground" />
-                                    {(ad.views || 0).toLocaleString('en-US')}
-                                </div>
-                            </TableCell>
-                            <TableCell>
-                                <div className="flex items-center gap-1">
-                                     <MousePointerClick className="h-4 w-4 text-muted-foreground" />
-                                    {(ad.clicks || 0).toLocaleString('en-US')}
-                                </div>
-                            </TableCell>
-                            <TableCell>
-                            <DropdownMenu>
-                                <DropdownMenuTrigger asChild>
-                                <Button aria-haspopup="true" size="icon" variant="ghost">
-                                    <MoreHorizontal className="h-4 w-4" />
-                                    <span className="sr-only">{t.toggleMenu}</span>
+                            <div className="flex items-center justify-center gap-1.5">
+                                {/* زر السجل المباشر */}
+                                <Button asChild size="sm" variant="outline" className="h-8 px-2.5 text-xs font-semibold gap-1 text-primary border-primary/30 hover:bg-primary/10 hover:text-primary">
+                                    <Link href={`/ad/${ad.userId || 'owner'}/${ad.id}/log`}>
+                                        <Activity className="h-3.5 w-3.5" />
+                                        <span>{t.adLog}</span>
+                                    </Link>
                                 </Button>
-                                </DropdownMenuTrigger>
-                                <DropdownMenuContent align={direction === 'rtl' ? 'start' : 'end'}>
-                                    <DropdownMenuItem asChild>
-                                        <Link href={editLink} className={needsCatUpdate ? 'font-bold text-amber-600' : ''}>
-                                            <Pencil className={direction === 'rtl' ? 'ml-2 h-4 w-4' : 'mr-2 h-4 w-4'} />
-                                            {needsCatUpdate ? 'تحديث الفئة والإعلان' : t.edit}
-                                        </Link>
-                                    </DropdownMenuItem>
-                                     <DropdownMenuItem onSelect={() => openDialog(ad, 'reset')}>
-                                        <RotateCcw className={direction === 'rtl' ? 'ml-2 h-4 w-4' : 'mr-2 h-4 w-4'} />
-                                        {t.resetCounters}
-                                    </DropdownMenuItem>
-                                    <DropdownMenuSeparator />
-                                    <DropdownMenuItem className="text-destructive focus:text-destructive focus:bg-destructive/10" onSelect={() => openDialog(ad, 'delete')}>
-                                        <Trash2 className={direction === 'rtl' ? 'ml-2 h-4 w-4' : 'mr-2 h-4 w-4'} />
-                                        {t.delete}
-                                    </DropdownMenuItem>
-                                </DropdownMenuContent>
-                            </DropdownMenu>
+
+                                {/* أيقونة وزر التعديل المباشر */}
+                                <Button asChild size="sm" variant="outline" className={cn("h-8 px-2.5 text-xs gap-1", needsCatUpdate && "border-amber-500 text-amber-600 bg-amber-500/5")}>
+                                    <Link href={editLink} title={t.edit}>
+                                        <Pencil className="h-3.5 w-3.5" />
+                                        <span className="hidden md:inline">{needsCatUpdate ? 'تحديث الفئة' : t.edit}</span>
+                                    </Link>
+                                </Button>
+
+                                {/* أيقونة الحذف المباشر */}
+                                <Button 
+                                    size="sm" 
+                                    variant="outline" 
+                                    className="h-8 px-2 text-xs text-destructive border-destructive/30 hover:bg-destructive/10 hover:text-destructive"
+                                    onClick={() => openDialog(ad, 'delete')}
+                                    title={t.delete}
+                                >
+                                    <Trash2 className="h-3.5 w-3.5" />
+                                    <span className="sr-only">{t.delete}</span>
+                                </Button>
+                            </div>
                             </TableCell>
                         </TableRow>
                     )

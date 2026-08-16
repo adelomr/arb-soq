@@ -1,0 +1,496 @@
+'use client';
+
+import React, { useState, useEffect, useCallback } from 'react';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from '@/components/ui/dialog';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { Card, CardContent } from '@/components/ui/card';
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { 
+  Eye, 
+  Phone, 
+  MousePointerClick, 
+  TrendingUp, 
+  Calendar, 
+  Clock, 
+  Smartphone, 
+  Monitor, 
+  RotateCcw, 
+  Loader2, 
+  Activity, 
+  Share2, 
+  BarChart3,
+  ExternalLink,
+  ShieldAlert,
+  Info
+} from 'lucide-react';
+import type { Ad, AdActivityStats, AdTimeframe, AdActivityEvent } from '@/lib/types';
+import { getAdActivityStats, resetAdActivityLogs } from '@/lib/ad-log-service';
+import { formatDistanceToNow, parseISO } from 'date-fns';
+import { ar } from 'date-fns/locale';
+import Image from 'next/image';
+import Link from 'next/link';
+import { useToast } from '@/hooks/use-toast';
+import { cn } from '@/lib/utils';
+
+// Whatsapp icon component
+const WhatsappIcon = ({ className = "h-4 w-4" }: { className?: string }) => (
+  <svg role="img" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" className={className} fill="currentColor">
+    <path d="M17.472 14.382c-.022-.08-.115-.188-.417-.329-.3-.14-1.778-.877-2.037-.972-.26-.095-.448-.142-.642.148-.193.29-.749.972-.919 1.162-.17.19-.34.21-.641.07-.3-.14-1.272-.468-2.423-1.493-.895-.8-1.5-1.787-1.675-2.09-.175-.3-.018-.463.132-.613.136-.135.3-.35.45-.524.15-.175.2-.292.3-.487.1-.197.05-.369-.025-.51-.07-.14-.642-1.547-.882-2.128-.233-.564-.47-.488-.642-.496-.166-.008-.356-.01-.546-.01-.19 0-.5.07-.76.357-.26.29-1 .975-1 2.378 0 1.4 1.01 2.75 1.15 2.94.14.19 1.98 3.03 4.8 4.24.67.29 1.2.46 1.61.59.67.21 1.28.18 1.76.11.53-.08 1.63-.67 1.86-1.32.23-.65.23-1.2.16-1.32-.07-.12-.26-.19-.56-.33zM12.002 2c-5.523 0-10 4.477-10 10 0 1.778.463 3.507 1.345 5.032L2 22l5.132-1.347c1.472.8 3.12 1.222 4.87 1.222 5.523 0 10-4.477 10-10s-4.477-10-10-10z"/>
+  </svg>
+);
+
+interface AdLogModalProps {
+  ad: Ad | null;
+  isOpen: boolean;
+  onClose: () => void;
+  onStatsReset?: () => void;
+}
+
+export default function AdLogModal({ ad, isOpen, onClose, onStatsReset }: AdLogModalProps) {
+  const { toast } = useToast();
+  const [timeframe, setTimeframe] = useState<AdTimeframe>('all');
+  const [stats, setStats] = useState<AdActivityStats | null>(null);
+  const [loading, setLoading] = useState<boolean>(true);
+  const [refreshing, setRefreshing] = useState<boolean>(false);
+  const [isResetting, setIsResetting] = useState<boolean>(false);
+
+  const fetchStats = useCallback(async (selectedTf: AdTimeframe, isManualRefresh = false) => {
+    if (!ad?.id) return;
+    if (isManualRefresh) setRefreshing(true);
+    else setLoading(true);
+
+    try {
+      const data = await getAdActivityStats(ad.id, selectedTf, ad);
+      setStats(data);
+    } catch (error) {
+      console.error('Failed to load ad activity stats:', error);
+      toast({
+        title: 'خطأ في جلب السجل',
+        description: 'تعذر تحميل إحصائيات النشاط للإعلان.',
+        variant: 'destructive',
+      });
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  }, [ad, toast]);
+
+  useEffect(() => {
+    if (isOpen && ad?.id) {
+      fetchStats(timeframe);
+    }
+  }, [isOpen, ad?.id, timeframe, fetchStats]);
+
+  const handleTimeframeChange = (val: string) => {
+    const tf = val as AdTimeframe;
+    setTimeframe(tf);
+  };
+
+  const handleResetLogs = async () => {
+    if (!ad?.id) return;
+    const confirmed = window.confirm('هل أنت متأكد من رغبتك في إعادة تعيين سجل وإحصائيات هذا الإعلان؟ سيتم تصفير العدادات نهائياً.');
+    if (!confirmed) return;
+
+    setIsResetting(true);
+    try {
+      await resetAdActivityLogs(ad.id);
+      toast({
+        title: 'تم التصفير',
+        description: 'تم إعادة تعيين سجل الإعلان بنجاح.',
+      });
+      await fetchStats(timeframe);
+      if (onStatsReset) onStatsReset();
+    } catch (error) {
+      toast({
+        title: 'خطأ',
+        description: 'حدث خطأ أثناء تصفير السجل.',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsResetting(false);
+    }
+  };
+
+  if (!ad) return null;
+
+  const getEventBadge = (type: AdActivityEvent['type']) => {
+    switch (type) {
+      case 'view':
+        return (
+          <Badge variant="outline" className="bg-blue-500/10 text-blue-600 border-blue-500/20 flex items-center gap-1">
+            <Eye className="h-3 w-3" />
+            <span>مشاهدة</span>
+          </Badge>
+        );
+      case 'call':
+        return (
+          <Badge variant="outline" className="bg-amber-500/10 text-amber-600 border-amber-500/20 flex items-center gap-1 font-semibold">
+            <Phone className="h-3 w-3" />
+            <span>اتصال بالبائع</span>
+          </Badge>
+        );
+      case 'whatsapp':
+        return (
+          <Badge variant="outline" className="bg-green-500/10 text-green-600 border-green-500/20 flex items-center gap-1 font-semibold">
+            <WhatsappIcon className="h-3 w-3" />
+            <span>رسالة واتساب</span>
+          </Badge>
+        );
+      case 'share':
+        return (
+          <Badge variant="outline" className="bg-purple-500/10 text-purple-600 border-purple-500/20 flex items-center gap-1">
+            <Share2 className="h-3 w-3" />
+            <span>مشاركة</span>
+          </Badge>
+        );
+      default:
+        return <Badge variant="outline">نشاط</Badge>;
+    }
+  };
+
+  const formatRelativeTime = (isoString: string) => {
+    try {
+      const date = parseISO(isoString);
+      return formatDistanceToNow(date, { addSuffix: true, locale: ar });
+    } catch {
+      return isoString;
+    }
+  };
+
+  // Find max daily total for relative chart heights
+  const maxDailyTotal = stats?.dailyBreakdown
+    ? Math.max(...stats.dailyBreakdown.map(d => d.total), 1)
+    : 1;
+
+  const effectiveUserId = ad.userId || ad.user?.id || 'owner';
+  const adUrl = `/ad/${effectiveUserId}/${ad.id}`;
+
+  return (
+    <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
+      <DialogContent className="max-w-3xl max-h-[92vh] overflow-y-auto p-4 sm:p-6" dir="rtl">
+        {/* Header with Title "السجل" */}
+        <DialogHeader className="text-right pb-3 border-b border-border/60">
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex items-center gap-2.5">
+              <div className="p-2.5 rounded-xl bg-primary/10 text-primary">
+                <Activity className="h-6 w-6" />
+              </div>
+              <div>
+                <DialogTitle className="text-2xl font-black text-foreground flex items-center gap-2">
+                  السجل
+                  <Badge variant="secondary" className="font-normal text-xs px-2 py-0.5">
+                    سجل نشاط الإعلان
+                  </Badge>
+                </DialogTitle>
+                <DialogDescription className="text-xs text-muted-foreground mt-0.5">
+                  تفاصيل المشاهدات، نقرات الاتصال والواتساب مع فلاتر زمنية دقيقة.
+                </DialogDescription>
+              </div>
+            </div>
+
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => fetchStats(timeframe, true)}
+              disabled={loading || refreshing}
+              className="flex items-center gap-1.5 text-xs ml-10 sm:ml-12"
+              title="تحديث البيانات"
+            >
+              <RotateCcw className={cn("h-3.5 w-3.5", (loading || refreshing) && "animate-spin")} />
+              <span className="hidden sm:inline">تحديث</span>
+            </Button>
+          </div>
+
+          {/* Ad Summary Capsule */}
+          <div className="mt-3 p-3 rounded-xl bg-muted/40 border border-border/40 flex items-center justify-between gap-3">
+            <div className="flex items-center gap-3 min-w-0">
+              {ad.imageUrls && ad.imageUrls.length > 0 ? (
+                <div className="relative w-12 h-12 rounded-lg overflow-hidden flex-shrink-0 border border-border/60">
+                  <Image
+                    src={ad.imageUrls[0]}
+                    alt={ad.title}
+                    fill
+                    className="object-cover"
+                    sizes="48px"
+                  />
+                </div>
+              ) : (
+                <div className="w-12 h-12 rounded-lg bg-primary/5 border border-border/60 flex items-center justify-center text-primary flex-shrink-0">
+                  <BarChart3 className="h-6 w-6" />
+                </div>
+              )}
+              <div className="min-w-0">
+                <h4 className="font-bold text-sm text-foreground truncate">{ad.title}</h4>
+                <p className="text-xs text-muted-foreground flex items-center gap-2 mt-0.5">
+                  <span>{ad.category}</span>
+                  {ad.price ? <span>• {Number(ad.price).toLocaleString('en-US')} {ad.currency || 'ج.م'}</span> : null}
+                </p>
+              </div>
+            </div>
+
+            <Button asChild variant="ghost" size="sm" className="h-8 text-xs text-primary gap-1 flex-shrink-0">
+              <Link href={adUrl} target="_blank">
+                <span>عرض الإعلان</span>
+                <ExternalLink className="h-3.5 w-3.5" />
+              </Link>
+            </Button>
+          </div>
+        </DialogHeader>
+
+        {/* Timeframe Filter Tabs */}
+        <div className="py-2">
+          <Tabs value={timeframe} onValueChange={handleTimeframeChange} className="w-full">
+            <TabsList className="grid grid-cols-4 w-full bg-secondary/50 p-1 rounded-xl">
+              <TabsTrigger value="24h" className="text-xs sm:text-sm font-medium">
+                آخر 24 ساعة
+              </TabsTrigger>
+              <TabsTrigger value="7d" className="text-xs sm:text-sm font-medium">
+                آخر أسبوع
+              </TabsTrigger>
+              <TabsTrigger value="30d" className="text-xs sm:text-sm font-medium">
+                آخر شهر
+              </TabsTrigger>
+              <TabsTrigger value="all" className="text-xs sm:text-sm font-medium">
+                الكل
+              </TabsTrigger>
+            </TabsList>
+          </Tabs>
+        </div>
+
+        {loading ? (
+          <div className="py-16 flex flex-col items-center justify-center gap-3">
+            <Loader2 className="h-8 w-8 animate-spin text-primary" />
+            <p className="text-sm text-muted-foreground">جارٍ تحميل بيانات السجل...</p>
+          </div>
+        ) : (
+          <div className="space-y-6 pt-1">
+            {/* KPI Stat Cards Grid */}
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+              {/* Views Card */}
+              <Card className="bg-gradient-to-br from-blue-500/10 via-background to-blue-500/5 border-blue-500/20 shadow-sm">
+                <CardContent className="p-4">
+                  <div className="flex items-center justify-between text-blue-600 mb-2">
+                    <span className="text-xs font-semibold">المشاهدات</span>
+                    <div className="p-2 rounded-lg bg-blue-500/10">
+                      <Eye className="h-4 w-4" />
+                    </div>
+                  </div>
+                  <div className="text-2xl font-black text-foreground">
+                    {(stats?.views || 0).toLocaleString('en-US')}
+                  </div>
+                  <p className="text-2xs text-muted-foreground mt-1">مرات ظهور وتصفح</p>
+                </CardContent>
+              </Card>
+
+              {/* Call Clicks Card */}
+              <Card className="bg-gradient-to-br from-amber-500/10 via-background to-amber-500/5 border-amber-500/20 shadow-sm">
+                <CardContent className="p-4">
+                  <div className="flex items-center justify-between text-amber-600 mb-2">
+                    <span className="text-xs font-semibold">نقرات الاتصال</span>
+                    <div className="p-2 rounded-lg bg-amber-500/10">
+                      <Phone className="h-4 w-4" />
+                    </div>
+                  </div>
+                  <div className="text-2xl font-black text-foreground">
+                    {(stats?.callClicks || 0).toLocaleString('en-US')}
+                  </div>
+                  <p className="text-2xs text-muted-foreground mt-1">نقر زر الهاتف</p>
+                </CardContent>
+              </Card>
+
+              {/* WhatsApp Clicks Card */}
+              <Card className="bg-gradient-to-br from-green-500/10 via-background to-green-500/5 border-green-500/20 shadow-sm">
+                <CardContent className="p-4">
+                  <div className="flex items-center justify-between text-green-600 mb-2">
+                    <span className="text-xs font-semibold">نقرات الواتساب</span>
+                    <div className="p-2 rounded-lg bg-green-500/10">
+                      <WhatsappIcon className="h-4 w-4" />
+                    </div>
+                  </div>
+                  <div className="text-2xl font-black text-foreground">
+                    {(stats?.whatsappClicks || 0).toLocaleString('en-US')}
+                  </div>
+                  <p className="text-2xs text-muted-foreground mt-1">بدء مراسلة واتساب</p>
+                </CardContent>
+              </Card>
+
+              {/* Total Interactions & Rate */}
+              <Card className="bg-gradient-to-br from-purple-500/10 via-background to-purple-500/5 border-purple-500/20 shadow-sm">
+                <CardContent className="p-4">
+                  <div className="flex items-center justify-between text-purple-600 mb-2">
+                    <span className="text-xs font-semibold">إجمالي التفاعل</span>
+                    <div className="p-2 rounded-lg bg-purple-500/10">
+                      <MousePointerClick className="h-4 w-4" />
+                    </div>
+                  </div>
+                  <div className="text-2xl font-black text-foreground flex items-baseline gap-1.5">
+                    {(stats?.totalInteractions || 0).toLocaleString('en-US')}
+                    <span className="text-xs font-normal text-muted-foreground">
+                      ({stats?.interactionRate || 0}%)
+                    </span>
+                  </div>
+                  <p className="text-2xs text-muted-foreground mt-1">نسبة التحويل والتواصل</p>
+                </CardContent>
+              </Card>
+            </div>
+
+            {/* Daily Timeline Breakdown Chart */}
+            {stats?.dailyBreakdown && stats.dailyBreakdown.length > 0 && (
+              <Card className="border border-border/60">
+                <CardContent className="p-4 sm:p-5">
+                  <div className="flex items-center justify-between mb-4">
+                    <div className="flex items-center gap-2">
+                      <BarChart3 className="h-4 w-4 text-primary" />
+                      <h4 className="font-bold text-sm text-foreground">التوزيع الزمني للنشاط</h4>
+                    </div>
+                    <div className="flex items-center gap-3 text-2xs text-muted-foreground">
+                      <span className="flex items-center gap-1">
+                        <span className="w-2.5 h-2.5 rounded-sm bg-blue-500 inline-block" />
+                        مشاهدات
+                      </span>
+                      <span className="flex items-center gap-1">
+                        <span className="w-2.5 h-2.5 rounded-sm bg-amber-500 inline-block" />
+                        اتصال
+                      </span>
+                      <span className="flex items-center gap-1">
+                        <span className="w-2.5 h-2.5 rounded-sm bg-green-500 inline-block" />
+                        واتساب
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Horizontal / Column Bar Visualization */}
+                  <div className="flex items-end justify-between gap-1 sm:gap-2 h-36 pt-4 px-1 border-b border-border/40 overflow-x-auto">
+                    {stats.dailyBreakdown.map((point, idx) => {
+                      const totalBarHeight = maxDailyTotal > 0 ? (point.total / maxDailyTotal) * 100 : 0;
+                      const heightPercent = Math.max(totalBarHeight, point.total > 0 ? 12 : 4);
+                      
+                      return (
+                        <div key={idx} className="flex-1 min-w-[28px] max-w-[50px] flex flex-col items-center gap-1 group relative">
+                          {/* Tooltip on Hover */}
+                          <div className="absolute -top-12 z-20 hidden group-hover:flex flex-col items-center bg-popover text-popover-foreground border shadow-md px-2 py-1 rounded text-2xs whitespace-nowrap pointer-events-none">
+                            <span className="font-bold">{point.formattedDate}</span>
+                            <span>مشاهدات: {point.views} | اتصال: {point.callClicks} | واتساب: {point.whatsappClicks}</span>
+                          </div>
+
+                          {/* Stacked Bar */}
+                          <div 
+                            className="w-full rounded-t-md bg-secondary flex flex-col-reverse overflow-hidden transition-all duration-300 group-hover:brightness-110"
+                            style={{ height: `${heightPercent}%` }}
+                          >
+                            {point.views > 0 && (
+                              <div 
+                                style={{ height: `${(point.views / Math.max(point.total, 1)) * 100}%` }} 
+                                className="bg-blue-500 w-full"
+                              />
+                            )}
+                            {point.callClicks > 0 && (
+                              <div 
+                                style={{ height: `${(point.callClicks / Math.max(point.total, 1)) * 100}%` }} 
+                                className="bg-amber-500 w-full"
+                              />
+                            )}
+                            {point.whatsappClicks > 0 && (
+                              <div 
+                                style={{ height: `${(point.whatsappClicks / Math.max(point.total, 1)) * 100}%` }} 
+                                className="bg-green-500 w-full"
+                              />
+                            )}
+                          </div>
+
+                          {/* Day Label */}
+                          <span className="text-3xs text-muted-foreground truncate w-full text-center group-hover:text-foreground group-hover:font-bold">
+                            {point.formattedDate.split(' ')[0]}
+                          </span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Recent Activity Log Feed */}
+            <Card className="border border-border/60">
+              <CardContent className="p-4 sm:p-5">
+                <div className="flex items-center justify-between mb-3">
+                  <div className="flex items-center gap-2">
+                    <Clock className="h-4 w-4 text-primary" />
+                    <h4 className="font-bold text-sm text-foreground">سجل الأحداث الزمني</h4>
+                  </div>
+                  <span className="text-2xs text-muted-foreground">
+                    آخر {stats?.recentEvents?.length || 0} عملية مسجلة
+                  </span>
+                </div>
+
+                {stats?.recentEvents && stats.recentEvents.length > 0 ? (
+                  <div className="divide-y divide-border/40 max-h-56 overflow-y-auto pr-1">
+                    {stats.recentEvents.map((event, idx) => (
+                      <div key={event.id || idx} className="py-2.5 flex items-center justify-between gap-3 hover:bg-muted/30 px-2 rounded-lg transition-colors">
+                        <div className="flex items-center gap-2.5">
+                          {getEventBadge(event.type)}
+                          <span className="text-xs text-muted-foreground">
+                            {event.type === 'view' && 'زيارة لصفحة الإعلان'}
+                            {event.type === 'call' && 'ضغط على زر اتصل بالبائع'}
+                            {event.type === 'whatsapp' && 'ضغط على زر المراسلة بالواتساب'}
+                            {event.type === 'share' && 'مشاركة رابط الإعلان'}
+                          </span>
+                        </div>
+
+                        <div className="flex items-center gap-2 text-2xs text-muted-foreground flex-shrink-0">
+                          {event.device === 'mobile' ? (
+                            <span className="flex items-center gap-0.5" title="هاتف محمول">
+                              <Smartphone className="h-3 w-3" />
+                              <span className="hidden sm:inline">جوال</span>
+                            </span>
+                          ) : (
+                            <span className="flex items-center gap-0.5" title="كمبيوتر مكتبي">
+                              <Monitor className="h-3 w-3" />
+                              <span className="hidden sm:inline">كمبيوتر</span>
+                            </span>
+                          )}
+                          <span>•</span>
+                          <span title={event.timestamp}>{formatRelativeTime(event.timestamp)}</span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-center py-8 text-muted-foreground flex flex-col items-center gap-2">
+                    <Info className="h-8 w-8 text-muted-foreground/50" />
+                    <p className="text-xs">لا توجد سجلات نشاط مسجلة خلال هذه الفترة حتى الآن.</p>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* Bottom Actions */}
+            <div className="flex items-center justify-between pt-2 border-t border-border/40">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={handleResetLogs}
+                disabled={isResetting}
+                className="text-xs text-destructive hover:bg-destructive/10 hover:text-destructive flex items-center gap-1.5"
+              >
+                <RotateCcw className={cn("h-3.5 w-3.5", isResetting && "animate-spin")} />
+                <span>إعادة تعيين وتصفير السجل</span>
+              </Button>
+
+              <Button variant="outline" size="sm" onClick={onClose} className="text-xs">
+                إغلاق
+              </Button>
+            </div>
+          </div>
+        )}
+      </DialogContent>
+    </Dialog>
+  );
+}

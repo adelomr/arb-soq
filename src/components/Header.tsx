@@ -551,16 +551,6 @@ export default function Header() {
                       {currentLabels.pricing}
                   </Link>
 
-                    <Link
-                      href="/p/crafts-professions"
-                      onClick={() => setSheetOpen(false)}
-                      className={cn(
-                      'font-medium transition-colors hover:text-primary',
-                      pathname === '/p/crafts-professions' ? 'text-primary' : 'text-muted-foreground'
-                      )}
-                  >
-                      قسم المهن والحرف
-                  </Link>
 
                   <Link
                       href="/landing-sections"

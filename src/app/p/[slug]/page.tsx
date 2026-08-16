@@ -1,5 +1,5 @@
-import { getPageBySlug, getPageByLegacySlug, getAllPages, createPage } from "@/lib/page-service";
-import { notFound, permanentRedirect } from "next/navigation";
+import { getPageBySlug, getAllPages } from "@/lib/page-service";
+import { notFound } from "next/navigation";
 import { Metadata } from "next";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
@@ -35,11 +35,7 @@ export async function generateStaticParams() {
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const p = await params;
   const slug = decodeURIComponent(p.slug);
-  let page = await getPageBySlug(slug);
-  
-  if (!page) {
-    page = await getPageByLegacySlug(slug);
-  }
+  const page = await getPageBySlug(slug);
   
   if (!page || !page.isPublished) {
     return { title: 'الصفحة غير موجودة | سوق العرب' };
@@ -80,58 +76,7 @@ export default async function CustomPageDetail({ params }: Props) {
   const p = await params;
   // Decode Arabic or special-character slugs encoded in the URL
   const slug = decodeURIComponent(p.slug);
-  let page = await getPageBySlug(slug);
-
-  if (!page) {
-    page = await getPageByLegacySlug(slug);
-    if (page && page.isPublished) {
-      // 301 Permanent Redirect to the new clean slug URL
-      permanentRedirect(`/p/${page.slug}`);
-    }
-  }
-
-  // ===== Auto-create known category pages if missing from Firebase =====
-  if (!page) {
-    const knownCategoryPages: Record<string, { title: string; categoryId: string; description: string; shortCode: string }> = {
-      'cars-auto-parts':      { title: 'عربيات وقطع غيار', categoryId: 'vehicles',    shortCode: 'cars',        description: 'سوق السيارات والمركبات وقطع الغيار الشامل.' },
-      'real-estate':          { title: 'عقارات',            categoryId: 'realestate',  shortCode: 'realestate',  description: 'سوق العقارات الشامل - شقق وفلل ومحلات وأراضي.' },
-      'mobiles-tablets':      { title: 'موبايلات وتابلت',  categoryId: 'mobiles',     shortCode: 'mobiles',     description: 'سوق الهواتف والموبايلات والتابلت وإكسسواراتها.' },
-      'jobs-careers':         { title: 'وظائف',            categoryId: 'jobs',        shortCode: 'jobs',        description: 'سوق الفرص الوظيفية والمهنية.' },
-      'home-office-furniture':{ title: 'أثاث المنزل والمكتب', categoryId: 'furniture', shortCode: 'furniture',   description: 'سوق الأثاث المنزلي والمكتبي والديكور.' },
-      'electronics-appliances':{ title: 'أجهزة إلكترونية',categoryId: 'electronics', shortCode: 'electronics', description: 'سوق الأجهزة الإلكترونية والشاشات وأجهزة الكمبيوتر والألعاب.' },
-      'fashion-beauty':       { title: 'الموضة والجمال',  categoryId: 'fashion',     shortCode: 'fashion',     description: 'سوق الموضة والجمال والملابس والإكسسوارات.' },
-      'pets-animals':         { title: 'حيوانات أليفة',   categoryId: 'pets',        shortCode: 'pets',        description: 'سوق الحيوانات الأليفة والكلاب والقطط والطيور.' },
-      'baby-kids':            { title: 'مستلزمات أطفال',  categoryId: 'baby',        shortCode: 'baby',        description: 'سوق مستلزمات وحاجيات الرضع والأطفال.' },
-      'hobbies-sports':       { title: 'هوايات وتسلية',   categoryId: 'hobbies',     shortCode: 'hobbies',     description: 'سوق الهوايات والرياضة والمقتنيات والكتب.' },
-      'commercial-industrial':{ title: 'تجارة وصناعة',    categoryId: 'trade',       shortCode: 'trade',       description: 'سوق المعدات الصناعية والتجارية وأعمال البناء.' },
-      'professional-services':{ title: 'خدمات',            categoryId: 'services',    shortCode: 'services',    description: 'دليل الخدمات والشركات والصيانة والحفلات.' },
-      'crafts-professions':   { title: 'المهن والحرف',     categoryId: 'crafts',      shortCode: 'crafts',      description: 'سوق المهن والحرف - سباكة، كهرباء، نجارة، دهانات.' },
-      'transport-delivery':   { title: 'نقل وتوصيل',       categoryId: 'transport',   shortCode: 'transport',   description: 'سوق الخدمات النقل والشحن والتوصيل وتأجير سيارات النقل.' },
-    };
-
-    const spec = knownCategoryPages[slug];
-    if (spec) {
-      try {
-        await createPage({
-          title: spec.title,
-          slug,
-          shortCode: spec.shortCode,
-          content: spec.description,
-          isPublished: true,
-          pageType: 'adpage' as any,
-          adpageMode: 'showcase' as any,
-          adpageCategoryId: spec.categoryId,
-          adpageDescription: spec.description,
-          adpageSubtitle: `تصفح أفضل عروض ${spec.title}`,
-          adpageButtonText: 'تصفح الإعلانات',
-          views: 0,
-        });
-        page = await getPageBySlug(slug);
-      } catch (e) {
-        console.error('Auto-create page failed:', e);
-      }
-    }
-  }
+  const page = await getPageBySlug(slug);
 
   if (!page || !page.isPublished) {
     notFound(); // Triggers 404 page

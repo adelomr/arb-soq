@@ -1,5 +1,4 @@
 import type { Ad, Category } from '@/lib/types';
-import { DEFAULT_ORGANIZED_CATEGORIES } from '@/lib/default-categories';
 
 /**
  * Normalizes string for clean comparison (lowercased, trimmed).
@@ -9,44 +8,19 @@ export function normalizeKey(str?: string): string {
   return str.toLowerCase().trim();
 }
 
-export const CATEGORY_SLUG_MAP: Record<string, string> = {
-  vehicles: 'cars-auto-parts',
-  cars: 'cars-auto-parts',
-  realestate: 'real-estate',
-  'real-estate': 'real-estate',
-  mobiles: 'mobiles-tablets',
-  jobs: 'jobs-careers',
-  furniture: 'home-office-furniture',
-  electronics: 'electronics-appliances',
-  fashion: 'fashion-beauty',
-  pets: 'pets-animals',
-  baby: 'baby-kids',
-  hobbies: 'hobbies-sports',
-  trade: 'commercial-industrial',
-  commercial: 'commercial-industrial',
-  services: 'professional-services',
-  crafts: 'crafts-professions',
-  cat_1786316040524: 'crafts-professions',
-  transport: 'transport-delivery',
-  'transport-delivery': 'transport-delivery',
-};
-
-export function getCategorySlug(catId: string): string {
-  if (!catId) return 'professional-services';
-  const key = normalizeKey(catId);
-  return CATEGORY_SLUG_MAP[key] || key;
+export function getCategorySlug(catId: string, catName?: string): string {
+  if (!catId) return '';
+  return normalizeKey(catId);
 }
 
 /**
- * Returns parent category ID for any given category or subcategory ID/alias.
+ * Returns parent category ID for any given category or subcategory ID/alias from the actual loaded categories.
  */
 export function getParentCategoryId(subOrCatId: string, categoriesList?: Category[]): string {
   if (!subOrCatId) return '';
   const key = normalizeKey(subOrCatId);
 
-  const allCategories = (categoriesList && categoriesList.length > 0)
-    ? categoriesList
-    : DEFAULT_ORGANIZED_CATEGORIES;
+  const allCategories = categoriesList || [];
 
   // 1. Direct match with a main category ID or Arabic Name
   const mainCat = allCategories.find(c => normalizeKey(c.id) === key || normalizeKey(c.name?.ar) === key);
@@ -63,22 +37,6 @@ export function getParentCategoryId(subOrCatId: string, categoriesList?: Categor
       if (foundSub) return cat.id;
     }
   }
-
-  // 3. Fallback known alias mappings
-  if (key === 'cars' || key.includes('سيار') || key.includes('عربيا') || key.includes('vehicles')) return 'vehicles';
-  if (key === 'phones' || key.includes('موبايل') || key.includes('هاتف') || key.includes('mobiles')) return 'mobiles';
-  if (key.includes('عقار') || key.includes('realestate') || key.includes('real-estate')) return 'realestate';
-  if (key.includes('وظائف') || key.includes('jobs')) return 'jobs';
-  if (key.includes('أثاث') || key.includes('furniture') || key.includes('home-office') || key.includes('ديكور')) return 'furniture';
-  if (key.includes('إلكترون') || key.includes('أجهزة') || key.includes('electronics')) return 'electronics';
-  if (key.includes('موضة') || key.includes('fashion')) return 'fashion';
-  if (key.includes('حيوان') || key.includes('pets')) return 'pets';
-  if (key.includes('أطفال') || key.includes('baby') || key.includes('kids')) return 'baby';
-  if (key.includes('هوايات') || key.includes('hobbies')) return 'hobbies';
-  if (key.includes('تجارة') || key.includes('trade') || key.includes('commercial')) return 'trade';
-  if (key.includes('خدمات') || key.includes('services')) return 'services';
-  if (key.includes('مهن') || key.includes('حرف') || key.includes('crafts') || key === 'cat_1786316040524') return 'crafts';
-  if (key.includes('نقل') || key.includes('توصيل') || key.includes('transport')) return 'transport';
 
   return key;
 }
@@ -157,9 +115,7 @@ export function matchAdToCategory(ad: Ad, targetCategoryOrId: string | Category,
   if (adParent && targetParent && adParent === targetParent) return true;
 
   // 3. Check if targetCategory has subcategories containing ad.subcategory or ad.category
-  const allCategories = (categoriesList && categoriesList.length > 0)
-    ? categoriesList
-    : DEFAULT_ORGANIZED_CATEGORIES;
+  const allCategories = categoriesList || [];
 
   const targetCatObj = typeof targetCategoryOrId !== 'string'
     ? targetCategoryOrId

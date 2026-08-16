@@ -26,10 +26,9 @@ import {
   AlertTriangle,
   PlusCircle
 } from 'lucide-react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import RequireAuthModal from '@/components/RequireAuthModal';
 import type { Ad, PageData, Category, AdpageStore, AdpageBrand, AdpageConditionFilter } from '@/lib/types';
-import { DEFAULT_ORGANIZED_CATEGORIES } from '@/lib/default-categories';
 import { matchAdToCategory, matchAdToSubcategory, isAdInMarket, getParentCategoryId } from '@/lib/category-utils';
 
 const PHYSICAL_GOODS_CATEGORIES = ['vehicles', 'mobiles', 'electronics', 'furniture', 'fashion', 'baby', 'hobbies', 'trade'];
@@ -53,6 +52,8 @@ export default function AdPageClient({ page }: AdPageClientProps) {
   const { getAds, getCategories, user } = useAuth();
   const { market } = useMarket();
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const subQuery = searchParams?.get('sub');
   const [showAuthModal, setShowAuthModal] = useState(false);
 
   const handleAddAdClick = () => {
@@ -65,12 +66,20 @@ export default function AdPageClient({ page }: AdPageClientProps) {
 
   const [ads, setAds] = useState<Ad[]>([]);
   const [loading, setLoading] = useState(true);
-  const [categories, setCategories] = useState<Category[]>(DEFAULT_ORGANIZED_CATEGORIES);
-  const [selectedSub, setSelectedSub] = useState<string>(page.adpageSubcategoryId || '');
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [selectedSub, setSelectedSub] = useState<string>(subQuery || page.adpageSubcategoryId || '');
   const [selectedGov, setSelectedGov] = useState<string>('');
   const [selectedBrand, setSelectedBrand] = useState<string>('');
   const [selectedConditionFilter, setSelectedConditionFilter] = useState<string>('all');
-  const [sortOrder, setSortOrder] = useState<'recent' | 'price_low' | 'price_high'>('recent');
+  const [sortOrder, setSortOrder] = useState<'recent' | 'price_low' | 'price_high' | 'top_rated'>('recent');
+  const [isSubcategoriesOpen, setIsSubcategoriesOpen] = useState<boolean>(false);
+  const [isLocationOpen, setIsLocationOpen] = useState<boolean>(false);
+
+  useEffect(() => {
+    if (subQuery) {
+      setSelectedSub(subQuery);
+    }
+  }, [subQuery]);
 
   const storesScrollRef = useRef<HTMLDivElement>(null);
   const brandsScrollRef = useRef<HTMLDivElement>(null);
@@ -86,16 +95,8 @@ export default function AdPageClient({ page }: AdPageClientProps) {
   useEffect(() => {
     let isMounted = true;
     getCategories().then(cats => {
-      if (isMounted && cats && cats.length > 0) {
-        // Merge with DEFAULT_ORGANIZED_CATEGORIES to preserve subcategories
-        const merged = cats.map(dbCat => {
-          const defaultCat = DEFAULT_ORGANIZED_CATEGORIES.find(d => d.id === dbCat.id || d.name.ar === dbCat.name?.ar);
-          if (defaultCat && (!dbCat.subcategories || dbCat.subcategories.length === 0)) {
-            return { ...dbCat, subcategories: defaultCat.subcategories };
-          }
-          return dbCat;
-        });
-        setCategories(merged);
+      if (isMounted && cats) {
+        setCategories(cats);
       }
     }).catch(err => console.error(err));
     return () => { isMounted = false; };
@@ -120,25 +121,7 @@ export default function AdPageClient({ page }: AdPageClientProps) {
       );
     });
 
-    const defaultMatch = DEFAULT_ORGANIZED_CATEGORIES.find(d => {
-      const dId = d.id.toLowerCase();
-      return (
-        dId === targetId ||
-        dId === parentId ||
-        (dId.length > 2 && slug.includes(dId)) ||
-        (slug.includes('furniture') && dId === 'furniture') ||
-        title.includes(d.name.ar.toLowerCase())
-      );
-    });
-
-    if (found) {
-      if (defaultMatch && (!found.subcategories || found.subcategories.length === 0)) {
-        return { ...found, subcategories: defaultMatch.subcategories };
-      }
-      return found;
-    }
-
-    return defaultMatch;
+    return found || null;
   }, [categories, categoryId, page.slug, page.title]);
 
   const categoryName = currentCategory?.name?.ar || page.title || categoryId || 'جميع الإعلانات';
@@ -302,32 +285,39 @@ export default function AdPageClient({ page }: AdPageClientProps) {
         const match = ad.title.toLowerCase().includes(brandLower) || (ad.subcategory && ad.subcategory.toLowerCase().includes(brandLower));
         if (!match) return false;
       }
-      // Condition / Status filter
+      // Condition / Status / Category-specific filter
       if (selectedConditionFilter && selectedConditionFilter !== 'all' && selectedConditionFilter !== 'c_all') {
         const selectedCf = conditionFilters.find((cf, idx) => (cf.id || cf.value || `cf_${idx}`) === selectedConditionFilter || cf.value === selectedConditionFilter || cf.id === selectedConditionFilter || cf.name === selectedConditionFilter);
-        const filterVal = selectedCf ? (selectedCf.value || selectedCf.name).toLowerCase() : selectedConditionFilter.toLowerCase();
+        const filterVal = selectedCf ? (selectedCf.value || '').toLowerCase() : selectedConditionFilter.toLowerCase();
         const filterName = selectedCf ? selectedCf.name.toLowerCase() : '';
 
         if (filterVal === 'new' || filterName.includes('جديد') || filterName.includes('ممتاز')) {
           if (ad.condition !== 'new') return false;
         } else if (filterVal === 'used' || filterName.includes('مستعمل')) {
           if (ad.condition !== 'used') return false;
+        } else if (filterVal === 'sale' || filterName.includes('بيع') || filterName.includes('تمليك')) {
+          const isSale = (ad.title || '').toLowerCase().includes('بيع') || (ad.description || '').toLowerCase().includes('بيع') || ad.adType === 'sell-item' || ad.adType === 'sell-service' || (ad.adType as string) === 'sell';
+          if (!isSale) return false;
+        } else if (filterVal === 'rent' || filterName.includes('إيجار') || filterName.includes('ايجار')) {
+          const isRent = (ad.title || '').toLowerCase().includes('إيجار') || (ad.title || '').toLowerCase().includes('ايجار') || (ad.description || '').toLowerCase().includes('إيجار') || (ad.description || '').toLowerCase().includes('ايجار') || (ad.adType as string) === 'rent';
+          if (!isRent) return false;
         } else if (filterVal === 'top_rated' || filterVal.includes('تقييم') || filterName.includes('تقييم') || filterName.includes('اعلا')) {
           const hasRatingOrVerified =
             (typeof (ad as any).rating === 'number' && (ad as any).rating > 0) ||
             (typeof (ad as any).stars === 'number' && (ad as any).stars > 0) ||
             (typeof (ad.user as any)?.rating === 'number' && (ad.user as any)?.rating > 0) ||
             (ad.user as any)?.role === 'verified' ||
+            (ad.user as any)?.verified === true ||
             !!ad.isPromoted;
           if (!hasRatingOrVerified) return false;
         } else if (filterVal === 'popular' || filterVal.includes('رواج') || filterName.includes('اختيار')) {
-          const isPopular = !!ad.isPromoted || (ad.views && ad.views > 10) || (ad.user as any)?.role === 'verified';
+          const isPopular = !!ad.isPromoted || ((ad.views || 0) > 5) || (ad.user as any)?.role === 'verified';
           if (!isPopular) return false;
         } else if (filterVal === 'verified' || filterVal.includes('موثق') || filterName.includes('موثق')) {
-          const isVerified = (ad.user as any)?.role === 'verified';
+          const isVerified = (ad.user as any)?.role === 'verified' || (ad.user as any)?.verified === true;
           if (!isVerified) return false;
-        } else if (selectedCf && selectedCf.value === 'custom') {
-          const nameLower = selectedCf.name.toLowerCase();
+        } else if (filterVal === 'custom' || (selectedCf && selectedCf.value === 'custom')) {
+          const nameLower = selectedCf ? selectedCf.name.toLowerCase() : '';
           const matches = (ad.title || '').toLowerCase().includes(nameLower) ||
                           (ad.description || '').toLowerCase().includes(nameLower) ||
                           (ad.subcategory || '').toLowerCase().includes(nameLower);
@@ -350,10 +340,16 @@ export default function AdPageClient({ page }: AdPageClientProps) {
       list = [...list].sort((a, b) => (a.price || 0) - (b.price || 0));
     } else if (sortOrder === 'price_high') {
       list = [...list].sort((a, b) => (b.price || 0) - (a.price || 0));
+    } else if (sortOrder === 'top_rated') {
+      list = [...list].sort((a, b) => {
+        const ratingA = (a as any).rating || (a.user as any)?.rating || (a.isPromoted ? 4 : 0);
+        const ratingB = (b as any).rating || (b.user as any)?.rating || (b.isPromoted ? 4 : 0);
+        return ratingB - ratingA;
+      });
     }
 
     return list;
-  }, [categoryMatchedAds, selectedSub, selectedGov, selectedBrand, selectedConditionFilter, sortOrder, query, sidebarSubcategories]);
+  }, [categoryMatchedAds, selectedSub, selectedGov, selectedBrand, selectedConditionFilter, sortOrder, query, sidebarSubcategories, conditionFilters]);
 
   return (
     <div className="flex flex-col min-h-screen bg-slate-50/50 dark:bg-background text-right" dir="rtl">
@@ -376,24 +372,9 @@ export default function AdPageClient({ page }: AdPageClientProps) {
           )}
 
           <div className="max-w-5xl mx-auto relative z-10 text-center space-y-3">
-            <h1 className="text-2xl md:text-4xl font-extrabold text-foreground tracking-tight leading-tight font-headline">
+            <h1 className="text-3xl md:text-5xl font-extrabold text-foreground tracking-tight leading-tight font-headline">
               {page.title}
             </h1>
-
-            <div className="flex flex-wrap items-center justify-center gap-2.5 pt-2">
-              <Badge variant="outline" className="bg-card text-foreground px-3 py-1.5 text-xs gap-1.5 border-border">
-                <Sparkles className="h-3.5 w-3.5 text-primary" />
-                قسم {categoryName}
-              </Badge>
-              <Button
-                type="button"
-                onClick={handleAddAdClick}
-                className="bg-primary hover:bg-primary/90 text-primary-foreground text-xs font-bold gap-1.5 px-4 py-1.5 h-auto rounded-full shadow-xs cursor-pointer"
-              >
-                <PlusCircle className="h-3.5 w-3.5" />
-                <span>إضافة إعلان في هذا القسم</span>
-              </Button>
-            </div>
           </div>
         </section>
 
@@ -405,20 +386,40 @@ export default function AdPageClient({ page }: AdPageClientProps) {
               {/* Subcategories Filter Card */}
               {sidebarSubcategories.length > 0 && (
                 <Card className="rounded-2xl border border-border shadow-xs overflow-hidden bg-background">
-                  <div className="p-4 bg-secondary/30 border-b flex items-center justify-between">
-                    <h3 className="font-bold text-sm font-headline text-foreground">فئات {categoryName}</h3>
-                    {selectedSub && (
-                      <button
-                        type="button"
-                        onClick={() => setSelectedSub('')}
-                        className="text-xs text-primary font-semibold hover:underline cursor-pointer"
-                      >
-                        عرض جميع إعلانات القسم
-                      </button>
-                    )}
+                  <div
+                    onClick={() => setIsSubcategoriesOpen(prev => !prev)}
+                    className="p-4 bg-secondary/30 border-b flex items-center justify-between cursor-pointer md:cursor-default select-none"
+                  >
+                    <div className="flex items-center gap-2">
+                      <h3 className="font-bold text-base font-headline text-foreground">فئات {categoryName}</h3>
+                      {selectedSub && (
+                        <span className="md:hidden text-2xs bg-primary text-primary-foreground px-2 py-0.5 rounded-full font-bold">
+                          1 محدد
+                        </span>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-2">
+                      {selectedSub && (
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setSelectedSub('');
+                          }}
+                          className="text-xs text-primary font-semibold hover:underline cursor-pointer"
+                        >
+                          عرض جميع إعلانات القسم
+                        </button>
+                      )}
+                      <ChevronDown
+                        className={`h-4 w-4 text-muted-foreground transition-transform duration-200 md:hidden ${
+                          isSubcategoriesOpen ? 'rotate-180' : ''
+                        }`}
+                      />
+                    </div>
                   </div>
-                  <CardContent className="p-4 space-y-3">
-                    <div className="flex items-center gap-2 text-sm font-bold text-foreground font-headline pb-2 border-b">
+                  <CardContent className={`p-4 space-y-3 ${isSubcategoriesOpen ? 'block' : 'hidden md:block'}`}>
+                    <div className="flex items-center gap-2 text-base font-bold text-foreground font-headline pb-2 border-b">
                       <div className="p-1.5 rounded-lg bg-primary/10 text-primary">
                         <Layers className="h-4 w-4" />
                       </div>
@@ -430,14 +431,14 @@ export default function AdPageClient({ page }: AdPageClientProps) {
                         <button
                           type="button"
                           onClick={() => setSelectedSub('')}
-                          className={`w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-all text-right ${
+                          className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-sm font-semibold transition-all text-right ${
                             !selectedSub
                               ? 'bg-primary text-primary-foreground font-bold shadow-xs'
                               : 'text-muted-foreground hover:text-foreground hover:bg-secondary/60'
                           }`}
                         >
                           <span>جميع إعلانات {categoryName}</span>
-                          {!selectedSub && <Check className="h-3.5 w-3.5 text-primary-foreground" />}
+                          {!selectedSub && <Check className="h-4 w-4 text-primary-foreground" />}
                         </button>
                       </li>
                       {sidebarSubcategories.map((sub) => {
@@ -447,7 +448,7 @@ export default function AdPageClient({ page }: AdPageClientProps) {
                             <button
                               type="button"
                               onClick={() => setSelectedSub(isSelected ? '' : sub.id)}
-                              className={`w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-all text-right ${
+                              className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-sm font-semibold transition-all text-right ${
                                 isSelected
                                   ? 'bg-primary text-primary-foreground font-bold shadow-xs'
                                   : 'text-muted-foreground hover:text-foreground hover:bg-secondary/60'
@@ -455,7 +456,7 @@ export default function AdPageClient({ page }: AdPageClientProps) {
                             >
                               <span className="truncate">{sub.name}</span>
                               <span
-                                className={`text-[11px] px-1.5 py-0.5 rounded-full ${
+                                className={`text-xs px-2 py-0.5 rounded-full ${
                                   isSelected ? 'bg-primary-foreground/20 text-primary-foreground' : 'text-muted-foreground/80'
                                 }`}
                               >
@@ -472,14 +473,27 @@ export default function AdPageClient({ page }: AdPageClientProps) {
 
               {/* Location Filter Card */}
               <Card className="rounded-2xl border border-border shadow-xs overflow-hidden bg-background">
-                <div className="p-4 bg-secondary/30 border-b flex items-center justify-between">
-                  <h3 className="font-bold text-sm font-headline text-foreground">الموقع</h3>
+                <div
+                  onClick={() => setIsLocationOpen(prev => !prev)}
+                  className="p-4 bg-secondary/30 border-b flex items-center justify-between cursor-pointer md:cursor-default select-none"
+                >
+                  <div className="flex items-center gap-2">
+                    <h3 className="font-bold text-base font-headline text-foreground">الموقع</h3>
+                    {selectedGov && (
+                      <span className="md:hidden text-2xs bg-primary text-primary-foreground px-2 py-0.5 rounded-full font-bold">
+                        {selectedGov}
+                      </span>
+                    )}
+                  </div>
                   <div className="flex items-center gap-2">
                     {selectedGov && (
                       <button
                         type="button"
-                        onClick={() => setSelectedGov('')}
-                        className="text-2xs text-muted-foreground hover:text-rose-600 font-semibold ml-1"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setSelectedGov('');
+                        }}
+                        className="text-xs text-muted-foreground hover:text-rose-600 font-semibold ml-1"
                       >
                         إلغاء التحديد
                       </button>
@@ -488,22 +502,27 @@ export default function AdPageClient({ page }: AdPageClientProps) {
                       <MapPin className="h-3.5 w-3.5 text-primary" />
                       <span>{market?.name?.ar || 'مصر'}</span>
                     </div>
+                    <ChevronDown
+                      className={`h-4 w-4 text-muted-foreground transition-transform duration-200 md:hidden ${
+                        isLocationOpen ? 'rotate-180' : ''
+                      }`}
+                    />
                   </div>
                 </div>
-                <CardContent className="p-3 space-y-1">
+                <CardContent className={`p-3 space-y-1 ${isLocationOpen ? 'block' : 'hidden md:block'}`}>
                   <ul className="space-y-1 max-h-72 overflow-y-auto pr-1 text-right custom-scrollbar">
                     <li>
                       <button
                         type="button"
                         onClick={() => setSelectedGov('')}
-                        className={`w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-all text-right ${
+                        className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-sm font-semibold transition-all text-right ${
                           !selectedGov
                             ? 'bg-primary text-primary-foreground font-bold shadow-xs'
                             : 'text-muted-foreground hover:text-foreground hover:bg-secondary/60'
                         }`}
                       >
                         <span>جميع المحافظات</span>
-                        {!selectedGov && <Check className="h-3.5 w-3.5 text-primary-foreground" />}
+                        {!selectedGov && <Check className="h-4 w-4 text-primary-foreground" />}
                       </button>
                     </li>
                     {governoratesWithCounts.map((gov) => {
@@ -513,7 +532,7 @@ export default function AdPageClient({ page }: AdPageClientProps) {
                           <button
                             type="button"
                             onClick={() => setSelectedGov(isSelected ? '' : gov.name)}
-                            className={`w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-all text-right ${
+                            className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-sm font-semibold transition-all text-right ${
                               isSelected
                                 ? 'bg-primary text-primary-foreground font-bold shadow-xs'
                                 : 'text-muted-foreground hover:text-foreground hover:bg-secondary/60'
@@ -521,7 +540,7 @@ export default function AdPageClient({ page }: AdPageClientProps) {
                           >
                             <span className="truncate">{gov.name}</span>
                             <span
-                              className={`text-[11px] px-1.5 py-0.5 rounded-full ${
+                              className={`text-xs px-2 py-0.5 rounded-full ${
                                 isSelected ? 'bg-primary-foreground/20 text-primary-foreground' : 'text-muted-foreground/80'
                               }`}
                             >
@@ -613,7 +632,7 @@ export default function AdPageClient({ page }: AdPageClientProps) {
                             key={brand.id}
                             type="button"
                             onClick={() => setSelectedBrand(brand.name === 'الكل' || brand.id === 'b_all' ? '' : brand.name)}
-                            className={`px-3.5 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition-all border ${
+                            className={`px-4 py-2 rounded-xl text-sm font-bold whitespace-nowrap transition-all border ${
                               isSelected
                                 ? 'bg-primary text-primary-foreground border-primary shadow-xs'
                                 : 'bg-secondary/30 text-foreground border-border/70 hover:bg-secondary'
@@ -637,112 +656,88 @@ export default function AdPageClient({ page }: AdPageClientProps) {
                 </div>
               )}
 
-              {/* Filter Controls Bar (Condition Filter Pills & Direct Sort Buttons) */}
-              <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 bg-background p-3 rounded-2xl border border-border shadow-xs">
-                {/* Left Side: Condition / Quick Filter Pills */}
-                {conditionFilters.length > 0 ? (
-                  <div className="flex items-center flex-wrap gap-1.5 bg-secondary/30 p-1 rounded-xl">
-                    {conditionFilters.map((cf, idx) => {
-                      const pillKey = cf.id || cf.value || `cf_${idx}`;
-                      const isSelected =
-                        selectedConditionFilter === pillKey ||
-                        selectedConditionFilter === cf.value ||
-                        selectedConditionFilter === cf.id ||
-                        selectedConditionFilter === cf.name ||
-                        (selectedConditionFilter === 'all' && idx === 0);
-                      return (
-                        <button
-                          key={pillKey}
-                          type="button"
-                          onClick={() => setSelectedConditionFilter(pillKey)}
-                          className={`px-3.5 py-1.5 text-xs font-bold rounded-lg transition-all ${
-                            isSelected
-                              ? 'bg-primary text-primary-foreground shadow-xs font-headline'
-                              : 'text-muted-foreground hover:text-foreground hover:bg-secondary/60'
-                          }`}
-                        >
-                          {cf.name}
-                        </button>
-                      );
-                    })}
-                  </div>
-                ) : (
-                  PHYSICAL_GOODS_CATEGORIES.includes(categoryId || '') ? (
-                    <div className="flex items-center bg-secondary/50 p-1 rounded-xl gap-1">
-                      <button
-                        type="button"
-                        onClick={() => setSelectedConditionFilter('all')}
-                        className={`px-3.5 py-1.5 text-xs font-bold rounded-lg transition-all ${
-                          selectedConditionFilter === 'all'
-                            ? 'bg-primary text-primary-foreground shadow-xs'
-                            : 'text-muted-foreground hover:text-foreground'
-                        }`}
-                      >
-                        الكل
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setSelectedConditionFilter('new')}
-                        className={`px-3.5 py-1.5 text-xs font-bold rounded-lg transition-all ${
-                          selectedConditionFilter === 'new'
-                            ? 'bg-primary text-primary-foreground shadow-xs'
-                            : 'text-muted-foreground hover:text-foreground'
-                        }`}
-                      >
-                        جديد / ممتاز
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setSelectedConditionFilter('used')}
-                        className={`px-3.5 py-1.5 text-xs font-bold rounded-lg transition-all ${
-                          selectedConditionFilter === 'used'
-                            ? 'bg-primary text-primary-foreground shadow-xs'
-                            : 'text-muted-foreground hover:text-foreground'
-                        }`}
-                      >
-                        مستعمل
-                      </button>
-                    </div>
-                  ) : <div />
-                )}
+              {/* ===== شريط الفلاتر الموحد ===== */}
+              {(() => {
+                const isServiceCategory = ['crafts', 'crafts-professions', 'services', 'professional-services', 'jobs', 'jobs-careers', 'transport', 'transport-delivery', 'pets', 'ziraa', 'agriculture', 'cat_1786316040524'].includes(categoryId || '');
+                
+                // إذا تم تحديد أزرار فلترة مخصصة في صفحة الإنشاء، نعرضها هي تماماً!
+                // وإذا لم يتم تحديد أزرار، نعرض الفلاتر الافتراضية المناسبة لنوع الفئة
+                const activeButtons: { id?: string; name: string; value: string }[] = 
+                  conditionFilters.length > 0 
+                    ? conditionFilters 
+                    : isServiceCategory
+                      ? [
+                          { id: 'cf_all', name: 'الكل', value: 'all' },
+                          { id: 'cf_recent', name: 'الأحدث', value: 'recent' },
+                          { id: 'cf_top', name: '⭐ الأعلى تقييماً', value: 'top_rated' },
+                          { id: 'cf_ver', name: 'حسابات وصنايعية موثقة', value: 'verified' },
+                        ]
+                      : categoryId === 'realestate'
+                        ? [
+                            { id: 'cf_all', name: 'الكل', value: 'all' },
+                            { id: 'cf_recent', name: 'الأحدث', value: 'recent' },
+                            { id: 'cf_sale', name: 'للبيع / تمليك', value: 'sale' },
+                            { id: 'cf_rent', name: 'للإيجار', value: 'rent' },
+                            { id: 'cf_top', name: '⭐ الأعلى تقييماً', value: 'top_rated' },
+                          ]
+                        : [
+                            { id: 'cf_all', name: 'الكل', value: 'all' },
+                            { id: 'cf_recent', name: 'الأحدث', value: 'recent' },
+                            { id: 'cf_top', name: '⭐ الأعلى تقييماً', value: 'top_rated' },
+                            { id: 'cf_new', name: 'جديد', value: 'new' },
+                            { id: 'cf_used', name: 'مستعمل', value: 'used' },
+                            { id: 'cf_low', name: 'الأقل سعراً', value: 'price_low' },
+                            { id: 'cf_high', name: 'الأعلى سعراً', value: 'price_high' },
+                          ];
 
-                {/* Right Side: Direct Price & Recency Sort Buttons */}
-                <div className="flex items-center bg-secondary/30 p-1 rounded-xl gap-1">
-                  <button
-                    type="button"
-                    onClick={() => setSortOrder('recent')}
-                    className={`px-3.5 py-1.5 text-xs font-bold rounded-lg transition-all ${
-                      sortOrder === 'recent'
-                        ? 'bg-primary text-primary-foreground shadow-xs font-headline'
-                        : 'text-muted-foreground hover:text-foreground hover:bg-secondary/60'
-                    }`}
-                  >
-                    الأحدث
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setSortOrder('price_low')}
-                    className={`px-3.5 py-1.5 text-xs font-bold rounded-lg transition-all ${
-                      sortOrder === 'price_low'
-                        ? 'bg-primary text-primary-foreground shadow-xs font-headline'
-                        : 'text-muted-foreground hover:text-foreground hover:bg-secondary/60'
-                    }`}
-                  >
-                    الأقل سعراً
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setSortOrder('price_high')}
-                    className={`px-3.5 py-1.5 text-xs font-bold rounded-lg transition-all ${
-                      sortOrder === 'price_high'
-                        ? 'bg-primary text-primary-foreground shadow-xs font-headline'
-                        : 'text-muted-foreground hover:text-foreground hover:bg-secondary/60'
-                    }`}
-                  >
-                    الأكثر سعراً
-                  </button>
-                </div>
-              </div>
+                const isBtnSelected = (btn: { id?: string; value: string; name: string }, idx: number) => {
+                  const key = btn.id || btn.value;
+                  if (selectedConditionFilter === key) return true;
+                  if (selectedConditionFilter === btn.value) return true;
+                  if (selectedConditionFilter === btn.name) return true;
+                  if ((selectedConditionFilter === 'all' || !selectedConditionFilter) && (btn.value === 'all' || idx === 0)) return true;
+                  return false;
+                };
+
+                const handleBtnClick = (btn: { id?: string; value: string; name: string }) => {
+                  const key = btn.id || btn.value;
+                  setSelectedConditionFilter(key);
+                  if (btn.value === 'recent' || btn.value === 'all') {
+                    setSortOrder('recent');
+                  } else if (btn.value === 'top_rated') {
+                    setSortOrder('top_rated');
+                  } else if (btn.value === 'price_low') {
+                    setSortOrder('price_low');
+                  } else if (btn.value === 'price_high') {
+                    setSortOrder('price_high');
+                  }
+                };
+
+                return (
+                  <div className="space-y-2">
+                    <p className="text-sm font-bold text-muted-foreground px-1">فلتر</p>
+                    <div className="flex flex-wrap items-center gap-2 bg-background p-3 rounded-2xl border border-border shadow-xs">
+                      {activeButtons.map((btn, idx) => {
+                        const isSelected = isBtnSelected(btn, idx);
+                        return (
+                          <button
+                            key={btn.id || btn.value || idx}
+                            type="button"
+                            onClick={() => handleBtnClick(btn)}
+                            className={`px-4 py-2 text-sm font-bold rounded-xl transition-all whitespace-nowrap ${
+                              isSelected
+                                ? 'bg-primary text-primary-foreground shadow-sm'
+                                : 'text-muted-foreground hover:text-foreground hover:bg-secondary/60'
+                            }`}
+                          >
+                            {btn.name}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                );
+              })()}
 
               {/* Live Ads Listing Grid */}
               <section className="space-y-6">

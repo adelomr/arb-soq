@@ -126,7 +126,7 @@ function AdCard({ ad, priority = false }: AdCardProps) {
   const hasRealRating = typeof realRating === 'number' && realRating > 0 && typeof realReviewCount === 'number' && realReviewCount > 0;
 
   const effectiveUserId = ad.userId || ad.user?.id || 'owner';
-  const effectiveUser = adUser || ad.user || { id: effectiveUserId, name: 'مستخدم سوق العرب' };
+  const effectiveUser = (adUser || ad.user || { id: effectiveUserId, name: 'مستخدم سوق العرب' }) as UserProfile;
 
   return (
     <Link href={`/ad/${effectiveUserId}/${ad.id}`} className="block group h-full" onClick={() => incrementAdClick(ad)}>
@@ -263,13 +263,39 @@ function AdCard({ ad, priority = false }: AdCardProps) {
                             )}
                         </Button>
                     )}
-                     <DropdownMenu>
+                    {typeof navigator !== 'undefined' && typeof navigator.share === 'function' ? (
+                        <Button 
+                            className="w-full h-9"
+                            variant="outline" 
+                            aria-label={t.share}
+                            onClick={async (e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                try {
+                                    await navigator.share({
+                                        title: ad.title,
+                                        text: `${ad.title} - سوق العرب`,
+                                        url: adUrl,
+                                    });
+                                } catch {
+                                    // User closed native share
+                                }
+                            }}
+                        >
+                            <Share2 className={`w-4 h-4 ${!isStoreProduct && (direction === 'rtl' ? 'ml-2' : 'mr-2')}`} />
+                            <span className="mx-2 text-xs">{t.share}</span>
+                        </Button>
+                     ) : (
+                      <DropdownMenu modal={false}>
                         <DropdownMenuTrigger asChild>
                              <Button 
                                 className="w-full h-9"
                                 variant="outline" 
                                 aria-label={t.share}
-                                onClick={(e) => e.preventDefault()}
+                                onClick={(e) => {
+                                    e.preventDefault();
+                                    e.stopPropagation();
+                                }}
                             >
                                 <Share2 className={`w-4 h-4 ${!isStoreProduct && (direction === 'rtl' ? 'ml-2' : 'mr-2')}`} />
                                 <span className="mx-2 text-xs">{t.share}</span>
@@ -295,7 +321,8 @@ function AdCard({ ad, priority = false }: AdCardProps) {
                                 </a>
                             </DropdownMenuItem>
                         </DropdownMenuContent>
-                     </DropdownMenu>
+                      </DropdownMenu>
+                     )}
                 </div>
             </CardContent>
         </Card>

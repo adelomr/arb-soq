@@ -100,7 +100,7 @@ export default function SooqBaladnaClient() {
 
   // فلترة وتصنيف الإعلانات
   const { matchedAds, otherLocalAds, hasExactMatches } = useMemo(() => {
-    const marketFiltered = allAds.filter((ad) => isAdInMarket(ad, market.id));
+    const marketFiltered = allAds.filter((ad) => isAdInMarket(ad, market.id, market.name.ar));
 
     // فلترة الفئة والبحث النصي أولاً
     let filtered = marketFiltered;
@@ -365,7 +365,7 @@ export default function SooqBaladnaClient() {
                 <div className="space-y-4">
                   <h3 className="text-base font-bold text-foreground flex items-center gap-2">
                     <Building2 className="w-4 h-4 text-primary" />
-                    <span>إعلانات أخرى مقترحة في بلدنا ({market.name}):</span>
+                    <span>إعلانات أخرى مقترحة في بلدنا ({market.name.ar}):</span>
                   </h3>
                   <div
                     className={cn(

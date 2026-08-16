@@ -6,13 +6,12 @@ import { createContext, useContext, useEffect, useState, ReactNode, useCallback,
 import { onAuthStateChanged, User, signInWithEmailAndPassword, signOut, createUserWithEmailAndPassword, GoogleAuthProvider, signInWithPopup, RecaptchaVerifier, signInWithPhoneNumber, ConfirmationResult, sendPasswordResetEmail, verifyPasswordResetCode, confirmPasswordReset, updatePhoneNumber, PhoneAuthProvider, linkWithCredential, PhoneAuthCredential, deleteUser } from 'firebase/auth';
 import { doc, getDoc, setDoc, updateDoc, collection, getDocs, deleteDoc, addDoc, serverTimestamp, query, where, onSnapshot, orderBy, writeBatch, collectionGroup, QueryConstraint, Query, runTransaction, increment, getCountFromServer, arrayUnion, arrayRemove } from 'firebase/firestore';
 import { ref as dbRef, get, child, set } from "firebase/database";
-import { ref, getStorage } from 'firebase/storage';
+import { getStorage } from 'firebase/storage';
 import { auth, firestore, database } from '@/lib/firebase';
 import { useRouter, usePathname } from 'next/navigation';
-import type { Ad, AdSenseSettings, AdStatus, AdType, Notification, Announcement, UserProfile, PricingPlan, PricingStructure, Category, SubCategory, Review, Store, SiteStats, Profession, Specialization, PortfolioImage, AdImageMeta } from '@/lib/types';
-import { uploadFileAndReturnInfo, deleteMultipleEntries, deleteStorageEntry } from '@/lib/firebase-storage-helpers';
+import type { Ad, AdSenseSettings, AdStatus, AdType, Notification, Announcement, UserProfile, PricingPlan, PricingStructure, Category, SubCategory, Review, Store, SiteStats, Profession, Specialization, PortfolioImage, AdImageMeta, PageData } from '@/lib/types';
 import { markets } from '@/lib/markets';
-import { DEFAULT_ORGANIZED_CATEGORIES } from '@/lib/default-categories';
+import { uploadFileAndReturnInfo, deleteMultipleEntries, deleteStorageEntry } from '@/lib/firebase-storage-helpers';
 
 
 interface AuthContextType {
@@ -21,6 +20,8 @@ interface AuthContextType {
   adSenseSettings: AdSenseSettings | null;
   loading: boolean;
   categories: Category[];
+  pages: PageData[];
+  getPageUrlForCategory: (categoryId: string, subcategoryId?: string, fallbackName?: string) => string;
   professions: Profession[];
   specializations: Specialization[];
   isPhoneNumberInUse: (phoneNumber: string) => Promise<boolean>;
@@ -91,6 +92,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const [categories, setCategories] = useState<Category[]>([]);
+  const [pages, setPages] = useState<PageData[]>([]);
   const [professions, setProfessions] = useState<Profession[]>([]);
   const [specializations, setSpecializations] = useState<Specialization[]>([]);
   const [adSenseSettings, setAdSenseSettings] = useState<AdSenseSettings | null>(null);
@@ -218,26 +220,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         
         // Ensure consistent ordering by user order field
         const sortedCats = cats.sort((a, b) => ((a as any).order ?? 0) - ((b as any).order ?? 0));
-
-        // Merge fetched categories with DEFAULT_ORGANIZED_CATEGORIES so missing categories (like services, crafts, etc.) are always present
-        const merged: Category[] = [...sortedCats];
-        for (const defCat of DEFAULT_ORGANIZED_CATEGORIES) {
-          const existsIndex = merged.findIndex(c => c.id === defCat.id || c.name?.ar === defCat.name?.ar);
-          if (existsIndex === -1) {
-            merged.push(defCat);
-          } else {
-            if (!merged[existsIndex].subcategories || merged[existsIndex].subcategories!.length === 0) {
-              merged[existsIndex] = {
-                ...merged[existsIndex],
-                subcategories: defCat.subcategories
-              };
-            }
-          }
-        }
-        return merged;
+        return sortedCats;
     } catch (e) {
         console.error("Error fetching categories:", e);
-        return DEFAULT_ORGANIZED_CATEGORIES;
+        return [];
     }
   }, []);
   
@@ -287,6 +273,112 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             return [];
         }
     }, []);
+
+  // ── Real-time listener for categories across the entire website ──
+  useEffect(() => {
+    const unsub = onSnapshot(collection(firestore, 'categories'), (querySnapshot) => {
+      try {
+        const cats = querySnapshot.docs.map(doc => {
+          const data = doc.data();
+          const name = data.nameAr ? { ar: data.nameAr } : (typeof data.name === 'string' ? { ar: data.name } : (data.name || { ar: doc.id }));
+          
+          const subcategories = (data.subcategories || []).map((sub: any) => ({
+            ...sub,
+            name: sub.nameAr ? { ar: sub.nameAr } : (typeof sub.name === 'string' ? { ar: sub.name } : (sub.name || { ar: sub.id }))
+          }));
+
+          return { 
+            id: doc.id, 
+            ...data,
+            name,
+            subcategories
+          } as Category;
+        });
+        
+        const sortedCats = cats.sort((a, b) => ((a as any).order ?? 0) - ((b as any).order ?? 0));
+        setCategories(sortedCats);
+      } catch (err) {
+        console.error("Error processing real-time categories snapshot:", err);
+      }
+    }, (error) => {
+      console.error("Error with real-time categories listener:", error);
+    });
+
+    return () => unsub();
+  }, []);
+
+  // ── Real-time listener for pages across the entire website ──
+  useEffect(() => {
+    const unsub = onSnapshot(collection(firestore, 'pages'), (querySnapshot) => {
+      try {
+        const fetchedPages = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as PageData));
+        setPages(fetchedPages);
+      } catch (err) {
+        console.error("Error processing real-time pages snapshot:", err);
+      }
+    }, (error) => {
+      console.error("Error with real-time pages listener:", error);
+    });
+
+    return () => unsub();
+  }, []);
+
+  // ── Helper to resolve URL for any category or subcategory to its dedicated page ──
+  const getPageUrlForCategory = useCallback((categoryId: string, subcategoryId?: string, fallbackName?: string): string => {
+    if (categoryId === 'stores') return '/shops';
+
+    const publishedPages = pages.filter(p => p.isPublished !== false);
+    const catObj = categories.find(c => c.id === categoryId);
+    const catArName = catObj?.name?.ar || fallbackName || '';
+
+    // Helper to find the parent category page
+    const findCategoryPage = () => {
+      return publishedPages.find(p => (
+        (p.pageType === 'adpage' && p.adpageCategoryId === categoryId && !p.adpageSubcategoryId) ||
+        (p.pageType === 'adpage' && p.adpageCategoryId === categoryId) ||
+        p.slug === categoryId ||
+        p.landingCategory === categoryId ||
+        (catArName && p.title && (
+          p.title.trim().toLowerCase() === catArName.trim().toLowerCase() ||
+          p.title.includes(catArName) ||
+          catArName.includes(p.title)
+        ))
+      ));
+    };
+
+    // 1. If subcategoryId is provided
+    if (subcategoryId) {
+      // First check if there is an explicit dedicated page for this subcategory
+      const subMatch = publishedPages.find(p => (
+        (p.pageType === 'adpage' && p.adpageCategoryId === categoryId && p.adpageSubcategoryId === subcategoryId) ||
+        (p.pageType === 'adpage' && p.adpageSubcategoryId === subcategoryId) ||
+        p.slug === subcategoryId ||
+        p.slug === `${categoryId}-${subcategoryId}` ||
+        (fallbackName && p.title && p.title.trim().toLowerCase() === fallbackName.trim().toLowerCase())
+      ));
+
+      if (subMatch && subMatch.slug) {
+        return subMatch.slug === 'redirect' ? `/${subMatch.slug}` : `/p/${subMatch.slug}`;
+      }
+
+      // If no dedicated subcategory page, route directly to the parent category page with ?sub=
+      const parentPage = findCategoryPage();
+      if (parentPage && parentPage.slug) {
+        const base = parentPage.slug === 'redirect' ? `/${parentPage.slug}` : `/p/${parentPage.slug}`;
+        return `${base}?sub=${encodeURIComponent(subcategoryId)}`;
+      }
+
+      return `/search?q=${encodeURIComponent(fallbackName || subcategoryId)}`;
+    }
+
+    // 2. Look for main category page
+    const catMatch = findCategoryPage();
+    if (catMatch && catMatch.slug) {
+      return catMatch.slug === 'redirect' ? `/${catMatch.slug}` : `/p/${catMatch.slug}`;
+    }
+
+    return `/search?q=${encodeURIComponent(fallbackName || categoryId)}`;
+  }, [pages, categories]);
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
@@ -357,25 +449,61 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return !querySnapshot.empty;
   }, []);
 
-  const sendVerificationCode = useCallback(async (phoneNumber: string): Promise<ConfirmationResult> => {
-    if (!recaptchaVerifierRef.current) {
-        recaptchaVerifierRef.current = new RecaptchaVerifier(auth, 'recaptcha-container', {
-            'size': 'invisible',
-        });
+  const updateUserProfile = useCallback(async (uid: string, data: Partial<UserProfile>) => {
+    if (!uid) {
+      throw new Error("المستخدم غير مصادق عليه");
     }
-    const verifier = recaptchaVerifierRef.current;
+    const userDocRef = doc(firestore, 'users', uid);
+  
+    await updateDoc(userDocRef, data);
+    await refreshUserProfile();
+  }, [refreshUserProfile]);
+
+  const sendVerificationCode = useCallback(async (phoneNumber: string): Promise<ConfirmationResult> => {
+    if (recaptchaVerifierRef.current) {
+      try {
+        recaptchaVerifierRef.current.clear();
+      } catch (e) {
+        console.warn("Could not clear recaptchaVerifier:", e);
+      }
+      recaptchaVerifierRef.current = null;
+    }
+
+    const verifier = new RecaptchaVerifier(auth, 'recaptcha-container', {
+      size: 'invisible',
+      callback: () => {
+        // reCAPTCHA resolved
+      },
+      'expired-callback': () => {
+        console.warn("reCAPTCHA expired");
+      }
+    });
+
+    recaptchaVerifierRef.current = verifier;
     
     return signInWithPhoneNumber(auth, phoneNumber, verifier);
   }, []);
   
   const confirmVerificationCode = useCallback(async (confirmationResult: ConfirmationResult, code: string): Promise<void> => {
     if (!user) {
-        throw new Error("لم يتم العثور على المستخدم لربط رقم الهاتف.");
+      throw new Error("لم يتم العثور على المستخدم لربط رقم الهاتف.");
     }
     const credential = PhoneAuthProvider.credential(confirmationResult.verificationId!, code);
-    await linkWithCredential(user, credential);
+    try {
+      await linkWithCredential(user, credential);
+    } catch (linkError: any) {
+      if (linkError.code === 'auth/provider-already-linked' || linkError.code === 'auth/credential-already-in-use') {
+        try {
+          await updatePhoneNumber(user, credential);
+        } catch (updateError) {
+          console.warn("Could not update phone credential in Auth:", updateError);
+        }
+      } else {
+        throw linkError;
+      }
+    }
     await updateUserProfile(user.uid, { phoneVerified: true });
-  }, [user]);
+  }, [user, updateUserProfile]);
 
   const signIn = useCallback(async (email:string,password:string) => {
       const userCredential = await signInWithEmailAndPassword(auth, email, password);
@@ -435,16 +563,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         throw error;
     }
   }, [router]);
-
-  const updateUserProfile = useCallback(async (uid: string, data: Partial<UserProfile>) => {
-    if (!uid) {
-      throw new Error("المستخدم غير مصادق عليه");
-    }
-    const userDocRef = doc(firestore, 'users', uid);
-  
-    await updateDoc(userDocRef, data);
-    await refreshUserProfile();
-  }, [refreshUserProfile]);
 
   const createOrUpdateUserStore = useCallback(async (uid: string, storeData: Omit<Store, 'id'>) => {
     const storeCollectionRef = collection(firestore, 'users', uid, 'store');
@@ -733,7 +851,7 @@ const addAd = useCallback(async (adData: any, imageFiles: File[], user: User, pr
         );
         
         progressCallback("اكتمل رفع الصور الجديدة!");
-        dataForUpdate.imageUrls = newImageMeta.map(meta => meta.url);
+        dataForUpdate.imageUrls = newImageMeta.map((meta: any) => meta.url);
         dataForUpdate.imageUrl = newImageMeta[0]?.url || ''; // Android compatibility
         dataForUpdate.imageMeta = newImageMeta;
     } else if (oldAdData) {
@@ -1029,7 +1147,7 @@ const getAds = useCallback((
     const isFetchingOnlyStoreProducts = !!filters.userId && filters.categories && filters.categories.length === 1 && filters.categories[0] === 'store-product';
 
     if (!isFetchingOnlyStoreProducts && filters.categories && filters.userId) {
-        const regularCategories = filters.categories.filter(c => c !== 'store-product');
+        const regularCategories = filters.categories.filter((c: string) => c !== 'store-product');
         if (regularCategories.length > 0) {
             adQueryConstraints.push(where('category', 'in', regularCategories));
         }
@@ -1409,6 +1527,8 @@ const getAds = useCallback((
     adSenseSettings,
     loading,
     categories,
+    pages,
+    getPageUrlForCategory,
     professions,
     specializations,
     isPhoneNumberInUse,

@@ -41,7 +41,7 @@ function formatPrice(price?: number, currency?: string): string | null {
 // ═══════════════════════════════════════════════════════════════════════════════
 export default function SearchForm() {
   const router = useRouter();
-  const { getAds } = useAuth();
+  const { getAds, categories } = useAuth();
   const { market } = useMarket();
 
   // ── State ──────────────────────────────────────────────────────────────────
@@ -107,10 +107,48 @@ export default function SearchForm() {
       .slice(0, 6);
   }, [query, allAds, market.id]);
 
-  // ── Matched professions & categories taxonomy ────────────────────────────
+  // ── Matched professions & dynamic categories taxonomy ────────────────────
   const matchedCrafts = useMemo<CraftTaxonomy[]>(() => {
-    return findMatchingCrafts(query);
-  }, [query]);
+    const fromTaxonomy = findMatchingCrafts(query);
+    const q = query.trim();
+    if (!q || q.length < 1) return fromTaxonomy;
+    const normQ = normalizeArabicText(q);
+
+    // Also match live dynamic categories & subcategories from DB
+    const dynamicMatches: CraftTaxonomy[] = [];
+    (categories || []).forEach((cat) => {
+      const catName = cat.name?.ar || cat.id;
+      const normCatName = normalizeArabicText(catName);
+      if (normCatName.includes(normQ) || normQ.includes(normCatName)) {
+        if (!fromTaxonomy.some((t) => normalizeArabicText(t.title) === normCatName)) {
+          dynamicMatches.push({
+            id: cat.id,
+            title: catName,
+            category: 'فئة رئيسية',
+            iconName: cat.icon || 'Shapes',
+            keywords: [catName],
+          });
+        }
+      }
+      cat.subcategories?.forEach((sub) => {
+        const subName = sub.name?.ar || sub.id;
+        const normSubName = normalizeArabicText(subName);
+        if (normSubName.includes(normQ) || normQ.includes(normSubName)) {
+          if (!fromTaxonomy.some((t) => normalizeArabicText(t.title) === normSubName)) {
+            dynamicMatches.push({
+              id: sub.id,
+              title: subName,
+              category: catName,
+              iconName: sub.icon || 'Shapes',
+              keywords: [subName],
+            });
+          }
+        }
+      });
+    });
+
+    return [...dynamicMatches, ...fromTaxonomy];
+  }, [query, categories]);
 
   // ── Predictive Autocomplete Text (Google-Style) ───────────────────────────
   const prediction = useMemo<string>(() => {

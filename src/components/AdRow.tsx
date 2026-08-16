@@ -145,39 +145,66 @@ function AdRow({ ad }: AdRowProps) {
           <Separator className="my-4"/>
 
           <div className="flex items-center justify-between w-full mt-auto">
-             <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                     <Button 
-                        variant="ghost" 
-                        size="sm" 
-                        aria-label={t.share}
-                        onClick={(e) => e.preventDefault()}
-                    >
-                        <Share2 className="w-4 h-4" />
-                        <span className="mx-2">{t.share}</span>
-                    </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent onClick={(e) => e.stopPropagation()}>
-                    <DropdownMenuItem asChild>
-                        <a href={`https://www.facebook.com/sharer/sharer.php?u=${adUrl}`} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 cursor-pointer">
-                            <Facebook className="h-4 w-4" />
-                            {t.facebook}
-                        </a>
-                    </DropdownMenuItem>
+             {typeof navigator !== 'undefined' && typeof navigator.share === 'function' ? (
+                <Button 
+                    variant="ghost" 
+                    size="sm" 
+                    aria-label={t.share}
+                    onClick={async (e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        try {
+                            await navigator.share({
+                                title: ad.title,
+                                text: `${ad.title} - سوق العرب`,
+                                url: adUrl,
+                            });
+                        } catch {
+                            // User closed native share
+                        }
+                    }}
+                >
+                    <Share2 className="w-4 h-4" />
+                    <span className="mx-2">{t.share}</span>
+                </Button>
+             ) : (
+              <DropdownMenu modal={false}>
+                 <DropdownMenuTrigger asChild>
+                      <Button 
+                         variant="ghost" 
+                         size="sm" 
+                         aria-label={t.share}
+                         onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                         }}
+                     >
+                         <Share2 className="w-4 h-4" />
+                         <span className="mx-2">{t.share}</span>
+                     </Button>
+                 </DropdownMenuTrigger>
+                 <DropdownMenuContent onClick={(e) => e.stopPropagation()}>
                      <DropdownMenuItem asChild>
-                        <a href={`https://twitter.com/intent/tweet?url=${adUrl}&text=${shareText}`} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 cursor-pointer">
-                            <Twitter className="h-4 w-4" />
-                            {t.twitter}
-                        </a>
-                    </DropdownMenuItem>
-                     <DropdownMenuItem asChild>
-                        <a href={`https://api.whatsapp.com/send?text=${shareText}%20${adUrl}`} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 cursor-pointer">
-                            <WhatsappIcon />
-                            {t.whatsapp}
-                        </a>
-                    </DropdownMenuItem>
-                </DropdownMenuContent>
-             </DropdownMenu>
+                         <a href={`https://www.facebook.com/sharer/sharer.php?u=${adUrl}`} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 cursor-pointer">
+                             <Facebook className="h-4 w-4" />
+                             {t.facebook}
+                         </a>
+                     </DropdownMenuItem>
+                      <DropdownMenuItem asChild>
+                         <a href={`https://twitter.com/intent/tweet?url=${adUrl}&text=${shareText}`} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 cursor-pointer">
+                             <Twitter className="h-4 w-4" />
+                             {t.twitter}
+                         </a>
+                     </DropdownMenuItem>
+                      <DropdownMenuItem asChild>
+                         <a href={`https://api.whatsapp.com/send?text=${shareText}%20${adUrl}`} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 cursor-pointer">
+                             <WhatsappIcon />
+                             {t.whatsapp}
+                         </a>
+                     </DropdownMenuItem>
+                 </DropdownMenuContent>
+              </DropdownMenu>
+             )}
             {!!ad.price && Number(ad.price) > 0 && (
                 <div className="flex items-center gap-2">
                   <Tag className="w-5 h-5 text-primary" />

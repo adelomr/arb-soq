@@ -2,7 +2,7 @@
 
 import Image from 'next/image';
 import Link from 'next/link';
-import { useState, type Dispatch, type SetStateAction } from 'react';
+import React, { useState, type Dispatch, type SetStateAction } from 'react';
 import { useSwipe } from '@/hooks/useSwipe';
 import type { PageData, LandingTheme } from '@/lib/types';
 import { formatWhatsAppNumber } from '@/lib/utils';
@@ -130,6 +130,17 @@ export default function LandingPageClient({ page }: Props) {
   const [openFaqIdx, setOpenFaqIdx] = useState<number | null>(null);
   const [galleryOpen, setGalleryOpen] = useState(false);
   const [galleryIdx, setGalleryIdx] = useState(0);
+  const [navVisible, setNavVisible] = useState(false);
+
+  // إظهار شريط التنقل عند التمرير لأسفل بعد قسم HERO
+  React.useEffect(() => {
+    const handleScroll = () => {
+      // نظهر الشريط بعد مرور 50px من أعلى الصفحة
+      setNavVisible(window.scrollY > 50);
+    };
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
 
   const getCleanWaLink = (num: string, msg?: string) => {
     return `https://wa.me/${formatWhatsAppNumber(num)}${msg ? `?text=${encodeURIComponent(msg)}` : ''}`;
@@ -139,6 +150,19 @@ export default function LandingPageClient({ page }: Props) {
   const callLink = page.phoneNumber ? `tel:${page.phoneNumber.replace(/\s+/g, '')}` : null;
 
   const hasCta = waLink || callLink;
+
+  // التنقل السلس بين أقسام صفحة الهبوط مع مراعاة ارتفاع الشريط الثابت
+  const handleSectionNav = (e: React.MouseEvent<HTMLAnchorElement>) => {
+    const href = e.currentTarget.getAttribute('href');
+    if (!href || !href.startsWith('#')) return;
+    e.preventDefault();
+    const targetId = href.slice(1);
+    const target = document.getElementById(targetId);
+    if (!target) return;
+    const stickyNavHeight = 56; // ارتفاع الشريط الثابت تقريباً (py-2.5 + الأزرار)
+    const offsetTop = target.getBoundingClientRect().top + window.scrollY - stickyNavHeight - 8;
+    window.scrollTo({ top: offsetTop, behavior: 'smooth' });
+  };
 
   // 1. FAQ Schema (JSON-LD)
   const faqSchema = page.faqs && page.faqs.length > 0 ? {
@@ -253,12 +277,17 @@ export default function LandingPageClient({ page }: Props) {
         </div>
       </section>
 
-      {/* ========== STICKY SECTION NAV BAR (Google Ads Sitelinks & Smooth Navigation) ========== */}
-      <div className="sticky top-0 z-40 w-full bg-background/95 backdrop-blur-md border-b border-border/60 shadow-sm py-2.5 px-4">
+      {/* ========== FIXED SECTION NAV BAR (Google Ads Sitelinks & Smooth Navigation) ========== */}
+      <div
+        className={`fixed top-0 inset-x-0 z-40 w-full bg-background/95 backdrop-blur-md border-b border-border/60 shadow-sm py-2.5 px-4 transition-all duration-300 ${
+          navVisible ? 'translate-y-0 opacity-100' : '-translate-y-full opacity-0 pointer-events-none'
+        }`}
+      >
         <div className="container mx-auto max-w-6xl flex items-center gap-2 overflow-x-auto scrollbar-none no-scrollbar justify-start md:justify-center dir-rtl">
           {page.content && (
             <a
               href="#details"
+              onClick={handleSectionNav}
               className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-secondary/80 hover:bg-primary hover:text-primary-foreground text-xs sm:text-sm font-semibold transition-all flex-shrink-0"
             >
               <span>تفاصيل الخدمة</span>
@@ -267,6 +296,7 @@ export default function LandingPageClient({ page }: Props) {
           {page.features && page.features.length > 0 && (
             <a
               href="#features"
+              onClick={handleSectionNav}
               className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-secondary/80 hover:bg-primary hover:text-primary-foreground text-xs sm:text-sm font-semibold transition-all flex-shrink-0"
             >
               <span>المميزات</span>
@@ -275,6 +305,7 @@ export default function LandingPageClient({ page }: Props) {
           {page.gallery && page.gallery.length > 0 && (
             <a
               href="#gallery"
+              onClick={handleSectionNav}
               className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-secondary/80 hover:bg-primary hover:text-primary-foreground text-xs sm:text-sm font-semibold transition-all flex-shrink-0"
             >
               <span>معرض الصور</span>
@@ -283,6 +314,7 @@ export default function LandingPageClient({ page }: Props) {
           {page.testimonials && page.testimonials.length > 0 && (
             <a
               href="#testimonials"
+              onClick={handleSectionNav}
               className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-secondary/80 hover:bg-primary hover:text-primary-foreground text-xs sm:text-sm font-semibold transition-all flex-shrink-0"
             >
               <span>آراء العملاء</span>
@@ -291,6 +323,7 @@ export default function LandingPageClient({ page }: Props) {
           {page.faqs && page.faqs.length > 0 && (
             <a
               href="#faqs"
+              onClick={handleSectionNav}
               className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-secondary/80 hover:bg-primary hover:text-primary-foreground text-xs sm:text-sm font-semibold transition-all flex-shrink-0"
             >
               <span>الأسئلة الشائعة</span>
@@ -299,6 +332,7 @@ export default function LandingPageClient({ page }: Props) {
           {page.locationEmbed && (
             <a
               href="#location"
+              onClick={handleSectionNav}
               className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-secondary/80 hover:bg-primary hover:text-primary-foreground text-xs sm:text-sm font-semibold transition-all flex-shrink-0"
             >
               <span>الموقع على الخريطة</span>
@@ -307,6 +341,7 @@ export default function LandingPageClient({ page }: Props) {
           {hasCta && (
             <a
               href="#contact"
+              onClick={handleSectionNav}
               className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-primary text-primary-foreground text-xs sm:text-sm font-bold shadow-sm hover:scale-105 transition-all flex-shrink-0"
             >
               <span>تواصل معنا</span>

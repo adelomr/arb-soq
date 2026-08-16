@@ -5,8 +5,6 @@ import Link from 'next/link';
 import { useMarket } from '@/context/MarketContext';
 import { useAuth } from '@/context/AuthContext';
 import { getCategoryIcon } from '@/lib/data';
-import { DEFAULT_ORGANIZED_CATEGORIES } from '@/lib/default-categories';
-import { getCategorySlug } from '@/lib/category-utils';
 import {
   ChevronLeft,
   ChevronDown,
@@ -19,7 +17,7 @@ import { cn } from '@/lib/utils';
 
 export default function CategoriesGridHero() {
   const { market } = useMarket();
-  const { categories: authCategories } = useAuth();
+  const { categories: authCategories, getPageUrlForCategory } = useAuth();
   const [mounted, setMounted] = React.useState(false);
   const [showCategories, setShowCategories] = React.useState(false);
   const [subcatLimit, setSubcatLimit] = React.useState<number>(4);
@@ -38,10 +36,12 @@ export default function CategoriesGridHero() {
     return () => window.removeEventListener('subcat_limit_updated', loadLimit);
   }, []);
 
-  // Use categories from Database (AuthContext) if available, otherwise use default structured dataset
-  const activeCategories: Category[] = (authCategories && authCategories.length > 0)
-    ? authCategories
-    : DEFAULT_ORGANIZED_CATEGORIES;
+  // Use categories from Database (AuthContext)
+  const activeCategories: Category[] = authCategories || [];
+
+  if (mounted && activeCategories.length === 0) {
+    return null;
+  }
 
   return (
     <section className="w-full max-w-full overflow-hidden bg-background border-b py-4 md:py-6" dir="rtl">
@@ -79,23 +79,8 @@ export default function CategoriesGridHero() {
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-x-8 gap-y-8 pt-4 animate-in fade-in-50 duration-300">
             {activeCategories.map((cat) => {
               const Icon = getCategoryIcon(cat.icon || 'Shapes', cat.id);
-              const idLower = (cat.id || '').toLowerCase();
-              const nameLower = (cat.name?.ar || '').toLowerCase();
-
-              let catHref = `/p/${cat.id}`;
-              if (idLower === 'vehicles' || nameLower.includes('سيار') || nameLower.includes('عربيا')) catHref = '/p/cars-auto-parts';
-              else if (idLower === 'realestate' || nameLower.includes('عقار')) catHref = '/p/real-estate';
-              else if (idLower === 'mobiles' || nameLower.includes('موبايل') || nameLower.includes('هاتف')) catHref = '/p/mobiles-tablets';
-              else if (idLower === 'jobs' || nameLower.includes('وظائف')) catHref = '/p/jobs-careers';
-              else if (idLower === 'furniture' || nameLower.includes('أثاث')) catHref = '/p/home-office-furniture';
-              else if (idLower === 'electronics' || nameLower.includes('إلكترون') || nameLower.includes('كهربائ') || nameLower.includes('كهربا')) catHref = '/p/electronics-appliances';
-              else if (idLower === 'fashion' || nameLower.includes('موضة')) catHref = '/p/fashion-beauty';
-              else if (idLower === 'pets' || nameLower.includes('حيوان')) catHref = '/p/pets-animals';
-              else if (idLower === 'baby' || nameLower.includes('أطفال')) catHref = '/p/baby-kids';
-              else if (idLower === 'hobbies' || nameLower.includes('هوايات')) catHref = '/p/hobbies-sports';
-              else if (idLower === 'trade' || nameLower.includes('تجارة')) catHref = '/p/commercial-industrial';
-              else if (idLower === 'services' || nameLower.includes('خدمات')) catHref = '/p/professional-services';
-              else if (idLower === 'crafts' || idLower === 'cat_1786316040524' || nameLower.includes('مهن') || nameLower.includes('حرف')) catHref = '/p/crafts-professions';
+              const catName = cat.name?.ar || cat.id;
+              const catHref = getPageUrlForCategory ? getPageUrlForCategory(cat.id, undefined, catName) : `/search?q=${encodeURIComponent(catName)}`;
 
               const subitems = cat.subcategories || [];
               const visibleSubitems = subitems.slice(0, subcatLimit);
@@ -110,21 +95,21 @@ export default function CategoriesGridHero() {
                     <div className="p-1.5 rounded-lg bg-primary/10 text-primary group-hover:bg-primary group-hover:text-primary-foreground transition-all duration-300 shadow-xs flex items-center justify-center flex-shrink-0">
                       <Icon className="h-5 w-5 group-hover:scale-110 transition-transform duration-300" />
                     </div>
-                    <span className="leading-snug">{cat.name.ar}</span>
+                    <span className="leading-snug">{catName}</span>
                   </Link>
 
                   {/* Subcategories List */}
                   <ul className="flex flex-col space-y-1.5 pr-7">
                     {visibleSubitems.map((sub) => {
-                      const catSlug = getCategorySlug(cat.id);
-                      const subHref = `/p/${catSlug}?sub=${sub.id}&q=${encodeURIComponent(sub.name.ar)}`;
+                      const subName = typeof sub.name === 'string' ? sub.name : sub.name?.ar || sub.id;
+                      const subHref = getPageUrlForCategory ? getPageUrlForCategory(cat.id, sub.id, subName) : `/search?q=${encodeURIComponent(subName)}`;
                       return (
                         <li key={sub.id}>
                           <Link
                             href={subHref}
                             className="text-xs sm:text-sm text-muted-foreground hover:text-foreground transition-colors hover:underline"
                           >
-                            {sub.name.ar}
+                            {subName}
                           </Link>
                         </li>
                       );
@@ -137,7 +122,7 @@ export default function CategoriesGridHero() {
                       href={catHref}
                       className="inline-flex items-center text-xs font-semibold text-primary hover:text-primary/80 transition-colors group"
                     >
-                      <span>أظهر المزيد من {cat.name.ar}</span>
+                      <span>أظهر المزيد من {catName}</span>
                       <ChevronLeft className="h-3.5 w-3.5 mr-0.5 group-hover:-translate-x-1 transition-transform duration-200" />
                     </Link>
                   </div>

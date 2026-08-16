@@ -5,6 +5,7 @@
 import { useEffect, useState, useRef } from 'react';
 import { useSwipe } from '@/hooks/useSwipe';
 import { useParams, notFound } from 'next/navigation';
+import Link from 'next/link';
 import { useAuth } from '@/context/AuthContext';
 import type { Ad, UserProfile } from '@/lib/types';
 import dynamic from 'next/dynamic';
@@ -12,7 +13,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
 import Image from 'next/image';
 import { AspectRatio } from '@/components/ui/aspect-ratio';
-import { MapPin, Tag, Calendar, User, Phone, MessageCircle, ZoomIn, ZoomOut, RotateCcw, Star, PlusCircle, ShoppingCart, Globe, Hash, Package, Eye, ChevronLeft, ChevronRight, AlertTriangle, ExternalLink, BadgeCheck } from 'lucide-react';
+import { MapPin, Tag, Calendar, User, Phone, MessageCircle, ZoomIn, ZoomOut, RotateCcw, Star, PlusCircle, ShoppingCart, Globe, Hash, Package, Eye, ChevronLeft, ChevronRight, AlertTriangle, ExternalLink, BadgeCheck, Activity, BarChart3 } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { useMarket } from '@/context/MarketContext';
@@ -29,6 +30,7 @@ import { markets } from '@/lib/markets';
 import RelatedAdsSidebar from './RelatedAdsSidebar';
 import AdFallbackPlaceholder from '@/components/AdPlaceholder';
 import { safeParseDate, cn, formatWhatsAppNumber } from '@/lib/utils';
+import { logAdActivity } from '@/lib/ad-log-service';
 
 const Header = dynamic(() => import('@/components/Header'), { ssr: false });
 const Footer = dynamic(() => import('@/components/Footer'), { ssr: false });
@@ -169,7 +171,7 @@ const t = {
   };
 
 export default function AdDetailClient({ initialAd }: { initialAd: Ad }) {
-  const { incrementAdView } = useAuth();
+  const { user, userProfile, incrementAdView } = useAuth();
   const { market } = useMarket();
   const { cart, addToCart } = useCart();
   const { toast } = useToast();
@@ -186,17 +188,15 @@ export default function AdDetailClient({ initialAd }: { initialAd: Ad }) {
     onSwipeRight: () => hasImage && setSelectedImageIndex(prev => (prev > 0 ? prev - 1 : ad.imageUrls.length - 1)),
   });
 
-
-
-  
   const { adId } = useParams();
 
   useEffect(() => {
-    if (ad && !viewIncremented.current) {
+    if (ad?.id && !viewIncremented.current) {
         incrementAdView(ad);
+        logAdActivity(ad.id, 'view', { userId: user?.uid, sellerUserId: ad.userId || seller?.id });
         viewIncremented.current = true;
     }
-  }, [ad, incrementAdView]);
+  }, [ad, incrementAdView, user?.uid, seller?.id]);
   
   const isStoreProduct = ad?.category === 'store-product';
   const isInCart = cart.some(item => item.id === adId);
@@ -237,6 +237,9 @@ export default function AdDetailClient({ initialAd }: { initialAd: Ad }) {
 
   const handleWhatsAppClick = () => {
     if (effectivePhone) {
+      if (ad?.id) {
+        logAdActivity(ad.id, 'whatsapp', { userId: user?.uid, sellerUserId: ad.userId || seller?.id });
+      }
       const messageTemplate = t.whatsappMessage;
       const message = messageTemplate.replace('{adTitle}', ad.title);
       const formattedPhone = formatWhatsAppNumber(effectivePhone);
@@ -246,6 +249,10 @@ export default function AdDetailClient({ initialAd }: { initialAd: Ad }) {
   };
   
   const adMarket = markets.find(m => m.id === ad.market);
+  const effectiveUserId = ad.userId || ad.user?.id || 'owner';
+  const isOwner = user?.uid === ad.userId || (ad.user?.id && user?.uid === ad.user.id);
+  const isAdmin = userProfile?.role === 'admin';
+  const canViewLog = isOwner || isAdmin;
 
   return (
     <div className="flex flex-col min-h-screen">
@@ -263,96 +270,58 @@ export default function AdDetailClient({ initialAd }: { initialAd: Ad }) {
                                 {t.promoted}
                             </Badge>
                         )}
-                        <h1 className="text-3xl md:text-4xl font-bold font-headline">{ad.title}</h1>
-                        <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-sm text-muted-foreground mt-2">
-                            <div className="flex items-center gap-1.5">
+                        <h1 className="text-2xl md:text-3xl font-extrabold text-foreground tracking-tight break-words mb-3">
+                            {ad.title}
+                        </h1>
+                        <div className="flex flex-wrap items-center gap-4 text-sm text-muted-foreground">
+                             <div className="flex items-center gap-1.5">
                                 <Calendar className="h-4 w-4" />
                                 <span>{t.posted} {formatDistanceToNow(safeParseDate(ad.postedAt), { addSuffix: true, locale: dateLocale })}</span>
                             </div>
-                            <div className="flex items-center gap-1.5">
-                                <MapPin className="h-4 w-4" />
-                                <span>{ad.location}</span>
-                            </div>
-                             {ad.condition && (
+                            {ad.location && (
+                                <div className="flex items-center gap-1.5">
+                                    <MapPin className="h-4 w-4" />
+                                    <span>{ad.location}</span>
+                                </div>
+                            )}
+                            {ad.condition && (
                                 <div className="flex items-center gap-1.5">
                                     <Package className="h-4 w-4" />
                                     <span>{t.condition}: <span className="font-semibold text-foreground">{ad.condition === 'new' ? t.conditionNew : t.conditionUsed}</span></span>
                                 </div>
                             )}
-                            {adMarket && (
-                            <div className="flex items-center gap-1.5">
-                                <Globe className="h-4 w-4" />
-                                <span>{t.targetMarket}: {adMarket.name.ar}</span>
-                            </div>
+                            {ad.views !== undefined && (
+                                <div className="flex items-center gap-1.5">
+                                    <Eye className="h-4 w-4" />
+                                    <span>{ad.views.toLocaleString('en-US')} مشاهدة</span>
+                                </div>
                             )}
-                            {ad.productCode && (
-                            <div className="flex items-center gap-1.5">
-                                <Hash className="h-4 w-4" />
-                                <span>{t.productCode}: {ad.productCode}</span>
-                            </div>
-                            )}
-                             <div className="flex items-center gap-1.5">
-                                 <Eye className="h-4 w-4 text-primary/70" />
-                                 <span>{ad.views || 0} مشاهدة</span>
-                             </div>
                         </div>
                     </div>
 
-                    {/* Ad Image with floating audio controls & ambient background */}
+                    {/* Image Section */}
                     {hasImage ? (
                       <Dialog>
                           <DialogTrigger asChild>
-                          <div
-                                className="relative w-full rounded-2xl overflow-hidden mb-3 shadow-xl cursor-zoom-in group border border-border/40"
-                                {...swipe.handlers}
-                              >
-                                  {/* الصورة الرئيسية — عرض كامل بارتفاع طبيعي (لا مساحات جانبية) */}
+                              <div className="relative w-full aspect-[4/3] rounded-2xl overflow-hidden mb-3 shadow-xl border border-border/40 cursor-zoom-in group min-h-[300px]" {...swipe}>
                                   <Image
-                                    src={ad.imageUrls[selectedImageIndex] || ad.imageUrls[0]}
-                                    alt={ad.title}
-                                    width={0}
-                                    height={0}
-                                    priority
-                                    sizes="(max-width: 768px) 100vw, (max-width: 1200px) 70vw, 800px"
-                                    className="w-full h-auto max-h-[85vh] object-contain block drop-shadow-md transition-transform duration-300 group-hover:scale-[1.01]"
-                                    data-ai-hint={ad.imageHints ? ad.imageHints[selectedImageIndex] || ad.imageHints[0] : ''}
+                                      src={ad.imageUrls[selectedImageIndex] || ad.imageUrls[0]}
+                                      alt={ad.title}
+                                      fill
+                                      priority
+                                      className="object-contain bg-black/10 dark:bg-black/40 transition-transform duration-300 group-hover:scale-105"
+                                      sizes="(max-width: 1024px) 100vw, 66vw"
                                   />
-
-                                  {/* أزرار التنقل بين الصور على الصورة الرئيسية */}
-                                  {ad.imageUrls && ad.imageUrls.length > 1 && (
-                                    <>
-                                      <button
-                                        type="button"
-                                        onClick={(e) => {
-                                          e.stopPropagation();
-                                          setSelectedImageIndex((prev) => (prev > 0 ? prev - 1 : ad.imageUrls.length - 1));
-                                        }}
-                                        className="pointer-events-auto absolute left-3 top-1/2 -translate-y-1/2 bg-black/60 hover:bg-black/85 text-white p-2.5 rounded-full backdrop-blur-md transition-all z-40 active:scale-95 shadow-md border border-white/20"
-                                        title="الصورة السابقة"
-                                      >
-                                        <ChevronLeft className="h-5 w-5" />
-                                      </button>
-                                      <button
-                                        type="button"
-                                        onClick={(e) => {
-                                          e.stopPropagation();
-                                          setSelectedImageIndex((prev) => (prev < ad.imageUrls.length - 1 ? prev + 1 : 0));
-                                        }}
-                                        className="pointer-events-auto absolute right-3 top-1/2 -translate-y-1/2 bg-black/60 hover:bg-black/85 text-white p-2.5 rounded-full backdrop-blur-md transition-all z-40 active:scale-95 shadow-md border border-white/20"
-                                        title="الصورة التالية"
-                                      >
-                                        <ChevronRight className="h-5 w-5" />
-                                      </button>
-                                      <div className="absolute top-3 left-3 bg-black/70 backdrop-blur-md text-white px-3 py-1 rounded-full text-xs font-bold shadow-md z-30 border border-white/10">
-                                        {selectedImageIndex + 1} / {ad.imageUrls.length}
+                                  {ad.imageUrls.length > 1 && (
+                                      <div className="absolute bottom-3 left-3 bg-black/60 backdrop-blur-md text-white px-2.5 py-1 rounded-lg text-xs font-medium shadow-md z-30 border border-white/10">
+                                          {selectedImageIndex + 1} / {ad.imageUrls.length}
                                       </div>
-                                    </>
                                   )}
 
                                   {/* Zoom hint badge */}
                                   <div className="absolute bottom-3 right-3 bg-black/60 backdrop-blur-md text-white/90 px-2.5 py-1 rounded-lg text-xs font-medium flex items-center gap-1.5 shadow-md z-30 border border-white/10">
                                     <ZoomIn className="h-3.5 w-3.5" />
-                                    <span>تكبير الصورة</span>
+                                    <span>تكبير</span>
                                   </div>
                               </div>
                           </DialogTrigger>
@@ -401,8 +370,6 @@ export default function AdDetailClient({ initialAd }: { initialAd: Ad }) {
                       </div>
                     )}
 
-
-
                      <div className="py-8">
                         <AdPlaceholder />
                     </div>
@@ -447,6 +414,20 @@ export default function AdDetailClient({ initialAd }: { initialAd: Ad }) {
                                 {currencyFormatter.format(Number(ad.price))}
                             </p>
                         </div>
+                    )}
+
+                    {/* Ad Log (السجل) Quick Access for Owner / Admin */}
+                    {canViewLog && (
+                        <Button
+                            asChild
+                            variant="outline"
+                            className="w-full border-primary/40 bg-primary/5 hover:bg-primary/10 text-primary font-bold flex items-center justify-center gap-2 py-5 rounded-xl shadow-sm"
+                        >
+                            <Link href={`/ad/${effectiveUserId}/${ad.id}/log`}>
+                                <Activity className="h-5 w-5 ml-1" />
+                                <span>السجل (إحصائيات ونشاط الإعلان)</span>
+                            </Link>
+                        </Button>
                     )}
 
                     {/* Seller Card */}
@@ -499,7 +480,12 @@ export default function AdDetailClient({ initialAd }: { initialAd: Ad }) {
                                     size="lg" 
                                     disabled={!effectivePhone}
                                 >
-                                    <a href={`tel:${effectivePhone}`}>
+                                    <a 
+                                      href={`tel:${effectivePhone}`} 
+                                      onClick={() => {
+                                        if (ad?.id) logAdActivity(ad.id, 'call', { userId: user?.uid, sellerUserId: ad.userId || seller?.id });
+                                      }}
+                                    >
                                         <Phone className="mr-2 h-5 w-5" />
                                         {effectivePhone ? t.callSeller : t.phoneNotAvailable}
                                     </a>

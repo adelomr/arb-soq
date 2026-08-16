@@ -52,6 +52,8 @@ export default function BottomNav() {
   // Don't render on admin dashboard or inside embedded iframes if needed
   if (!mounted) return null;
   if (pathname?.startsWith('/admin')) return null;
+  // إخفاء شريط التنقل السريع في صفحات الهبوط (الصفحات المخصصة)
+  if (pathname?.startsWith('/p/')) return null;
 
   const isAuthenticated = !!user;
 
