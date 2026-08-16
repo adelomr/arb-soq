@@ -13,7 +13,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
 import Image from 'next/image';
 import { AspectRatio } from '@/components/ui/aspect-ratio';
-import { MapPin, Tag, Calendar, User, Phone, MessageCircle, ZoomIn, ZoomOut, RotateCcw, Star, PlusCircle, ShoppingCart, Globe, Hash, Package, Eye, ChevronLeft, ChevronRight, AlertTriangle, ExternalLink, BadgeCheck, Activity, BarChart3 } from 'lucide-react';
+import { MapPin, Tag, Calendar, User, Phone, MessageCircle, ZoomIn, ZoomOut, RotateCcw, Star, PlusCircle, ShoppingCart, Globe, Hash, Package, Eye, ChevronLeft, ChevronRight, AlertTriangle, ExternalLink, BadgeCheck } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { useMarket } from '@/context/MarketContext';
@@ -417,19 +417,7 @@ export default function AdDetailClient({ initialAd }: { initialAd: Ad }) {
                         </div>
                     )}
 
-                    {/* Ad Log (السجل) Quick Access for Owner / Admin */}
-                    {canViewLog && (
-                        <Button
-                            asChild
-                            variant="outline"
-                            className="w-full border-primary/40 bg-primary/5 hover:bg-primary/10 text-primary font-bold flex items-center justify-center gap-2 py-5 rounded-xl shadow-sm"
-                        >
-                            <Link href={`/ad/${effectiveUserId}/${ad.id}/log`}>
-                                <Activity className="h-5 w-5 ml-1" />
-                                <span>السجل (إحصائيات ونشاط الإعلان)</span>
-                            </Link>
-                        </Button>
-                    )}
+
 
                     {/* Seller Card */}
                     {seller && (
