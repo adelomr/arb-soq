@@ -37,6 +37,7 @@ import { Skeleton } from './ui/skeleton';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Separator } from './ui/separator';
 import { markets } from '@/lib/markets';
+import { isPhysicalGoodsCategory } from '@/lib/category-utils';
 import {
   AlertDialog,
   AlertDialogCancel,
@@ -186,8 +187,6 @@ const CURRENCIES = [
   { code: 'YER', symbol: 'ر.ي', name: 'ريال يمني' },
   { code: 'USD', symbol: '$', name: 'دولار أمريكي' },
 ];
-
-const PHYSICAL_GOODS_CATEGORIES = ['vehicles', 'mobiles', 'electronics', 'furniture', 'fashion', 'baby', 'hobbies', 'trade'];
 
 const getAdFormSchema = (t: typeof translations.ar, isStoreProduct: boolean) => z.object({
   adType: z.enum(['sell-item', 'sell-service', 'request-service', 'video', 'image'], {
@@ -677,9 +676,12 @@ function AdFormContent({ adId, userId, isEditMode, onSuccess }: { adId?: string 
             'video': 'فيديو',
             'image': 'صوري',
         };
+        const isPhysicalGood = data.adType === 'sell-item' && isPhysicalGoodsCategory(mainCatId, mainCategoryName);
+        const conditionToSave = isPhysicalGood ? (data.condition || 'new') : undefined;
 
         const adDataToSave = { 
             ...data,
+            condition: conditionToSave,
             category: mainCatId, 
             categoryId: mainCatId,
             subcategory: subCatId,
@@ -887,47 +889,11 @@ function AdFormContent({ adId, userId, isEditMode, onSuccess }: { adId?: string 
                 )}
             </div>
 
-            {/* حقل حالة المنتج (جديد أو مستعمل) - يظهر فقط وحصراً لفئات السلع المادية (عربيات، أجهزة إلكترونية، موبايلات، أثاث...) ولا يظهر نهائياً في فئة النقل والتوصيل أو الخدمات */}
-            {(() => {
-              const currentCatId = form.watch('category') || selectedCategory?.id || '';
-              const categoryName = selectedCategory?.name?.ar || '';
-              
-              // حظر قاطع لفئة نقل وتوصيل والخدمات والوظائف والحرف والعقارات والزراعة
-              if (
-                currentCatId === 'transport' ||
-                currentCatId === 'transport-delivery' ||
-                currentCatId === 'services' ||
-                currentCatId === 'crafts' ||
-                currentCatId === 'jobs' ||
-                currentCatId === 'realestate' ||
-                currentCatId === 'pets' ||
-                currentCatId === 'ziraa' ||
-                currentCatId === 'agriculture' ||
-                categoryName.includes('نقل') ||
-                categoryName.includes('توصيل') ||
-                categoryName.includes('خدمات') ||
-                categoryName.includes('حرف') ||
-                categoryName.includes('وظائف') ||
-                categoryName.includes('عقارات') ||
-                categoryName.includes('زراعة') ||
-                categoryName.includes('زراعية')
-              ) {
-                return false;
-              }
-
-              // السماح فقط وحصراً لفئات السلع المادية المحتملة
-              return (
-                PHYSICAL_GOODS_CATEGORIES.includes(currentCatId) ||
-                categoryName.includes('عربيات') ||
-                categoryName.includes('سيارات') ||
-                categoryName.includes('موبايل') ||
-                categoryName.includes('إلكترون') ||
-                categoryName.includes('أثاث') ||
-                categoryName.includes('موضة') ||
-                categoryName.includes('أطفال') ||
-                categoryName.includes('تجارة')
-              );
-            })() && (
+            {/* حقل حالة المنتج (جديد أو مستعمل) - يظهر فقط للسلع المادية */}
+            {adType === 'sell-item' && isPhysicalGoodsCategory(
+              form.watch('category') || selectedCategory?.id,
+              selectedCategory?.name?.ar
+            ) && (
               <FormField
                 control={form.control}
                 name="condition"

@@ -160,3 +160,77 @@ export function matchAdToSubcategory(ad: Ad, subId: string, subName?: string): b
 
   return false;
 }
+
+export const PHYSICAL_GOODS_CATEGORIES = [
+  'vehicles', 'cars', 'automotive', 'mobiles', 'phones', 'electronics', 
+  'furniture', 'fashion', 'clothes', 'baby', 'kids', 'hobbies', 'trade', 'store-product'
+];
+
+export const NON_PHYSICAL_CATEGORIES = [
+  'realestate', 'real-estate', 'property', 'properties',
+  'jobs', 'job', 'careers', 'employment',
+  'services', 'service', 'maintenance',
+  'crafts', 'craft', 'professions',
+  'transport', 'transport-delivery', 'delivery', 'shipping',
+  'pets', 'animals',
+  'ziraa', 'agriculture', 'farm',
+  'education', 'courses', 'teaching',
+  'general'
+];
+
+export function isPhysicalGoodsCategory(categoryOrId?: string, categoryName?: string): boolean {
+  if (!categoryOrId && !categoryName) return false;
+  const key = normalizeKey(categoryOrId);
+  const name = normalizeKey(categoryName);
+
+  // 1. Strict blacklist of non-physical categories (Real estate, Jobs, Services, Crafts, Transport, Pets, Agriculture, Education, General)
+  if (
+    NON_PHYSICAL_CATEGORIES.some(cat => key === cat || key.startsWith(cat) || key.includes(cat)) ||
+    name.includes('عقار') ||
+    name.includes('شقق') ||
+    name.includes('أراض') ||
+    name.includes('وظائف') ||
+    name.includes('توظيف') ||
+    name.includes('عمل') ||
+    name.includes('خدمات') ||
+    name.includes('خدمة') ||
+    name.includes('حرف') ||
+    name.includes('مهن') ||
+    name.includes('نقل') ||
+    name.includes('توصيل') ||
+    name.includes('شحن') ||
+    name.includes('حيوان') ||
+    name.includes('كلاب') ||
+    name.includes('قطط') ||
+    name.includes('طيور') ||
+    name.includes('زراع') ||
+    name.includes('محاصيل') ||
+    name.includes('تعليم') ||
+    name.includes('تدريب') ||
+    name.includes('دروس') ||
+    name.includes('عام')
+  ) {
+    return false;
+  }
+
+  // 2. Strict whitelist of physical goods categories
+  return (
+    PHYSICAL_GOODS_CATEGORIES.some(cat => key === cat || key.startsWith(cat) || key.includes(cat)) ||
+    name.includes('عربيات') ||
+    name.includes('سيارات') ||
+    name.includes('مركبات') ||
+    name.includes('موبايل') ||
+    name.includes('هواتف') ||
+    name.includes('إلكترون') ||
+    name.includes('كهربائية') ||
+    name.includes('أثاث') ||
+    name.includes('مفروشات') ||
+    name.includes('موضة') ||
+    name.includes('ملابس') ||
+    name.includes('أطفال') ||
+    name.includes('هوايات') ||
+    name.includes('رياضة') ||
+    name.includes('تجارة') ||
+    name.includes('منتج')
+  );
+}

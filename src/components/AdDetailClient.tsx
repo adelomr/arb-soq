@@ -27,6 +27,7 @@ import { useCart } from '@/context/CartContext';
 import { useToast } from '@/hooks/use-toast';
 import { AdPlaceholder, AdPlaceholderSquare } from './Adsense';
 import { markets } from '@/lib/markets';
+import { isPhysicalGoodsCategory } from '@/lib/category-utils';
 import RelatedAdsSidebar from './RelatedAdsSidebar';
 import AdFallbackPlaceholder from '@/components/AdPlaceholder';
 import { safeParseDate, cn, formatWhatsAppNumber } from '@/lib/utils';
@@ -284,7 +285,7 @@ export default function AdDetailClient({ initialAd }: { initialAd: Ad }) {
                                     <span>{ad.location}</span>
                                 </div>
                             )}
-                            {ad.condition && (
+                            {ad.condition && isPhysicalGoodsCategory(ad.category, (ad as any).categoryName) && (
                                 <div className="flex items-center gap-1.5">
                                     <Package className="h-4 w-4" />
                                     <span>{t.condition}: <span className="font-semibold text-foreground">{ad.condition === 'new' ? t.conditionNew : t.conditionUsed}</span></span>
