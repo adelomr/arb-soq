@@ -25,7 +25,6 @@ import { firestore } from "@/lib/firebase";
 import { collection, getCountFromServer } from "firebase/firestore";
 
 import AdminDashboard from "@/components/AdminDashboard";
-import UserDataCleanup from "@/components/UserDataCleanup";
 import NotificationManager from "@/components/NotificationManager";
 import AnnouncementManager from "@/components/AnnouncementManager";
 import AdModerationList from "@/components/AdModerationList";
@@ -133,12 +132,7 @@ export default function AdminPage() {
     const renderView = () => {
         switch (view) {
             case 'users':
-                return (
-                  <div className="space-y-6">
-                    <AdminDashboard />
-                    <UserDataCleanup />
-                  </div>
-                );
+                return <AdminDashboard />;
             case 'notifications':
                 return <NotificationManager />;
             case 'settings':
