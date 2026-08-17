@@ -39,7 +39,12 @@ export function FontSizeApplier({ children }: { children: ReactNode }) {
 
     useEffect(() => {
         const root = document.documentElement;
-        root.style.fontSize = `${scale * 16}px`;
+        if (scale === 1) {
+            // عند الحجم الافتراضي: أزل أي override لتعمل قواعد CSS الأصلية (بما فيها media queries)
+            root.style.removeProperty('font-size');
+        } else {
+            root.style.fontSize = `${scale * 16}px`;
+        }
     }, [scale]);
 
     return <>{children}</>;
