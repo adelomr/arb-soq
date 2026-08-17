@@ -192,7 +192,9 @@ const PRICING_DATA: Record<string, {
   },
 };
 
-export default function PricingPage() {
+import { Suspense } from 'react';
+
+function PricingContent() {
   const { user, userProfile, refreshUserProfile } = useAuth();
   const { market, setMarket } = useMarket();
   const { toast } = useToast();
@@ -704,5 +706,17 @@ export default function PricingPage() {
 
       <Footer />
     </div>
+  );
+}
+
+export default function PricingPage() {
+  return (
+    <Suspense fallback={
+      <div className="flex items-center justify-center min-h-screen bg-background">
+        <Loader2 className="w-8 h-8 animate-spin text-primary" />
+      </div>
+    }>
+      <PricingContent />
+    </Suspense>
   );
 }

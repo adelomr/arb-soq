@@ -1,4 +1,6 @@
+import { Suspense } from 'react';
 import { Metadata } from 'next';
+import { Loader2 } from 'lucide-react';
 import { firestore } from '@/lib/firebase';
 import { doc, getDoc, collection, getDocs, query, where, limit } from 'firebase/firestore';
 import AdDetailClient from '@/components/AdDetailClient';
@@ -224,7 +226,13 @@ export default async function AdPage({ params }: Props) {
   return (
     <>
       {JsonLdScript}
-      <AdDetailClient initialAd={serializedAd} />
+      <Suspense fallback={
+        <div className="flex items-center justify-center min-h-[60vh]">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        </div>
+      }>
+        <AdDetailClient initialAd={serializedAd} />
+      </Suspense>
     </>
   );
 }

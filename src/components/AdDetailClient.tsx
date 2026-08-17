@@ -4,7 +4,7 @@
 
 import { useEffect, useState, useRef } from 'react';
 import { useSwipe } from '@/hooks/useSwipe';
-import { useParams, notFound, useSearchParams } from 'next/navigation';
+import { useParams, notFound } from 'next/navigation';
 import Link from 'next/link';
 import { useAuth } from '@/context/AuthContext';
 import type { Ad, UserProfile } from '@/lib/types';
@@ -259,17 +259,18 @@ export default function AdDetailClient({ initialAd }: { initialAd: Ad }) {
 
   const isBoostActive = (ad as any).isFeatured && (!(ad as any).featuredUntil || new Date((ad as any).featuredUntil) > new Date());
   const boostTier = (ad as any).featuredTier || 'silver';
-  const searchParams = useSearchParams();
-  const boostStatus = searchParams?.get('boost');
 
   useEffect(() => {
-    if (boostStatus === 'success') {
-      toast({
-        title: "🎉 تم تمييز الإعلان بنجاح!",
-        description: "تهانينا! تمت ترقية إعلانك بنجاح وتثبيته في مقدمة نتائج البحث.",
-      });
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      if (params.get('boost') === 'success') {
+        toast({
+          title: "🎉 تم تمييز الإعلان بنجاح!",
+          description: "تهانينا! تمت ترقية إعلانك بنجاح وتثبيته في مقدمة نتائج البحث.",
+        });
+      }
     }
-  }, [boostStatus, toast]);
+  }, [toast]);
 
   return (
     <div className="flex flex-col min-h-screen">

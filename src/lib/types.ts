@@ -189,6 +189,10 @@ export interface UserProfile {
   profession?: string;
   specialization?: string;
   portfolioImages?: PortfolioImage[];
+  plan?: string;
+  planPurchasedAt?: string;
+  planExpiresAt?: string;
+  planDurationDays?: number;
   createdAt?: any;
   lastForumPostAt?: any;
 }
