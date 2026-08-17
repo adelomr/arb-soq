@@ -5,6 +5,7 @@ import { z } from 'zod';
 import { firestore } from '@/lib/firebase';
 import { doc, setDoc } from 'firebase/firestore';
 import { getPaymobSettings } from '@/lib/paymob-service';
+import { PLAN_PRICES } from '@/lib/boost-pricing';
 
 const CreateDirectBoostSchema = z.object({
   adId: z.string(),
@@ -15,24 +16,6 @@ const CreateDirectBoostSchema = z.object({
   userName: z.string(),
   userPhone: z.string().optional(),
 });
-
-// مصفوفة الأسعار والعملات للدول المختلفة
-export const PLAN_PRICES: Record<'silver' | 'gold', Record<string, { amountCents: number; displayPrice: string; currency: string; durationDays: number }>> = {
-  silver: {
-    eg: { amountCents: 25000, displayPrice: '250', currency: 'EGP', durationDays: 7 },
-    sa: { amountCents: 2000, displayPrice: '20', currency: 'SAR', durationDays: 7 },
-    ae: { amountCents: 2000, displayPrice: '20', currency: 'AED', durationDays: 7 },
-    kw: { amountCents: 200, displayPrice: '2', currency: 'KWD', durationDays: 7 },
-    default: { amountCents: 500, displayPrice: '5', currency: 'USD', durationDays: 7 }
-  },
-  gold: {
-    eg: { amountCents: 75000, displayPrice: '750', currency: 'EGP', durationDays: 30 },
-    sa: { amountCents: 6000, displayPrice: '60', currency: 'SAR', durationDays: 30 },
-    ae: { amountCents: 6000, displayPrice: '60', currency: 'AED', durationDays: 30 },
-    kw: { amountCents: 500, displayPrice: '5', currency: 'KWD', durationDays: 30 },
-    default: { amountCents: 1500, displayPrice: '15', currency: 'USD', durationDays: 30 }
-  }
-};
 
 export async function createDirectBoostSession(input: z.infer<typeof CreateDirectBoostSchema>) {
   const data = CreateDirectBoostSchema.parse(input);

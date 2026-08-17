@@ -13,7 +13,8 @@ import { Button } from '@/components/ui/button';
 import { useAuth } from '@/context/AuthContext';
 import { useMarket } from '@/context/MarketContext';
 import { useToast } from '@/hooks/use-toast';
-import { createDirectBoostSession, PLAN_PRICES } from '@/app/actions/checkout';
+import { createDirectBoostSession } from '@/app/actions/checkout';
+import { PLAN_PRICES } from '@/lib/boost-pricing';
 import { Sparkles, Crown, Zap, Check, Loader2, ArrowRight } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
