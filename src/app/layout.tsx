@@ -82,6 +82,12 @@ export default function RootLayout({
         <link rel="preconnect" href="https://arb-soq.firebaseapp.com" crossOrigin="anonymous" />
         <link rel="dns-prefetch" href="https://pagead2.googlesyndication.com" />
         <link rel="dns-prefetch" href="https://www.googletagmanager.com" />
+        <meta name="google-adsense-account" content="ca-pub-4808414573627321" />
+        <script
+          async
+          src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-4808414573627321"
+          crossOrigin="anonymous"
+        />
         <script async src="https://www.googletagmanager.com/gtag/js?id=G-EKJ4JF0LZQ" />
         <script
           dangerouslySetInnerHTML={{
