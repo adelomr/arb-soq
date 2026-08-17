@@ -380,7 +380,7 @@ export default function PricingPage() {
                   </li>
                   <li className="flex items-center gap-2.5 opacity-50">
                     <X className="w-4 h-4 text-muted-foreground shrink-0" />
-                    <span>بدون شارة تمييز أو تثبيت في القمة</span>
+                    <span>بدون إضافة رابط فيديو يوتيوب أو موقع خارجي</span>
                   </li>
                   <li className="flex items-center gap-2.5 opacity-50">
                     <X className="w-4 h-4 text-muted-foreground shrink-0" />
@@ -431,6 +431,10 @@ export default function PricingPage() {
                     <Check className="w-4 h-4 text-green-500 shrink-0" />
                     <span><strong>إعلانات غير محدودة</strong> طوال فترة الاشتراك</span>
                   </li>
+                  <li className="flex items-center gap-2.5 font-medium text-foreground">
+                    <Check className="w-4 h-4 text-green-500 shrink-0" />
+                    <span>إضافة <strong>رابط فيديو يوتيوب + موقع إلكتروني خارجي</strong></span>
+                  </li>
                   <li className="flex items-center gap-2.5">
                     <Check className="w-4 h-4 text-green-500 shrink-0" />
                     <span>حتى <strong>8 صور</strong> بجودة عالية لكل إعلان</span>
@@ -446,10 +450,6 @@ export default function PricingPage() {
                   <li className="flex items-center gap-2.5">
                     <Check className="w-4 h-4 text-green-500 shrink-0" />
                     <span>دعم فني وأولوية المراجعة والتفعيل</span>
-                  </li>
-                  <li className="flex items-center gap-2.5 opacity-50">
-                    <X className="w-4 h-4 text-muted-foreground shrink-0" />
-                    <span>بدون تحسين الذكاء الاصطناعي VIP</span>
                   </li>
                 </ul>
 
@@ -513,6 +513,10 @@ export default function PricingPage() {
                     <span><strong>تحسين الإعلان وكتابة الوصف بالذكاء الاصطناعي ✨</strong></span>
                   </li>
                   <li className="flex items-center gap-2.5 font-bold text-foreground">
+                    <Check className="w-4 h-4 text-amber-500 shrink-0" />
+                    <span>إضافة <strong>رابط فيديو يوتيوب + موقع إلكتروني خارجي</strong></span>
+                  </li>
+                  <li className="flex items-center gap-2.5 font-bold text-foreground">
                     <Crown className="w-4 h-4 text-amber-500 fill-amber-500 shrink-0" />
                     <span>شارة <strong>«👑 ذهبي VIP»</strong> مع إطار ذهبي لامع</span>
                   </li>
@@ -522,7 +526,7 @@ export default function PricingPage() {
                   </li>
                   <li className="flex items-center gap-2.5">
                     <Check className="w-4 h-4 text-amber-500 shrink-0" />
-                    <span>حتى <strong>15 صورة + فيديو</strong> لكل إعلان</span>
+                    <span>حتى <strong>15 صورة</strong> بجودة فائقة لكل إعلان</span>
                   </li>
                   <li className="flex items-center gap-2.5 font-medium text-foreground">
                     <BadgeCheck className="w-4 h-4 text-primary shrink-0" />
@@ -611,7 +615,13 @@ export default function PricingPage() {
                     <td className="p-4 font-semibold">عدد الصور لكل إعلان</td>
                     <td className="p-4 text-center">4 صور</td>
                     <td className="p-4 text-center">8 صور</td>
-                    <td className="p-4 text-center font-bold">15 صورة + فيديو</td>
+                    <td className="p-4 text-center font-bold">15 صورة</td>
+                  </tr>
+                  <tr>
+                    <td className="p-4 font-semibold">إضافة رابط فيديو يوتيوب وموقع خارجي</td>
+                    <td className="p-4 text-center"><X className="w-4 h-4 text-muted-foreground mx-auto" /></td>
+                    <td className="p-4 text-center font-bold text-primary">✅ متاح</td>
+                    <td className="p-4 text-center font-bold text-amber-600">✅ متاح</td>
                   </tr>
                   <tr>
                     <td className="p-4 font-semibold">شارة التميز المرئية</td>
