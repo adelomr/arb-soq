@@ -388,35 +388,37 @@ export default function AdPageClient({ page }: AdPageClientProps) {
                 <Card className="rounded-2xl border border-border shadow-xs overflow-hidden bg-background">
                   <div
                     onClick={() => setIsSubcategoriesOpen(prev => !prev)}
-                    className="p-4 bg-secondary/30 border-b flex items-center justify-between cursor-pointer md:cursor-default select-none"
+                    className="p-3.5 sm:p-4 bg-secondary/30 border-b flex flex-col gap-2 cursor-pointer md:cursor-default select-none hover:bg-secondary/40 transition-colors"
                   >
-                    <div className="flex items-center gap-2">
-                      <h3 className="font-bold text-base font-headline text-foreground">فئات {categoryName}</h3>
-                      {selectedSub && (
-                        <span className="md:hidden text-2xs bg-primary text-primary-foreground px-2 py-0.5 rounded-full font-bold">
-                          1 محدد
-                        </span>
-                      )}
+                    <div className="flex items-center justify-between w-full">
+                      <h3 className="font-bold text-sm sm:text-base font-headline text-foreground">
+                        فئات {categoryName}
+                      </h3>
+                      <ChevronDown
+                        className={`h-4 w-4 text-muted-foreground transition-transform duration-200 md:hidden flex-shrink-0 ${
+                          isSubcategoriesOpen ? 'rotate-180' : ''
+                        }`}
+                      />
                     </div>
-                    <div className="flex items-center gap-2">
-                      {selectedSub && (
+                    {selectedSub && (
+                      <div className="flex items-center justify-between gap-2 pt-1 border-t border-border/40">
+                        <div className="inline-flex items-center gap-1 text-2xs bg-primary/10 text-primary border border-primary/20 px-2 py-0.5 rounded-full font-bold">
+                          <span className="text-muted-foreground font-normal">الفئة:</span>
+                          <span>{sidebarSubcategories.find(s => s.id === selectedSub)?.name || 'محدد'}</span>
+                        </div>
                         <button
                           type="button"
                           onClick={(e) => {
                             e.stopPropagation();
                             setSelectedSub('');
+                            setIsSubcategoriesOpen(false);
                           }}
-                          className="text-xs text-primary font-semibold hover:underline cursor-pointer"
+                          className="text-xs text-muted-foreground hover:text-primary font-medium hover:underline cursor-pointer flex items-center gap-1"
                         >
-                          عرض جميع إعلانات القسم
+                          ✕ عرض الكل
                         </button>
-                      )}
-                      <ChevronDown
-                        className={`h-4 w-4 text-muted-foreground transition-transform duration-200 md:hidden ${
-                          isSubcategoriesOpen ? 'rotate-180' : ''
-                        }`}
-                      />
-                    </div>
+                      </div>
+                    )}
                   </div>
                   <CardContent className={`p-4 space-y-3 ${isSubcategoriesOpen ? 'block' : 'hidden md:block'}`}>
                     <div className="flex items-center gap-2 text-base font-bold text-foreground font-headline pb-2 border-b">
@@ -430,7 +432,10 @@ export default function AdPageClient({ page }: AdPageClientProps) {
                       <li>
                         <button
                           type="button"
-                          onClick={() => setSelectedSub('')}
+                          onClick={() => {
+                            setSelectedSub('');
+                            setIsSubcategoriesOpen(false);
+                          }}
                           className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-sm font-semibold transition-all text-right ${
                             !selectedSub
                               ? 'bg-primary text-primary-foreground font-bold shadow-xs'
@@ -447,7 +452,10 @@ export default function AdPageClient({ page }: AdPageClientProps) {
                           <li key={sub.id}>
                             <button
                               type="button"
-                              onClick={() => setSelectedSub(isSelected ? '' : sub.id)}
+                              onClick={() => {
+                                setSelectedSub(isSelected ? '' : sub.id);
+                                setIsSubcategoriesOpen(false);
+                              }}
                               className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-sm font-semibold transition-all text-right ${
                                 isSelected
                                   ? 'bg-primary text-primary-foreground font-bold shadow-xs'
@@ -475,46 +483,51 @@ export default function AdPageClient({ page }: AdPageClientProps) {
               <Card className="rounded-2xl border border-border shadow-xs overflow-hidden bg-background">
                 <div
                   onClick={() => setIsLocationOpen(prev => !prev)}
-                  className="p-4 bg-secondary/30 border-b flex items-center justify-between cursor-pointer md:cursor-default select-none"
+                  className="p-3.5 sm:p-4 bg-secondary/30 border-b flex flex-col gap-2 cursor-pointer md:cursor-default select-none hover:bg-secondary/40 transition-colors"
                 >
-                  <div className="flex items-center gap-2">
-                    <h3 className="font-bold text-base font-headline text-foreground">الموقع</h3>
-                    {selectedGov && (
-                      <span className="md:hidden text-2xs bg-primary text-primary-foreground px-2 py-0.5 rounded-full font-bold">
-                        {selectedGov}
-                      </span>
-                    )}
+                  <div className="flex items-center justify-between w-full">
+                    <div className="flex items-center gap-2">
+                      <h3 className="font-bold text-sm sm:text-base font-headline text-foreground">الموقع</h3>
+                      <div className="inline-flex items-center gap-1 text-xs font-bold text-primary bg-primary/10 px-2 py-0.5 rounded-full border border-primary/20">
+                        <MapPin className="h-3 w-3 text-primary flex-shrink-0" />
+                        <span>{market?.name?.ar || 'مصر'}</span>
+                      </div>
+                    </div>
+                    <ChevronDown
+                      className={`h-4 w-4 text-muted-foreground transition-transform duration-200 md:hidden flex-shrink-0 ${
+                        isLocationOpen ? 'rotate-180' : ''
+                      }`}
+                    />
                   </div>
-                  <div className="flex items-center gap-2">
-                    {selectedGov && (
+                  {selectedGov && (
+                    <div className="flex items-center justify-between gap-2 pt-1 border-t border-border/40">
+                      <div className="inline-flex items-center gap-1 text-2xs bg-primary/10 text-primary border border-primary/20 px-2 py-0.5 rounded-full font-bold">
+                        <span className="text-muted-foreground font-normal">المحافظة:</span>
+                        <span>{selectedGov}</span>
+                      </div>
                       <button
                         type="button"
                         onClick={(e) => {
                           e.stopPropagation();
                           setSelectedGov('');
+                          setIsLocationOpen(false);
                         }}
-                        className="text-xs text-muted-foreground hover:text-rose-600 font-semibold ml-1"
+                        className="text-xs text-muted-foreground hover:text-rose-600 font-medium hover:underline cursor-pointer flex items-center gap-1"
                       >
-                        إلغاء التحديد
+                        ✕ إلغاء التحديد
                       </button>
-                    )}
-                    <div className="inline-flex items-center gap-1.5 text-xs font-bold text-primary bg-primary/10 px-2.5 py-1 rounded-full border border-primary/20">
-                      <MapPin className="h-3.5 w-3.5 text-primary" />
-                      <span>{market?.name?.ar || 'مصر'}</span>
                     </div>
-                    <ChevronDown
-                      className={`h-4 w-4 text-muted-foreground transition-transform duration-200 md:hidden ${
-                        isLocationOpen ? 'rotate-180' : ''
-                      }`}
-                    />
-                  </div>
+                  )}
                 </div>
                 <CardContent className={`p-3 space-y-1 ${isLocationOpen ? 'block' : 'hidden md:block'}`}>
                   <ul className="space-y-1 max-h-72 overflow-y-auto pr-1 text-right custom-scrollbar">
                     <li>
                       <button
                         type="button"
-                        onClick={() => setSelectedGov('')}
+                        onClick={() => {
+                          setSelectedGov('');
+                          setIsLocationOpen(false);
+                        }}
                         className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-sm font-semibold transition-all text-right ${
                           !selectedGov
                             ? 'bg-primary text-primary-foreground font-bold shadow-xs'
@@ -531,7 +544,10 @@ export default function AdPageClient({ page }: AdPageClientProps) {
                         <li key={gov.id}>
                           <button
                             type="button"
-                            onClick={() => setSelectedGov(isSelected ? '' : gov.name)}
+                            onClick={() => {
+                              setSelectedGov(isSelected ? '' : gov.name);
+                              setIsLocationOpen(false);
+                            }}
                             className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-sm font-semibold transition-all text-right ${
                               isSelected
                                 ? 'bg-primary text-primary-foreground font-bold shadow-xs'

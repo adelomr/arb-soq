@@ -17,8 +17,8 @@ import {
   MessageSquare,
   FileText,
   NotebookPen,
-  PenTool,
-  Mail
+  Mail,
+  CreditCard
 } from "lucide-react";
 import { Card, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { firestore } from "@/lib/firebase";
@@ -37,6 +37,7 @@ import TopicManager from "@/components/TopicManager";
 import NewsletterManager from "@/components/NewsletterManager";
 import GoogleAdsSettings from "@/components/GoogleAdsSettings";
 import AdPlacementManager from "@/components/AdPlacementManager";
+import PaymentGatewayManager from "@/components/PaymentGatewayManager";
 
 const t = {
     adminDashboard: "لوحة تحكم المسؤول",
@@ -46,6 +47,8 @@ const t = {
     backToHome: "العودة إلى الرئيسية",
     userManagement: "إدارة المستخدمين",
     userManagementDesc: "عرض، إيقاف، وحذف المستخدمين.",
+    paymentGateway: "بوابة الدفع (Paymob)",
+    paymentGatewayDesc: "ربط وتفعيل مفاتيح الدفع الإلكتروني وتتبع عمليات الدفع.",
     notifications: "إدارة الإشعارات",
     notificationsDesc: "إرسال إشعارات مخصصة للمستخدمين.",
     adSettings: "مراجعة الإعلانات",
@@ -73,7 +76,7 @@ const t = {
     googleAdsSettingsDesc: "التحكم في بنرات الموقع وإعلانات جوجل أدسنس والمساحات المخصصة وإحصائياتها.",
 };
 
-type AdminView = 'dashboard' | 'users' | 'notifications' | 'settings' | 'announcement' | 'pricing' | 'categories' | 'messages' | 'pages' | 'topics' | 'create-topic' | 'newsletter' | 'ads-settings';
+type AdminView = 'dashboard' | 'users' | 'notifications' | 'settings' | 'announcement' | 'pricing' | 'categories' | 'messages' | 'pages' | 'topics' | 'create-topic' | 'newsletter' | 'ads-settings' | 'payment-gateway';
 
 export default function AdminPage() {
     const { userProfile, loading } = useAuth();
@@ -156,6 +159,8 @@ export default function AdminPage() {
                 return <NewsletterManager />;
             case 'ads-settings':
                 return <AdPlacementManager />;
+            case 'payment-gateway':
+                return <PaymentGatewayManager />;
             case 'dashboard':
             default:
                 return (
@@ -179,6 +184,15 @@ export default function AdminPage() {
                                     )}
                                 </CardTitle>
                                 <CardDescription>{t.userManagementDesc}</CardDescription>
+                            </CardHeader>
+                        </Card>
+                        <Card onClick={() => setView('payment-gateway')} className="cursor-pointer hover:border-primary hover:shadow-lg transition-all bg-primary/10 border-primary/40 shadow-sm">
+                            <CardHeader>
+                                <CardTitle className="flex items-center gap-3">
+                                    <CreditCard className="h-6 w-6 text-primary"/>
+                                    {t.paymentGateway}
+                                </CardTitle>
+                                <CardDescription>{t.paymentGatewayDesc}</CardDescription>
                             </CardHeader>
                         </Card>
                         <Card onClick={() => setView('settings')} className="cursor-pointer hover:border-primary hover:shadow-lg transition-all bg-secondary/50 border-primary/20">

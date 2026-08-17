@@ -4,7 +4,7 @@
 
 import { useEffect, useState, useRef } from 'react';
 import { useSwipe } from '@/hooks/useSwipe';
-import { useParams, notFound } from 'next/navigation';
+import { useParams, notFound, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { useAuth } from '@/context/AuthContext';
 import type { Ad, UserProfile } from '@/lib/types';
@@ -13,7 +13,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
 import Image from 'next/image';
 import { AspectRatio } from '@/components/ui/aspect-ratio';
-import { MapPin, Tag, Calendar, User, Phone, MessageCircle, ZoomIn, ZoomOut, RotateCcw, Star, PlusCircle, ShoppingCart, Globe, Hash, Package, Eye, ChevronLeft, ChevronRight, AlertTriangle, ExternalLink, BadgeCheck } from 'lucide-react';
+import { MapPin, Tag, Calendar, User, Phone, MessageCircle, ZoomIn, ZoomOut, RotateCcw, Star, PlusCircle, ShoppingCart, Globe, Hash, Package, Eye, ChevronLeft, ChevronRight, AlertTriangle, ExternalLink, BadgeCheck, Crown, Sparkles, Rocket } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { useMarket } from '@/context/MarketContext';
@@ -33,6 +33,7 @@ import AdFallbackPlaceholder from '@/components/AdPlaceholder';
 import AdSlot from '@/components/AdSlot';
 import { safeParseDate, cn, formatWhatsAppNumber } from '@/lib/utils';
 import { logAdActivity } from '@/lib/ad-log-service';
+import PromoteAdDialog from '@/components/PromoteAdDialog';
 
 const Header = dynamic(() => import('@/components/Header'), { ssr: false });
 const Footer = dynamic(() => import('@/components/Footer'), { ssr: false });
@@ -256,6 +257,20 @@ export default function AdDetailClient({ initialAd }: { initialAd: Ad }) {
   const isAdmin = userProfile?.role === 'admin';
   const canViewLog = isOwner || isAdmin;
 
+  const isBoostActive = (ad as any).isFeatured && (!(ad as any).featuredUntil || new Date((ad as any).featuredUntil) > new Date());
+  const boostTier = (ad as any).featuredTier || 'silver';
+  const searchParams = useSearchParams();
+  const boostStatus = searchParams?.get('boost');
+
+  useEffect(() => {
+    if (boostStatus === 'success') {
+      toast({
+        title: "🎉 تم تمييز الإعلان بنجاح!",
+        description: "تهانينا! تمت ترقية إعلانك بنجاح وتثبيته في مقدمة نتائج البحث.",
+      });
+    }
+  }, [boostStatus, toast]);
+
   return (
     <div className="flex flex-col min-h-screen">
       <Header />
@@ -267,11 +282,50 @@ export default function AdDetailClient({ initialAd }: { initialAd: Ad }) {
                 <div className="lg:col-span-8">
                      {/* Ad Header */}
                     <div className="mb-6">
-                        {ad.isPromoted && (
-                            <Badge variant="destructive" className="bg-accent text-accent-foreground mb-2">
-                                {t.promoted}
-                            </Badge>
-                        )}
+                        <div className="flex flex-wrap items-center justify-between gap-3 mb-2">
+                          <div className="flex items-center gap-2">
+                            {isBoostActive && boostTier === 'gold' && (
+                                <Badge className="bg-gradient-to-r from-amber-500 to-yellow-400 text-black font-extrabold border-none shadow-md text-xs py-1 px-3">
+                                    <Crown className="w-4 h-4 ml-1.5 fill-black text-black" />
+                                    إعلان ذهبي VIP
+                                </Badge>
+                            )}
+                            {isBoostActive && boostTier === 'silver' && (
+                                <Badge className="bg-slate-800 text-white font-bold border border-slate-600 shadow-sm text-xs py-1 px-3">
+                                    <Sparkles className="w-3.5 h-3.5 ml-1.5 text-yellow-400" />
+                                    إعلان مميز
+                                </Badge>
+                            )}
+                            {!isBoostActive && ad.isPromoted && (
+                                <Badge variant="destructive" className="bg-accent text-accent-foreground">
+                                    {t.promoted}
+                                </Badge>
+                            )}
+                            {(ad as any).aiEnhanced && (
+                                <Badge variant="outline" className="border-primary/40 bg-primary/5 text-primary text-xs">
+                                  <Sparkles className="w-3 h-3 ml-1" />
+                                  مُحسن بالذكاء الاصطناعي
+                                </Badge>
+                            )}
+                          </div>
+
+                          {isOwner && (
+                            <PromoteAdDialog
+                              ad={ad}
+                              trigger={
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  className="border-amber-500/50 bg-amber-500/10 hover:bg-amber-500/20 text-amber-700 dark:text-amber-300 font-bold gap-1.5 shadow-sm"
+                                >
+                                  <Rocket className="h-4 w-4 text-amber-500" />
+                                  <span>ترقية وتمييز الإعلان 🚀</span>
+                                </Button>
+                              }
+                            />
+                          )}
+                        </div>
+
                         <h1 className="text-2xl md:text-3xl font-extrabold text-foreground tracking-tight break-words mb-3">
                             {ad.title}
                         </h1>

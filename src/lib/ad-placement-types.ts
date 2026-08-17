@@ -1,4 +1,4 @@
-export type AdType = 'adsense' | 'custom_banner';
+export type AdType = 'adsense' | 'custom_banner' | 'advertise_cta';
 
 export interface AdPlacement {
   id: string;
@@ -19,6 +19,17 @@ export interface AdPlacement {
 }
 
 export const DEFAULT_AD_PLACEMENTS: Omit<AdPlacement, 'id' | 'impressions_count' | 'clicks_count'>[] = [
+  {
+    slot_key: 'home_top_main_banner',
+    slot_title: 'البنر الرئيسي للموقع (أعلى / قبل أحدث الإعلانات)',
+    description: 'يظهر كبنر رئيسي بارز في الصفحة الرئيسية أعلى وقبل قائمة أحدث الإعلانات',
+    ad_type: 'advertise_cta',
+    adsense_code: '',
+    banner_image_url: '',
+    banner_target_url: '',
+    open_in_new_tab: true,
+    is_active: true,
+  },
   {
     slot_key: 'home_between_sections',
     slot_title: 'بنر الصفحة الرئيسية بين الأقسام',

@@ -4,6 +4,14 @@ const nextConfig: NextConfig = {
   compress: true,
   poweredByHeader: false,
   allowedDevOrigins: ['192.168.1.3', '192.168.1.6', 'localhost'],
+  serverExternalPackages: [
+    '@genkit-ai/core',
+    '@genkit-ai/ai',
+    '@genkit-ai/googleai',
+    '@genkit-ai/firebase',
+    '@genkit-ai/next',
+    'genkit',
+  ],
   typescript: {
     ignoreBuildErrors: true,
   },

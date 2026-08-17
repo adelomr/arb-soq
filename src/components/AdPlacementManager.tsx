@@ -63,6 +63,7 @@ import {
   Globe
 } from "lucide-react";
 import Image from "next/image";
+import AdvertiseBanner from "@/components/AdvertiseBanner";
 
 export default function AdPlacementManager() {
   const { adSenseSettings, saveAdSenseSettings } = useAuth();
@@ -486,14 +487,18 @@ export default function AdPlacementManager() {
                   onValueChange={(val) => updateLocalPlacement(placement.id, { ad_type: val as AdType })}
                   className="w-full"
                 >
-                  <TabsList className="grid w-full grid-cols-2 bg-secondary/60">
+                  <TabsList className="grid w-full grid-cols-3 bg-secondary/60">
                     <TabsTrigger value="adsense" className="font-bold text-xs sm:text-sm">
                       <Globe className="h-3.5 w-3.5 ml-1.5" />
                       Google AdSense
                     </TabsTrigger>
                     <TabsTrigger value="custom_banner" className="font-bold text-xs sm:text-sm">
                       <Sparkles className="h-3.5 w-3.5 ml-1.5 text-amber-500" />
-                      بنر مخصص (معلن مباشر)
+                      بنر مخصص
+                    </TabsTrigger>
+                    <TabsTrigger value="advertise_cta" className="font-bold text-xs sm:text-sm">
+                      <Megaphone className="h-3.5 w-3.5 ml-1.5 text-teal-500" />
+                      أعلن هنا
                     </TabsTrigger>
                   </TabsList>
 
@@ -645,6 +650,22 @@ export default function AdPlacementManager() {
                         <RefreshCw className="h-3 w-3 ml-1" />
                         تصفير
                       </Button>
+                    </div>
+                  </TabsContent>
+
+                  {/* Mode 3: Advertise CTA Banner */}
+                  <TabsContent value="advertise_cta" className="space-y-4 pt-3">
+                    <div className="rounded-xl border border-teal-500/20 bg-teal-500/5 p-4 space-y-3">
+                      <p className="text-sm text-muted-foreground">
+                        عند تفعيل هذا الوضع، سيظهر بنر <span className="font-bold text-foreground">«أعلن هنا مقابل 50 ريال فقط»</span> في هذه المساحة تلقائياً بدلاً من إعلان AdSense أو بنر الصورة.
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        💡 مفيد عندما تكون المساحة خالية ولا يوجد معلن حالياً — يشجّع الزوار على الإعلان في موقعك.
+                      </p>
+                    </div>
+                    <div className="pt-1">
+                      <p className="text-xs font-semibold text-muted-foreground mb-2">معاينة البنر:</p>
+                      <AdvertiseBanner />
                     </div>
                   </TabsContent>
                 </Tabs>

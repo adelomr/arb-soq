@@ -55,70 +55,144 @@ const PaymobPaymentInputSchema = z.object({
   first_name: z.string(),
   last_name: z.string(),
   phone_number: z.string(),
+  userId: z.string().optional(),
+  planId: z.string().optional(),
 });
 
 export async function createPaymobPayment(input: z.infer<typeof PaymobPaymentInputSchema>) {
-    const { amount_cents, email, first_name, last_name, phone_number } = PaymobPaymentInputSchema.parse(input);
+    const { amount_cents, email, first_name, last_name, phone_number, userId, planId } = PaymobPaymentInputSchema.parse(input);
 
-    const PAYMOB_API_KEY = process.env.PAYMOB_API_KEY;
-    const INTEGRATION_ID = process.env.PAYMOB_INTEGRATION_ID;
-    const IFRAME_ID = process.env.PAYMOB_IFRAME_ID;
+    const { getPaymobSettings } = await import('@/lib/paymob-service');
+    const settings = await getPaymobSettings();
+
+    const PAYMOB_API_KEY = settings.apiKey;
+    const INTEGRATION_ID = settings.integrationId;
+    const IFRAME_ID = settings.iframeId;
+
+    if (!settings.isEnabled) {
+        return { success: false, error: "بوابة الدفع غير مفعلة حالياً." };
+    }
 
     if (!PAYMOB_API_KEY || !INTEGRATION_ID || !IFRAME_ID || PAYMOB_API_KEY === "YOUR_PAYMOB_API_KEY") {
-        console.error("Paymob environment variables are not set or are default.");
-        return { success: false, error: "بوابة الدفع غير مهيأة بشكل صحيح." };
+        console.error("Paymob settings are not configured properly.");
+        return { success: false, error: "بوابة الدفع (Paymob) غير مهيأة بعد. يرجى من المسؤول ضبط المفاتيح في لوحة التحكم." };
     }
 
     try {
-        // 1. Authentication
-        const auth = await axios.post("https://accept.paymob.com/api/auth/tokens", {
-            api_key: PAYMOB_API_KEY,
-        });
-        const authToken = auth.data.token;
+        const merchantOrderId = userId && planId ? `${userId}_${planId}_${Date.now()}` : undefined;
+        let paymentToken = '';
+        let orderId = '';
 
-        // 2. Create Order
-        const order = await axios.post("https://accept.paymob.com/api/ecommerce/orders", {
-            auth_token: authToken,
-            delivery_needed: "false",
-            amount_cents: amount_cents,
-            currency: "EGP", // This should be dynamic based on market later
-            items: [],
-        });
-        const orderId = order.data.id;
+        if (PAYMOB_API_KEY.startsWith('egy_sk_')) {
+            const paymentMethods: number[] = [];
+            if (INTEGRATION_ID) paymentMethods.push(Number(INTEGRATION_ID));
+            if (settings.walletIntegrationId) paymentMethods.push(Number(settings.walletIntegrationId));
+            if (settings.kioskIntegrationId) paymentMethods.push(Number(settings.kioskIntegrationId));
+            if (paymentMethods.length === 0 && INTEGRATION_ID) {
+                paymentMethods.push(Number(INTEGRATION_ID));
+            }
 
-        // 3. Create Payment Key
-        const paymentKey = await axios.post("https://accept.paymob.com/api/acceptance/payment_keys", {
-            auth_token: authToken,
-            amount_cents: amount_cents,
-            expiration: 3600,
-            order_id: orderId,
-            billing_data: {
-                apartment: "NA",
-                email: email,
-                floor: "NA",
-                first_name: first_name,
-                last_name: last_name,
-                street: "NA",
-                building: "NA",
-                phone_number: phone_number,
-                shipping_method: "NA",
-                postal_code: "NA",
-                city: "NA",
-                country: "NA",
-                state: "NA"
-            },
-            currency: "EGP",
-            integration_id: Number(INTEGRATION_ID),
-        });
+            const res = await axios.post('https://accept.paymob.com/v1/intention/', {
+                amount: Number(amount_cents),
+                currency: settings.currency || "EGP",
+                payment_methods: paymentMethods,
+                special_reference: merchantOrderId,
+                items: planId ? [{
+                    name: `Plan ${planId}`,
+                    amount: Number(amount_cents),
+                    description: `اشتراك في ${planId === 'gold' ? 'الباقة الذهبية' : 'الباقة المميزة'}`,
+                    quantity: 1
+                }] : [],
+                billing_data: {
+                    first_name: first_name || "عميل",
+                    last_name: last_name || "سوق العرب",
+                    phone_number: phone_number || "+201000000000",
+                    email: email,
+                }
+            }, {
+                headers: {
+                    'Authorization': `Token ${PAYMOB_API_KEY}`,
+                    'Content-Type': 'application/json'
+                }
+            });
 
-        const paymentToken = paymentKey.data.token;
+            const intentionData = res.data;
+            orderId = String(intentionData.intention_order_id || intentionData.id || Date.now());
+            paymentToken = intentionData.payment_keys?.[0]?.key || intentionData.client_secret;
+        } else {
+            // 1. Authentication
+            const auth = await axios.post("https://accept.paymob.com/api/auth/tokens", {
+                api_key: PAYMOB_API_KEY,
+            });
+            const authToken = auth.data.token;
+
+            // 2. Create Order
+            const order = await axios.post("https://accept.paymob.com/api/ecommerce/orders", {
+                auth_token: authToken,
+                delivery_needed: "false",
+                amount_cents: amount_cents,
+                currency: settings.currency || "EGP",
+                merchant_order_id: merchantOrderId,
+                items: planId ? [{
+                    name: `Plan ${planId}`,
+                    amount_cents: amount_cents,
+                    description: `اشتراك في ${planId === 'gold' ? 'الباقة الذهبية' : 'الباقة المميزة'}`,
+                    quantity: "1"
+                }] : [],
+            });
+            orderId = String(order.data.id);
+
+            // 3. Create Payment Key
+            const paymentKey = await axios.post("https://accept.paymob.com/api/acceptance/payment_keys", {
+                auth_token: authToken,
+                amount_cents: amount_cents,
+                expiration: 3600,
+                order_id: orderId,
+                billing_data: {
+                    apartment: "NA",
+                    email: email,
+                    floor: "NA",
+                    first_name: first_name || "عميل",
+                    last_name: last_name || "سوق العرب",
+                    street: "NA",
+                    building: "NA",
+                    phone_number: phone_number || "+201000000000",
+                    shipping_method: "NA",
+                    postal_code: "NA",
+                    city: "Cairo",
+                    country: "EGY",
+                    state: "NA"
+                },
+                currency: settings.currency || "EGP",
+                integration_id: Number(INTEGRATION_ID),
+            });
+            paymentToken = paymentKey.data.token;
+        }
+
+        // حفظ سجل الطلب في Firestore
+        try {
+            const { firestore } = await import('@/lib/firebase');
+            const { doc, setDoc } = await import('firebase/firestore');
+            await setDoc(doc(firestore, 'payments', String(orderId)), {
+                orderId: String(orderId),
+                userId: userId || null,
+                planId: planId || null,
+                amount_cents: amount_cents,
+                currency: settings.currency || "EGP",
+                status: 'pending',
+                merchantOrderId: merchantOrderId || null,
+                createdAt: new Date().toISOString(),
+            });
+        } catch (dbErr) {
+            console.warn("Could not record payment order in Firestore:", dbErr);
+        }
+
         const redirectUrl = `https://accept.paymob.com/api/acceptance/iframes/${IFRAME_ID}?payment_token=${paymentToken}`;
-
-        return { success: true, url: redirectUrl };
+        return { success: true, url: redirectUrl, orderId };
 
     } catch (error: any) {
         console.error("Paymob Error:", error.response?.data || error.message);
-        return { success: false, error: "خطأ في إنشاء عملية الدفع" };
+        return { success: false, error: error.response?.data?.message || "حدث خطأ في إنشاء جلسة الدفع في Paymob." };
     }
 }
 

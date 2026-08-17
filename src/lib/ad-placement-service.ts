@@ -89,10 +89,16 @@ export async function getAllPlacements(): Promise<AdPlacement[]> {
       return await initDefaultPlacements();
     }
 
-    const placements: AdPlacement[] = [];
+    const map = new Map<string, AdPlacement>();
     snap.forEach((d) => {
-      placements.push({ id: d.id, ...d.data() } as AdPlacement);
+      const data = d.data() as AdPlacement;
+      const placement: AdPlacement = { ...data, id: d.id };
+      if (!map.has(placement.slot_key)) {
+        map.set(placement.slot_key, placement);
+      }
     });
+
+    const placements = Array.from(map.values());
 
     // If some default slots are missing, seed them
     const missingSeeds = DEFAULT_AD_PLACEMENTS.some(

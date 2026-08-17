@@ -117,6 +117,8 @@ export default function HomeClient() {
   const sortAndSetAds = useCallback((allAds: Ad[], location: { latitude: number, longitude: number } | null, currentMarket: { id: string; name: { ar: string } }) => {
     const validAds = allAds.filter(ad => isAdInMarket(ad, currentMarket.id, currentMarket.name.ar));
 
+    const isBoostActive = (ad: any) => (ad.isFeatured || ad.isPromoted) && (!ad.featuredUntil || new Date(ad.featuredUntil) > new Date());
+
     if (location) {
         validAds.sort((a, b) => {
             if (a.latitude && a.longitude && b.latitude && b.longitude) {
@@ -130,9 +132,15 @@ export default function HomeClient() {
         });
     }
 
-    const promoted = validAds.filter(ad => ad.isPromoted);
-    const used = validAds.filter(ad => ad.condition === 'used');
-    const regular = validAds.filter(ad => !ad.isPromoted && ad.condition !== 'used');
+    const promoted = validAds.filter(ad => isBoostActive(ad));
+    promoted.sort((a: any, b: any) => {
+      if (a.featuredTier === 'gold' && b.featuredTier !== 'gold') return -1;
+      if (a.featuredTier !== 'gold' && b.featuredTier === 'gold') return 1;
+      return new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime();
+    });
+
+    const used = validAds.filter(ad => ad.condition === 'used' && !isBoostActive(ad));
+    const regular = validAds.filter(ad => !isBoostActive(ad) && ad.condition !== 'used');
     
     setPromotedAds(promoted);
     setUsedAds(used);
@@ -191,11 +199,14 @@ export default function HomeClient() {
         <CategoriesGridHero />
         
         <div className="container mx-auto px-4 py-6 md:py-8 xl:pt-4">
+            {/* البنر الرئيسي للموقع قبل أحدث الإعلانات */}
+            <AdSlot slotKey="home_top_main_banner" className="mb-6" />
+
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12">
                 <div className={cn("transition-all duration-300", view === 'grid' ? "lg:col-span-12" : "lg:col-span-8")}>
                     
-                    <div className="flex justify-between items-center mb-8">
-                       <h2 className="text-3xl font-bold font-headline">{promotedAds.length > 0 ? t.promotedAds : t.latestAds}</h2>
+                    <div className="flex justify-between items-center mb-4 sm:mb-6">
+                       <h2 className="text-xl sm:text-2xl font-bold font-headline">{promotedAds.length > 0 ? t.promotedAds : t.latestAds}</h2>
                     </div>
                     
                     {adsLoading ? (
@@ -205,24 +216,24 @@ export default function HomeClient() {
                     ) : (
                       <>
                         {promotedAds.length > 0 && (
-                          <section className="mb-12">
+                          <section className="mb-10">
                             {renderAdView(promotedAds)}
                           </section>
                         )}
 
                         <section>
                           {promotedAds.length > 0 && (
-                            <div className="flex justify-between items-center mb-8">
-                               <h2 className="text-3xl font-bold font-headline">{t.latestAds}</h2>
+                            <div className="flex justify-between items-center mb-4 sm:mb-6">
+                               <h2 className="text-xl sm:text-2xl font-bold font-headline">{t.latestAds}</h2>
                             </div>
                           )}
                           {renderAdView(latestAds)}
                         </section>
                         
                         {usedAds.length > 0 && (
-                          <section className="mt-12 content-auto">
-                             <div className="flex justify-between items-center mb-8">
-                               <h2 className="text-3xl font-bold font-headline">{t.usedMarket}</h2>
+                          <section className="mt-10 content-auto">
+                             <div className="flex justify-between items-center mb-4 sm:mb-6">
+                               <h2 className="text-xl sm:text-2xl font-bold font-headline">{t.usedMarket}</h2>
                             </div>
                             {renderAdView(usedAds)}
                           </section>
@@ -243,15 +254,15 @@ export default function HomeClient() {
 
         {/* Topics Section */}
         {(topicsLoading || recentTopics.length > 0) && (
-          <section className="bg-secondary/30 border-t border-b py-16 my-8 content-auto min-h-[400px]">
+          <section className="bg-secondary/30 border-t border-b py-12 my-8 content-auto min-h-[400px]">
             <div className="container mx-auto px-4">
-              <div className="flex justify-between items-center mb-10 text-right font-headline" dir="rtl">
+              <div className="flex justify-between items-center mb-8 text-right font-headline" dir="rtl">
                 <div>
-                  <h2 className="text-3xl font-bold flex items-center gap-3 text-foreground">
-                    <BookOpen className="h-8 w-8 text-primary" />
+                  <h2 className="text-xl sm:text-2xl font-bold flex items-center gap-2.5 text-foreground">
+                    <BookOpen className="h-6 w-6 text-primary" />
                     {t.recentTopicsTitle}
                   </h2>
-                  <p className="text-muted-foreground text-sm mt-1">تصفح آخر الأخبار والتدوينات والموضوعات في مجالات متنوعة.</p>
+                  <p className="text-muted-foreground text-xs sm:text-sm mt-1">تصفح آخر الأخبار والتدوينات والموضوعات في مجالات متنوعة.</p>
                 </div>
                 <Link href="/blog" className="hidden sm:flex items-center gap-1.5 text-primary hover:text-accent font-medium transition-colors text-sm">
                   {t.viewAllTopics}

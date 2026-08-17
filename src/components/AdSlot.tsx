@@ -7,6 +7,7 @@ import { AdPlacement } from "@/lib/ad-placement-types";
 import Image from "next/image";
 import { ExternalLink, Sparkles } from "lucide-react";
 import { cn } from "@/lib/utils";
+import AdvertiseBanner from "@/components/AdvertiseBanner";
 
 declare global {
   interface Window {
@@ -125,10 +126,25 @@ export default function AdSlot({
     return "ca-pub-4808414573627321";
   };
 
+  // 0. Render Advertise CTA Banner
+  if (placement.ad_type === 'advertise_cta') {
+    return (
+      <div className={cn("w-full", className || "my-4")}>
+        <AdvertiseBanner />
+      </div>
+    );
+  }
+
   // 1. Render Custom Direct Banner
   if (placement.ad_type === 'custom_banner') {
     if (!placement.banner_image_url) {
-      return null;
+      return fallback ? (
+        <>{fallback}</>
+      ) : (
+        <div className={cn("w-full", className || "my-4")}>
+          <AdvertiseBanner />
+        </div>
+      );
     }
 
     const handleClick = () => {
@@ -141,8 +157,8 @@ export default function AdSlot({
       <div 
         ref={adRef}
         className={cn(
-          "w-full my-4 overflow-hidden rounded-2xl border border-primary/20 bg-gradient-to-r from-primary/5 via-secondary/30 to-primary/5 p-1 transition-all duration-300 hover:shadow-lg hover:border-primary/40",
-          className
+          "w-full overflow-hidden rounded-2xl border border-primary/20 bg-gradient-to-r from-primary/5 via-secondary/30 to-primary/5 p-1 transition-all duration-300 hover:shadow-lg hover:border-primary/40",
+          className || "my-4"
         )}
       >
         <div className="flex items-center justify-between px-3 py-1 text-[11px] text-muted-foreground">
@@ -188,19 +204,30 @@ export default function AdSlot({
   const slotId = getAdSenseSlotId();
   const clientId = getAdSenseClientId();
 
+  // If no AdSense slot ID is configured, fallback to AdvertiseBanner to avoid broken 400 errors and blank space
+  if (!slotId) {
+    return fallback ? (
+      <>{fallback}</>
+    ) : (
+      <div className={cn("w-full", className || "my-4")}>
+        <AdvertiseBanner />
+      </div>
+    );
+  }
+
   const slotMinHeight = type === 'square' ? '250px' : type === 'in-feed' ? '120px' : '90px';
 
   return (
     <div 
       ref={adRef}
-      className={cn("w-full my-4 overflow-hidden text-center", className)}
+      className={cn("w-full overflow-hidden text-center", className || "my-4")}
       style={{ minHeight: slotMinHeight }}
     >
       <ins
         className="adsbygoogle"
         style={{ display: 'block', minHeight: slotMinHeight }}
         data-ad-client={clientId}
-        data-ad-slot={slotId || "8765432109"}
+        data-ad-slot={slotId}
         data-ad-format="auto"
         data-full-width-responsive="true"
       />

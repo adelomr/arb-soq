@@ -22,7 +22,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 import { useToast } from '@/hooks/use-toast';
-import { DollarSign, FileUp, Sparkles, Send, MapPin, ShoppingBag, Wrench, Handshake, Loader2, CreditCard, Map, Store, PlusCircle, Trash2, X, Globe, Info, Hash, Package, Tv, ImageIcon, Phone, Tag } from 'lucide-react';
+import { DollarSign, FileUp, Sparkles, Send, MapPin, ShoppingBag, Wrench, Handshake, Loader2, CreditCard, Map, Store, PlusCircle, Trash2, X, Globe, Info, Hash, Package, Tv, ImageIcon, Phone, Tag, BadgeDollarSign, AlertCircle } from 'lucide-react';
 import { useState, useMemo, useEffect, Suspense } from 'react';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import type { AdType, AdCondition, Category } from '@/lib/types';
@@ -254,7 +254,7 @@ const LocationPicker = dynamic(() => import('./LocationPicker'), {
 
 function AdFormContent({ adId, userId, isEditMode, onSuccess }: { adId?: string | null, userId?: string | null, isEditMode: boolean, onSuccess?: () => void }) {
   const { market } = useMarket();
-  const { user, userProfile, addAd, updateAd, deleteAd, getAdById, categories, professions } = useAuth();
+  const { user, userProfile, addAd, updateAd, deleteAd, getAdById, categories, professions, getUserActiveAdsCount } = useAuth();
   const t = translations.ar;
   const direction = 'rtl';
   
@@ -279,6 +279,8 @@ function AdFormContent({ adId, userId, isEditMode, onSuccess }: { adId?: string 
   const [selectedCategory, setSelectedCategory] = useState<Category | null>(null);
   const [isLoadingAd, setIsLoadingAd] = useState(isEditMode);
   const [categoryMode, setCategoryMode] = useState<'category' | 'profession'>('category');
+  const [activeAdsCount, setActiveAdsCount] = useState<number | null>(null);
+  const [showQuotaModal, setShowQuotaModal] = useState(false);
 
   const hasPaymentMethod = true;
 
@@ -340,6 +342,21 @@ function AdFormContent({ adId, userId, isEditMode, onSuccess }: { adId?: string 
     control: form.control,
     name: "images",
   });
+
+  // التحقق من رصيد الباقة المجانية عند فتح نموذج إنشاء إعلان جديد
+  useEffect(() => {
+    if (!isEditMode && user?.uid && !isStoreProduct) {
+      getUserActiveAdsCount(user.uid).then(count => {
+        setActiveAdsCount(count);
+        const isAdmin = userProfile?.role === 'admin';
+        const userPlan = (userProfile as any)?.plan || 'free';
+        const isPaidPlan = userPlan === 'premium' || userPlan === 'gold';
+        if (!isAdmin && !isPaidPlan && count >= 5) {
+          setShowQuotaModal(true);
+        }
+      });
+    }
+  }, [user, userProfile, isEditMode, isStoreProduct, getUserActiveAdsCount]);
 
   useEffect(() => {
     if (isEditMode && adId && userId) {
@@ -721,8 +738,9 @@ function AdFormContent({ adId, userId, isEditMode, onSuccess }: { adId?: string 
                 error: addResult.error as any,
                 isCraftDuplicate: (addResult as any).isCraftDuplicate,
                 existingAdId: (addResult as any).existingAdId,
-                existingAd: (addResult as any).existingAd
-            };
+                existingAd: (addResult as any).existingAd,
+                isQuotaExceeded: (addResult as any).isQuotaExceeded,
+            } as any;
         }
 
         if (!result.success) {
@@ -733,6 +751,9 @@ function AdFormContent({ adId, userId, isEditMode, onSuccess }: { adId?: string 
                     newAdData: adDataToSave,
                     newImageFiles: newImageFiles
                 });
+                return;
+            } else if ((result as any).isQuotaExceeded) {
+                setShowQuotaModal(true);
                 return;
             } else {
                 toast({ title: t.submissionFailed, description: result.error || t.submissionError, variant: 'destructive' });
@@ -831,9 +852,38 @@ function AdFormContent({ adId, userId, isEditMode, onSuccess }: { adId?: string 
       )
   }
 
+  const isQuotaReached = !isEditMode && !isStoreProduct && activeAdsCount !== null && activeAdsCount >= 5 && userProfile?.role !== 'admin' && (userProfile as any)?.plan !== 'premium' && (userProfile as any)?.plan !== 'gold';
+
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
+        {isQuotaReached && (
+          <div className="bg-amber-500/10 border border-amber-500/30 rounded-xl p-4 sm:p-5 text-right flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 animate-in fade-in-50 duration-300">
+            <div className="flex items-start gap-3">
+              <div className="p-2 rounded-lg bg-amber-500/20 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5">
+                <AlertCircle className="h-5 w-5" />
+              </div>
+              <div>
+                <h4 className="font-bold text-foreground text-sm sm:text-base">
+                  وصلت للحد الأقصى للباقة المجانية (5 إعلانات نشطة)
+                </h4>
+                <p className="text-xs sm:text-sm text-muted-foreground mt-0.5">
+                  تتيح الباقة المجانية نشر 5 إعلانات فقط. اختر إحدى باقاتنا المميزة لنشر المزيد، أو قم بإدارة إعلاناتك السابقة.
+                </p>
+              </div>
+            </div>
+            <div className="flex items-center gap-2 w-full sm:w-auto shrink-0">
+              <Button
+                type="button"
+                onClick={() => router.push('/pricing')}
+                className="w-full sm:w-auto bg-primary hover:bg-primary/90 text-primary-foreground font-bold text-xs sm:text-sm"
+              >
+                <BadgeDollarSign className="ml-1.5 h-4 w-4" />
+                اختر إحدى الباقات
+              </Button>
+            </div>
+          </div>
+        )}
         <>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                 {(adType !== 'request-service' && !isStoreProduct) && (
@@ -1512,6 +1562,54 @@ function AdFormContent({ adId, userId, isEditMode, onSuccess }: { adId?: string 
                 تحديث الإعلان القديم
               </Button>
               <AlertDialogCancel onClick={() => setDuplicateCraftAdInfo(null)} className="w-full sm:w-auto mt-0">
+                إلغاء
+              </AlertDialogCancel>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+      )}
+
+      {showQuotaModal && (
+        <AlertDialog open={showQuotaModal} onOpenChange={setShowQuotaModal}>
+          <AlertDialogContent className="max-w-md text-right" dir="rtl">
+            <AlertDialogHeader>
+              <div className="mx-auto mb-2 flex h-14 w-14 items-center justify-center rounded-full bg-amber-500/10 text-amber-500">
+                <Sparkles className="h-7 w-7" />
+              </div>
+              <AlertDialogTitle className="text-xl font-bold font-headline text-center">
+                لقد وصلت إلى الحد الأقصى للباقة المجانية (5 إعلانات)
+              </AlertDialogTitle>
+              <AlertDialogDescription className="text-center text-sm sm:text-base text-muted-foreground mt-3 leading-relaxed">
+                تتيح لك الباقة المجانية نشر ما يصل إلى <strong>5 إعلانات</strong> نشطة.
+                <br />
+                لإضافة المزيد من الإعلانات والاستفادة من ميزات الترويج والظهور المضاعف، يرجى اختيار إحدى باقاتنا المميزة، أو إدارة إعلاناتك الحالية وحذف القديم منها.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter className="flex flex-col sm:flex-row-reverse sm:justify-center gap-2 mt-6">
+              <Button
+                onClick={() => {
+                  setShowQuotaModal(false);
+                  router.push('/pricing');
+                }}
+                className="w-full sm:w-auto bg-primary hover:bg-primary/90 text-primary-foreground font-bold"
+              >
+                <BadgeDollarSign className="ml-1.5 h-4 w-4" />
+                اختر إحدى الباقات
+              </Button>
+              <Button
+                onClick={() => {
+                  setShowQuotaModal(false);
+                  router.push('/profile');
+                }}
+                variant="outline"
+                className="w-full sm:w-auto"
+              >
+                إدارة إعلاناتي
+              </Button>
+              <AlertDialogCancel
+                onClick={() => setShowQuotaModal(false)}
+                className="w-full sm:w-auto mt-0"
+              >
                 إلغاء
               </AlertDialogCancel>
             </AlertDialogFooter>

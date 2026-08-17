@@ -53,7 +53,8 @@ interface AuthContextType {
   saveAnnouncement: (announcement: Omit<Announcement, 'id' | 'updatedAt' | 'message' | 'linkText'> & { message: { ar: string }, linkText?: { ar: string } }) => Promise<void>;
   getAdSenseSettings: () => Promise<AdSenseSettings | null>;
   saveAdSenseSettings: (settings: AdSenseSettings) => Promise<void>;
-  addAd: (adData: any, imageFiles: File[], user: User, progressCallback: (message: string) => void) => Promise<{ success: boolean; error?: string; isCraftDuplicate?: boolean; existingAdId?: string; existingAd?: any; }>;
+  addAd: (adData: any, imageFiles: File[], user: User, progressCallback: (message: string) => void) => Promise<{ success: boolean; error?: string; isCraftDuplicate?: boolean; existingAdId?: string; existingAd?: any; isQuotaExceeded?: boolean; activeAdsCount?: number; maxLimit?: number; }>;
+  getUserActiveAdsCount: (userId: string) => Promise<number>;
   updateAd: (userId: string, adId: string, adData: Partial<Ad>, newImageFiles: File[], progressCallback: (message: string) => void) => Promise<void>;
   deleteAd: (userId: string, adId: string, adData: Ad) => Promise<void>;
   getAdsForModeration: (callback: (ads: (Ad & { id: string })[]) => void, setLoading: (loading: boolean) => void) => () => void;
@@ -684,7 +685,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setAdSenseSettings(settings);
   }, []);
 
-const addAd = useCallback(async (adData: any, imageFiles: File[], user: User, progressCallback: (message: string) => void): Promise<{ success: boolean; error?: string; isCraftDuplicate?: boolean; existingAdId?: string; existingAd?: any; }> => {
+const addAd = useCallback(async (adData: any, imageFiles: File[], user: User, progressCallback: (message: string) => void): Promise<{ success: boolean; error?: string; isCraftDuplicate?: boolean; existingAdId?: string; existingAd?: any; isQuotaExceeded?: boolean; activeAdsCount?: number; maxLimit?: number; }> => {
     if (!userProfile) return { success: false, error: "لم يتم تحميل ملف المستخدم الشخصي" };
 
     try {
@@ -743,12 +744,33 @@ const addAd = useCallback(async (adData: any, imageFiles: File[], user: User, pr
             if (!userProfile.store) return { success: false, error: "المستخدم ليس لديه متجر" };
             collectionRef = collection(firestore, 'users', user.uid, 'store', userProfile.store.id, 'products');
         } else {
-            // التحقق من عدم تكرار الإعلان لنفس الفئة والمستخدم
+            // التحقق من حد الباقة المجانية (5 إعلانات كحد أقصى) وتكرار الإعلانات
             try {
-                progressCallback("جاري التحقق من عدم تكرار الإعلان...");
+                progressCallback("جاري التحقق من رصيد الباقة وتكرار الإعلان...");
                 const adsRef = collection(firestore, 'ads');
                 const q = query(adsRef, where('userId', '==', user.uid));
                 const querySnapshot = await getDocs(q);
+
+                const isAdmin = userProfile.role === 'admin';
+                const userPlan = (userProfile as any)?.plan || 'free';
+                const isPaidPlan = userPlan === 'premium' || userPlan === 'gold';
+
+                // حساب عدد الإعلانات النشطة والمعلقة
+                const activeAdsCount = querySnapshot.docs.filter(doc => {
+                    const data = doc.data();
+                    return data.status === 'active' || data.status === 'pending';
+                }).length;
+
+                const FREE_PLAN_LIMIT = 5;
+                if (!isAdmin && !isPaidPlan && activeAdsCount >= FREE_PLAN_LIMIT) {
+                    return {
+                        success: false,
+                        isQuotaExceeded: true,
+                        activeAdsCount,
+                        maxLimit: FREE_PLAN_LIMIT,
+                        error: `لقد استنفدت الحد الأقصى للباقة المجانية (${FREE_PLAN_LIMIT} إعلانات). يرجى اختيار إحدى الباقات للاستمرار في إضافة الإعلانات.`
+                    };
+                }
 
                 const targetCategory = newAdData.category;
                 const targetSubcategory = newAdData.subcategory;
@@ -790,7 +812,7 @@ const addAd = useCallback(async (adData: any, imageFiles: File[], user: User, pr
                     }
                 }
             } catch (err: any) {
-                console.error("خطأ أثناء التحقق من تكرار الإعلان:", err);
+                console.error("خطأ أثناء التحقق من تكرار الإعلان ورصيد الباقة:", err);
             }
 
             // Write to top-level 'ads' for Android synchronization
@@ -951,6 +973,21 @@ const addAd = useCallback(async (adData: any, imageFiles: File[], user: User, pr
     await updateDoc(adRef, { status });
  }, [getUserStore]);
 
+  const getUserActiveAdsCount = useCallback(async (userId: string): Promise<number> => {
+    try {
+      const adsRef = collection(firestore, 'ads');
+      const q = query(adsRef, where('userId', '==', userId));
+      const querySnapshot = await getDocs(q);
+      return querySnapshot.docs.filter(doc => {
+        const data = doc.data();
+        return data.status === 'active' || data.status === 'pending';
+      }).length;
+    } catch (e) {
+      console.error("Error getting active ads count:", e);
+      return 0;
+    }
+  }, []);
+
   const savePricingPlans = useCallback(async (plans: PricingStructure) => {
     const docRef = doc(firestore, 'settings', 'pricing');
     await setDoc(docRef, plans, { merge: true });
@@ -964,7 +1001,7 @@ const addAd = useCallback(async (adData: any, imageFiles: File[], user: User, pr
     }
     return {
       plans: {
-        free: { name: { ar: 'الباقة المجانية' }, price: { en: '0', ar: '0' }, duration: { ar: 'إعلان لمدة 7 أيام' }, features: { images: { text: { ar: 'صورة واحدة لكل إعلان' } }, search: { available: true }, highlight: { available: false }, extend: { available: false } } },
+        free: { name: { ar: 'الباقة المجانية' }, price: { en: '0', ar: '0' }, duration: { ar: 'حتى 5 إعلانات نشطة' }, features: { images: { text: { ar: 'صورة واحدة لكل إعلان' } }, search: { available: true }, highlight: { available: false }, extend: { available: false } } },
         premium: { name: { ar: 'الباقة المميزة' }, price: { en: '50', ar: '50' }, duration: { ar: 'إعلان لمدة 30 يوم' }, features: { images: { text: { ar: '5 صور لكل إعلان' } }, search: { available: true }, highlight: { available: true }, extend: { available: false } } },
         gold: { name: { ar: 'الباقة الذهبية' }, price: { en: '150', ar: '150' }, duration: { ar: '3 إعلانات لمدة 60 يوم' }, features: { images: { text: { ar: '10 صور لكل إعلان' } }, search: { available: true }, highlight: { available: true }, extend: { available: true } } },
       }
@@ -1561,6 +1598,7 @@ const getAds = useCallback((
     getAdSenseSettings,
     saveAdSenseSettings,
     addAd,
+    getUserActiveAdsCount,
     updateAd,
     deleteAd,
     getAdsForModeration,

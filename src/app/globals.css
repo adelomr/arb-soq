@@ -95,11 +95,8 @@
     background-color: hsl(var(--primary));
   }
 
-  /* تصغير حجم الخط على الشاشات الصغيرة وتأمين مساحة لشريط التنقل السفلي */
+  /* تأمين مساحة لشريط التنقل السفلي على الشاشات الصغيرة */
   @media (max-width: 768px) {
-    html {
-      font-size: 14px;
-    }
     body {
       padding-bottom: calc(4.5rem + env(safe-area-inset-bottom, 0px));
     }

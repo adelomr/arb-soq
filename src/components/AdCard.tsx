@@ -1,10 +1,9 @@
-
 'use client';
 import type { Ad, UserProfile } from '@/lib/types';
 import Image from 'next/image';
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { MapPin, Tag, Star, Wrench, Handshake, ShoppingCart, PlusCircle, Store, Share2, Facebook, Twitter, ImageIcon, Eye, BadgeCheck } from 'lucide-react';
+import { MapPin, Tag, Star, Wrench, Handshake, ShoppingCart, PlusCircle, Store, Share2, Facebook, Twitter, ImageIcon, Eye, BadgeCheck, Crown, Sparkles } from 'lucide-react';
 import Link from 'next/link';
 import { useMarket } from '@/context/MarketContext';
 import { useAuth } from '@/context/AuthContext';
@@ -79,6 +78,9 @@ function AdCard({ ad, priority = false }: AdCardProps) {
   const adUrl = typeof window !== 'undefined' ? `${window.location.origin}/ad/${ad.userId}/${ad.id}` : '';
   const shareText = encodeURIComponent(ad.title);
 
+  const isBoostActive = (ad as any).isFeatured && (!(ad as any).featuredUntil || new Date((ad as any).featuredUntil) > new Date());
+  const boostTier = (ad as any).featuredTier || 'silver';
+
   useEffect(() => {
     if (!ad.user && ad.userId) {
       const fetchUser = async () => {
@@ -121,16 +123,16 @@ function AdCard({ ad, priority = false }: AdCardProps) {
 
   const storeColorStyle = isStoreProduct && adUser?.id ? generateStoreColor(adUser.id) : null;
 
-  const realRating = ad.rating;
-  const realReviewCount = ad.reviewCount;
-  const hasRealRating = typeof realRating === 'number' && realRating > 0 && typeof realReviewCount === 'number' && realReviewCount > 0;
+  const realRating = (ad as any).rating || 0;
+  const realReviewCount = (ad as any).reviewCount || 0;
+  const hasRealRating = realRating > 0 && realReviewCount > 0;
 
   const effectiveUserId = ad.userId || ad.user?.id || 'owner';
   const effectiveUser = (adUser || ad.user || { id: effectiveUserId, name: 'مستخدم سوق العرب' }) as UserProfile;
 
   return (
     <Link href={`/ad/${effectiveUserId}/${ad.id}`} className="block group h-full" onClick={() => incrementAdClick(ad)}>
-        <Card className="overflow-hidden h-full flex flex-col transition-all duration-300 group-hover:shadow-xl group-hover:-translate-y-1">
+        <Card className={`overflow-hidden h-full flex flex-col transition-all duration-300 group-hover:shadow-xl group-hover:-translate-y-1 ${isBoostActive && boostTier === 'gold' ? 'border-amber-500/60 shadow-md ring-1 ring-amber-500/30' : (isBoostActive ? 'border-primary/50' : '')}`}>
             <CardHeader className="p-0 relative">
                 <div className="relative w-full aspect-[4/3] bg-muted overflow-hidden">
                     {hasImage ? (
@@ -146,8 +148,20 @@ function AdCard({ ad, priority = false }: AdCardProps) {
                         <AdPlaceholder category={ad.category} iconClassName="h-16 w-16" />
                     )}
                 </div>
-                <div className="absolute top-2 right-2 flex flex-col items-end gap-2">
-                    {ad.isPromoted && (
+                <div className="absolute top-2 right-2 flex flex-col items-end gap-1.5">
+                    {isBoostActive && boostTier === 'gold' && (
+                        <Badge className="bg-gradient-to-r from-amber-500 to-yellow-400 text-black font-extrabold border-none shadow-md text-xs py-0.5 px-2">
+                            <Crown className="w-3.5 h-3.5 ml-1 fill-black text-black" />
+                            ذهبي VIP
+                        </Badge>
+                    )}
+                    {isBoostActive && boostTier === 'silver' && (
+                        <Badge className="bg-slate-800 text-white font-bold border border-slate-600 shadow-sm text-xs py-0.5 px-2">
+                            <Sparkles className="w-3 h-3 ml-1 text-yellow-400" />
+                            مميز
+                        </Badge>
+                    )}
+                    {!isBoostActive && ad.isPromoted && (
                     <Badge variant="destructive" className="bg-accent text-accent-foreground">
                         <Star className={`w-3 h-3 ${direction === 'rtl' ? 'ml-1' : 'mr-1'}`}/>
                         {t.promoted}
@@ -235,8 +249,8 @@ function AdCard({ ad, priority = false }: AdCardProps) {
                     )}
                     {!!ad.price && Number(ad.price) > 0 && (
                         <div className="flex items-center gap-1">
-                            <Tag className="w-4 h-4 text-primary" />
-                            <span className="text-md font-bold text-primary">
+                            <Tag className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-primary" />
+                            <span className="text-sm sm:text-base font-bold text-primary">
                                 {currencyFormatter.format(Number(ad.price))}
                             </span>
                         </div>

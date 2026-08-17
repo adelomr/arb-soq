@@ -472,9 +472,6 @@ export default function Header() {
                        </DropdownMenuItem>
                     )}
                     <DropdownMenuItem asChild>
-                      <Link href="/wallet"><Wallet className={direction === 'rtl' ? 'ml-2 h-4 w-4' : 'mr-2 h-4 w-4'} />{currentLabels.wallet}</Link>
-                    </DropdownMenuItem>
-                    <DropdownMenuItem asChild>
                       <Link href="/pricing"><BadgeDollarSign className={direction === 'rtl' ? 'ml-2 h-4 w-4' : 'mr-2 h-4 w-4'} />{currentLabels.pricing}</Link>
                     </DropdownMenuItem>
                     <DropdownMenuItem asChild>

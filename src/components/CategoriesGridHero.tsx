@@ -90,10 +90,10 @@ export default function CategoriesGridHero() {
                   {/* Category Header */}
                   <Link
                     href={catHref}
-                    className="group flex items-center gap-2.5 text-base sm:text-lg font-bold text-foreground hover:text-primary transition-colors font-headline"
+                    className="group flex items-center gap-2 text-sm sm:text-base font-bold text-foreground hover:text-primary transition-colors font-headline"
                   >
                     <div className="p-1.5 rounded-lg bg-primary/10 text-primary group-hover:bg-primary group-hover:text-primary-foreground transition-all duration-300 shadow-xs flex items-center justify-center flex-shrink-0">
-                      <Icon className="h-5 w-5 group-hover:scale-110 transition-transform duration-300" />
+                      <Icon className="h-4 w-4 sm:h-5 sm:w-5 group-hover:scale-110 transition-transform duration-300" />
                     </div>
                     <span className="leading-snug">{catName}</span>
                   </Link>
