@@ -225,14 +225,27 @@ export default function AdDetailClient({ initialAd }: { initialAd: Ad }) {
     );
   }
   
-  const currencyFormatter = new Intl.NumberFormat('ar-SA', {
-    style: 'currency',
-    currency: market.currency,
-    maximumFractionDigits: 0,
-    numberingSystem: 'latn'
-  });
+  const formatPrice = (price: number) => {
+    try {
+      const curr = (market && market.currency) ? market.currency : 'SAR';
+      return new Intl.NumberFormat('ar-SA', {
+        style: 'currency',
+        currency: curr,
+        maximumFractionDigits: 0,
+        numberingSystem: 'latn'
+      }).format(price);
+    } catch {
+      return `${price} ${market?.currency || 'ر.س'}`;
+    }
+  };
 
-  const dateLocale = ar;
+  const getPostedTimeAgo = () => {
+    try {
+      return formatDistanceToNow(safeParseDate(ad.postedAt), { addSuffix: true, locale: ar });
+    } catch {
+      return '';
+    }
+  };
 
   // The admin may have added a phone number directly on the ad (ad.phoneNumber).
   // Prefer that over the seller's profile phone so the buttons always work.
@@ -333,7 +346,7 @@ export default function AdDetailClient({ initialAd }: { initialAd: Ad }) {
                         <div className="flex flex-wrap items-center gap-4 text-sm text-muted-foreground">
                              <div className="flex items-center gap-1.5">
                                 <Calendar className="h-4 w-4" />
-                                <span>{t.posted} {formatDistanceToNow(safeParseDate(ad.postedAt), { addSuffix: true, locale: dateLocale })}</span>
+                                <span>{t.posted} {getPostedTimeAgo()}</span>
                             </div>
                             {ad.location && (
                                 <div className="flex items-center gap-1.5">
@@ -468,7 +481,7 @@ export default function AdDetailClient({ initialAd }: { initialAd: Ad }) {
                                 <Tag className="w-8 h-8" />
                             </div>
                             <p className="text-4xl font-bold text-primary mt-2">
-                                {currencyFormatter.format(Number(ad.price))}
+                                {formatPrice(Number(ad.price))}
                             </p>
                         </div>
                     )}
