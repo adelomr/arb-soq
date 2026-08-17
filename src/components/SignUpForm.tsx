@@ -17,13 +17,12 @@ import {
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
-import { UserPlus, Loader2, Briefcase, Phone } from 'lucide-react';
+import { UserPlus, Loader2, Phone } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { Label } from '@/components/ui/label';
 import { useLanguage } from '@/context/LanguageContext';
-import ProfessionSelect from './ProfessionSelect';
 import { markets, Market } from '@/lib/markets';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
@@ -69,8 +68,6 @@ const getSignUpFormSchema = (t: typeof translations.ar) => z.object({
   province: z.string().min(2, { message: t.provinceRequired }),
   city: z.string().min(2, { message: t.cityRequired }),
   village: z.string().optional(),
-  profession: z.string().optional(),
-  specialization: z.string().optional(),
   phoneCountryCode: z.string().optional(),
   phoneNumber: z.string().optional(),
 });
@@ -79,7 +76,7 @@ const getSignUpFormSchema = (t: typeof translations.ar) => z.object({
 export default function SignUpForm() {
   const { toast } = useToast();
   const router = useRouter();
-  const { user, createUserProfile, loading: authLoading, professions } = useAuth();
+  const { user, createUserProfile, loading: authLoading } = useAuth();
   const { language, direction } = useLanguage();
   const t = translations.ar;
 
@@ -97,8 +94,6 @@ export default function SignUpForm() {
       province: '',
       city: '',
       village: '',
-      profession: '',
-      specialization: '',
       phoneCountryCode: markets[0].id,
       phoneNumber: '',
     },
@@ -142,8 +137,6 @@ export default function SignUpForm() {
           province: data.province,
           city: data.city,
           village: data.village,
-          profession: data.profession,
-          specialization: data.specialization,
           phoneNumber: fullPhoneNumber,
       }, user.photoURL || undefined);
       
@@ -162,10 +155,6 @@ export default function SignUpForm() {
         setIsLoading(false);
     }
   }
-  
-  const watchedProfessionId = form.watch('profession');
-  const selectedProfessionData = professions.find(p => p.id === watchedProfessionId);
-  const showSpecialization = selectedProfessionData?.hasSpecialization === true || (selectedProfessionData?.name?.ar && ['طبيب', 'معلم'].includes(selectedProfessionData.name.ar));
 
 
   if (authLoading || !user) {
@@ -260,42 +249,7 @@ export default function SignUpForm() {
             </div>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-x-4 gap-y-6">
-            <FormField
-                control={form.control}
-                name="profession"
-                render={({ field }) => (
-                    <FormItem>
-                        <FormLabel className="flex items-center gap-2">
-                            <Briefcase className="h-5 w-5" />
-                            {t.profession}
-                        </FormLabel>
-                        <ProfessionSelect 
-                            value={field.value || ''}
-                            onChange={field.onChange}
-                            professions={professions}
-                        />
-                        <FormMessage />
-                    </FormItem>
-                )}
-            />
-            
-            {showSpecialization && (
-              <FormField
-                control={form.control}
-                name="specialization"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>{t.specialization}</FormLabel>
-                    <FormControl>
-                      <Input placeholder={t.specializationPlaceholder} {...field} value={field.value ?? ''} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            )}
-        </div>
+
         
         <div className="space-y-4">
             <Label className="text-lg font-medium flex items-center gap-2">

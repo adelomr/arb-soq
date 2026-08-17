@@ -30,6 +30,7 @@ import { markets } from '@/lib/markets';
 import { isPhysicalGoodsCategory } from '@/lib/category-utils';
 import RelatedAdsSidebar from './RelatedAdsSidebar';
 import AdFallbackPlaceholder from '@/components/AdPlaceholder';
+import AdSlot from '@/components/AdSlot';
 import { safeParseDate, cn, formatWhatsAppNumber } from '@/lib/utils';
 import { logAdActivity } from '@/lib/ad-log-service';
 
@@ -397,8 +398,8 @@ export default function AdDetailClient({ initialAd }: { initialAd: Ad }) {
                                 <Reviews seller={seller} adId={ad.id} ad={ad} />
                             </div>
                         )}
-                        <div className="py-8">
-                            <AdPlaceholderSquare />
+                        <div className="py-2">
+                            <AdSlot slotKey="single_post_below_desc" />
                         </div>
                     </div>
                 </div>
@@ -494,7 +495,8 @@ export default function AdDetailClient({ initialAd }: { initialAd: Ad }) {
                             </>
                         )}
                     </div>
-                     <RelatedAdsSidebar category={ad.category} currentAdId={ad.id} />
+                    <AdSlot slotKey="single_post_sidebar" type="square" />
+                    <RelatedAdsSidebar category={ad.category} currentAdId={ad.id} />
                 </div>
             </div>
         </div>

@@ -19,6 +19,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import SearchForm from '@/components/SearchForm';
 import dynamic from 'next/dynamic';
 import { AdPlaceholder } from '@/components/Adsense';
+import AdSlot from '@/components/AdSlot';
 import { Button } from '@/components/ui/button';
 import { Grid, List, BookOpen, User, Calendar, ChevronLeft, Share2, Facebook, Twitter, Eye } from 'lucide-react';
 import AdCard from '@/components/AdCard';
@@ -234,6 +235,9 @@ export default function HomeClient() {
                     <RelatedAdsSidebar />
                     <StoreSidebarSection />
                 </aside>
+            </div>
+            <div className="container mx-auto px-4 mt-8">
+              <AdSlot slotKey="home_between_sections" />
             </div>
         </div>
 

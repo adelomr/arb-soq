@@ -4,7 +4,7 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { useAuth } from '@/context/AuthContext';
 import { useMarket } from '@/context/MarketContext';
-import type { Ad } from '@/lib/types';
+import type { Ad, Category } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -107,26 +107,52 @@ const translations = {
 type AdWithId = Ad & { id: string };
 type ActionType = 'approve' | 'reject' | 'stop' | 'activate' | 'delete';
 
-// Helper to check if category is legacy or missing
-const checkNeedsCategoryUpdate = (ad: Ad): boolean => {
-  const catId = (ad.categoryId || ad.category || '').toLowerCase().trim();
-  if (!catId) return true;
-  const knownCategories = [
-    'vehicles', 'cars', 'automotive', 'سيارات', 'عربيات',
-    'realestate', 'real-estate', 'عقارات',
-    'electronics', 'إلكترونيات', 'اجهزة',
-    'mobiles', 'phones', 'موبايلات', 'هواتف',
-    'furniture', 'أثاث', 'اثاث',
-    'fashion', 'موضة', 'ازياء',
-    'pets', 'حيوانات',
-    'baby', 'اطفال',
-    'hobbies', 'هوايات',
-    'trade', 'commercial', 'تجارة', 'صناعة',
-    'services', 'خدمات',
-    'crafts', 'labor', 'cat_1786316040524', 'مهن', 'حرف',
-    'store-product'
+// Helper to check if category is legacy, empty, or unmapped
+const checkNeedsCategoryUpdate = (ad: Ad, categoriesList: Category[] = []): boolean => {
+  const catKey = (ad.categoryId || ad.category || '').toLowerCase().trim();
+  if (!catKey) return true;
+
+  // 1. Check against active Firestore categories (by ID or Arabic name)
+  if (categoriesList && categoriesList.length > 0) {
+    const isMatched = categoriesList.some((cat) => {
+      const id = (cat.id || '').toLowerCase().trim();
+      const nameAr = (cat.name?.ar || '').toLowerCase().trim();
+      return (
+        catKey === id ||
+        catKey === nameAr ||
+        (nameAr.length > 2 && (catKey.includes(nameAr) || nameAr.includes(catKey))) ||
+        (id.length > 2 && (catKey.includes(id) || id.includes(catKey)))
+      );
+    });
+    if (isMatched) return false;
+  }
+
+  // 2. Known common aliases and fallback keys
+  const knownAliases = [
+    'vehicles', 'cars', 'automotive', 'سيارات', 'عربيات', 'مركبات',
+    'realestate', 'real-estate', 'عقارات', 'شقق', 'أراضي', 'فلل',
+    'electronics', 'إلكترونيات', 'اجهزة', 'أجهزة',
+    'mobiles', 'phones', 'موبايلات', 'هواتف', 'جوالات',
+    'furniture', 'أثاث', 'اثاث', 'مفروشات',
+    'fashion', 'موضة', 'ازياء', 'أزياء', 'ملابس',
+    'pets', 'حيوانات', 'طيور', 'مواشي',
+    'baby', 'اطفال', 'أطفال',
+    'hobbies', 'هوايات', 'رياضة', 'كتب',
+    'trade', 'commercial', 'تجارة', 'صناعة', 'معدات',
+    'services', 'خدمات', 'صيانة',
+    'crafts', 'labor', 'cat_1786316040524', 'مهن', 'حرف', 'وظائف', 'عمل',
+    'store-product', 'منتج', 'منتجات', 'general', 'عام', 'jobs', 'community'
   ];
-  return !knownCategories.some(k => catId === k || (k.length > 3 && catId.includes(k)));
+
+  const isAliasMatch = knownAliases.some((k) => catKey === k || (k.length > 3 && (catKey.includes(k) || k.includes(catKey))));
+  if (isAliasMatch) return false;
+
+  // If categories are still loading or ad has a readable custom category string
+  if (!categoriesList || categoriesList.length === 0) {
+    return false;
+  }
+
+  return true;
 };
 
 export default function AdModerationList() {
@@ -264,7 +290,7 @@ export default function AdModerationList() {
       return updatingId === adId && currentAction === action;
   };
 
-  const needsCategoryUpdateCount = ads.filter(checkNeedsCategoryUpdate).length;
+  const needsCategoryUpdateCount = ads.filter((ad) => checkNeedsCategoryUpdate(ad, categories)).length;
 
   // Filter Ads based on Category, Status, and Search Query
   const filteredAds = ads.filter((ad) => {
@@ -272,7 +298,7 @@ export default function AdModerationList() {
     if (selectedCategory !== 'all') {
       const catKey = (ad.categoryId || ad.category || '').toLowerCase().trim();
       if (selectedCategory === 'needs_update') {
-        if (!checkNeedsCategoryUpdate(ad)) return false;
+        if (!checkNeedsCategoryUpdate(ad, categories)) return false;
       } else if (catKey !== selectedCategory.toLowerCase()) {
         return false;
       }
@@ -281,7 +307,7 @@ export default function AdModerationList() {
     // 2. Status Filter
     if (selectedStatus !== 'all') {
       if (selectedStatus === 'needs_update') {
-        if (!checkNeedsCategoryUpdate(ad)) return false;
+        if (!checkNeedsCategoryUpdate(ad, categories)) return false;
       } else if (ad.status !== selectedStatus) {
         return false;
       }
@@ -486,7 +512,7 @@ export default function AdModerationList() {
                   {filteredAds.map((ad) => {
                       const hasImage = (ad.imageUrls && ad.imageUrls.length > 0) || (ad as any).imageUrl;
                       const imageSrc = (ad.imageUrls && ad.imageUrls.length > 0) ? ad.imageUrls[0] : (ad as any).imageUrl;
-                      const needsCatUpdate = checkNeedsCategoryUpdate(ad);
+                      const needsCatUpdate = checkNeedsCategoryUpdate(ad, categories);
 
                       return (
                         <TableRow key={ad.id} className={needsCatUpdate ? 'bg-amber-500/5' : undefined}>

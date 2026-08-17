@@ -14,7 +14,6 @@ import {
   Megaphone, 
   BadgeDollarSign, 
   Shapes, 
-  Briefcase, 
   MessageSquare,
   FileText,
   NotebookPen,
@@ -26,17 +25,19 @@ import { firestore } from "@/lib/firebase";
 import { collection, getCountFromServer } from "firebase/firestore";
 
 import AdminDashboard from "@/components/AdminDashboard";
+import UserDataCleanup from "@/components/UserDataCleanup";
 import NotificationManager from "@/components/NotificationManager";
 import AnnouncementManager from "@/components/AnnouncementManager";
 import AdModerationList from "@/components/AdModerationList";
 import PricingManager from "@/components/PricingManager";
 import CategoryManager from "@/components/CategoryManager";
-import ProfessionManager from "@/components/ProfessionManager";
+
 import ContactMessages from "@/components/ContactMessages";
 import PageManager from "@/components/PageManager";
 import TopicManager from "@/components/TopicManager";
 import NewsletterManager from "@/components/NewsletterManager";
 import GoogleAdsSettings from "@/components/GoogleAdsSettings";
+import AdPlacementManager from "@/components/AdPlacementManager";
 
 const t = {
     adminDashboard: "لوحة تحكم المسؤول",
@@ -56,8 +57,7 @@ const t = {
     pricingManagementDesc: "تعديل خطط وباقات الأسعار.",
     categoryManagement: "إدارة الفئات",
     categoryManagementDesc: "إضافة وتعديل فئات الإعلانات.",
-    professionManagement: "إدارة المهن",
-    professionManagementDesc: "إضافة وتعديل المهن المتاحة في سوق العمل.",
+
     contactMessages: "رسائل الزوار",
     contactMessagesDesc: "عرض وإدارة الرسائل الواردة من صفحة اتصل بنا.",
     pageManagement: "إدارة الصفحات",
@@ -70,11 +70,11 @@ const t = {
     backToDashboard: "العودة إلى لوحة التحكم",
     newsletterManagement: "إدارة القائمة البريدية",
     newsletterManagementDesc: "إرسال النشرات البريدية للمشتركين وضبط إعدادات الخدمة.",
-    googleAdsSettings: "إعدادات الإعلانات",
-    googleAdsSettingsDesc: "التحكم بتفعيل أو إيقاف إعلانات جوجل أدسنس بالموقع.",
+    googleAdsSettings: "إدارة المساحات الإعلانية والبنرات",
+    googleAdsSettingsDesc: "التحكم في بنرات الموقع وإعلانات جوجل أدسنس والمساحات المخصصة وإحصائياتها.",
 };
 
-type AdminView = 'dashboard' | 'users' | 'notifications' | 'settings' | 'announcement' | 'pricing' | 'categories' | 'professions' | 'messages' | 'pages' | 'topics' | 'create-topic' | 'newsletter' | 'ads-settings';
+type AdminView = 'dashboard' | 'users' | 'notifications' | 'settings' | 'announcement' | 'pricing' | 'categories' | 'messages' | 'pages' | 'topics' | 'create-topic' | 'newsletter' | 'ads-settings';
 
 export default function AdminPage() {
     const { userProfile, loading } = useAuth();
@@ -133,7 +133,12 @@ export default function AdminPage() {
     const renderView = () => {
         switch (view) {
             case 'users':
-                return <AdminDashboard />;
+                return (
+                  <div className="space-y-6">
+                    <AdminDashboard />
+                    <UserDataCleanup />
+                  </div>
+                );
             case 'notifications':
                 return <NotificationManager />;
             case 'settings':
@@ -144,8 +149,7 @@ export default function AdminPage() {
                 return <PricingManager />;
             case 'categories':
                 return <CategoryManager />;
-            case 'professions':
-                return <ProfessionManager />;
+
             case 'messages':
                 return <ContactMessages />;
             case 'pages':
@@ -157,7 +161,7 @@ export default function AdminPage() {
             case 'newsletter':
                 return <NewsletterManager />;
             case 'ads-settings':
-                return <GoogleAdsSettings />;
+                return <AdPlacementManager />;
             case 'dashboard':
             default:
                 return (

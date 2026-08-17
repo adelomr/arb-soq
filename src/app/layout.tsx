@@ -83,13 +83,24 @@ export default function RootLayout({
         <link rel="dns-prefetch" href="https://pagead2.googlesyndication.com" />
         <link rel="dns-prefetch" href="https://www.googletagmanager.com" />
         <meta name="google-adsense-account" content="ca-pub-4808414573627321" />
-        <script
+      </head>
+      <body className={`${cairo.variable} min-h-screen w-full max-w-full overflow-x-hidden bg-background font-body text-base flex flex-col antialiased`} suppressHydrationWarning>
+        <Script
+          id="google-adsense"
           async
           src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-4808414573627321"
           crossOrigin="anonymous"
+          strategy="afterInteractive"
         />
-        <script async src="https://www.googletagmanager.com/gtag/js?id=G-EKJ4JF0LZQ" />
-        <script
+        <Script
+          id="google-gtm"
+          async
+          src="https://www.googletagmanager.com/gtag/js?id=G-EKJ4JF0LZQ"
+          strategy="afterInteractive"
+        />
+        <Script
+          id="google-analytics-init"
+          strategy="afterInteractive"
           dangerouslySetInnerHTML={{
             __html: `
               window.dataLayer = window.dataLayer || [];
@@ -105,8 +116,6 @@ export default function RootLayout({
             `,
           }}
         />
-      </head>
-      <body className={`${cairo.variable} min-h-screen w-full max-w-full overflow-x-hidden bg-background font-body text-base flex flex-col antialiased`} suppressHydrationWarning>
         <Suspense fallback={<div className="min-h-screen w-full bg-background flex flex-col items-center justify-center" aria-hidden="true" />}>
           <LanguageProvider>
             <ThemeProvider>

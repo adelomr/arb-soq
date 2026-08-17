@@ -12,6 +12,7 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { PackageSearch, Search, Sparkles } from 'lucide-react';
 import dynamic from 'next/dynamic';
 import SearchForm from '@/components/SearchForm';
+import AdSlot from '@/components/AdSlot';
 import { matchArabicQuery, isAdInMarket } from '@/lib/utils';
 
 const Header = dynamic(() => import('@/components/Header'), { ssr: false });
@@ -185,8 +186,13 @@ function SearchResults() {
           )}
         </div>
 
-        {results.map((ad) => (
-          <AdRow key={ad.id} ad={ad} />
+        {results.map((ad, index) => (
+          <div key={ad.id} className="space-y-4">
+            <AdRow ad={ad} />
+            {(index + 1) % 6 === 0 && index !== results.length - 1 && (
+              <AdSlot slotKey="category_in_feed_ad" type="in-feed" />
+            )}
+          </div>
         ))}
       </div>
     );
@@ -198,8 +204,13 @@ function SearchResults() {
       <main className="flex-1 bg-background py-10">
         <div className="container mx-auto px-4">
           {/* Search bar at top of results */}
-          <div className="max-w-2xl mx-auto mb-8">
+          <div className="max-w-2xl mx-auto mb-6">
             <SearchForm />
+          </div>
+
+          {/* Category / Search Header Banner */}
+          <div className="max-w-5xl mx-auto mb-6">
+            <AdSlot slotKey="category_header_banner" />
           </div>
 
           <div className="flex justify-between items-center mb-6" dir="rtl">
