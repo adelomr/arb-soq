@@ -48,6 +48,10 @@ const CategoriesGridHero = dynamic(() => import('@/components/CategoriesGridHero
   ssr: false,
   loading: () => <div className="w-full" style={{ minHeight: '200px' }} aria-hidden="true" />,
 });
+const FeaturedStoresSection = dynamic(() => import('@/components/FeaturedStoresSection'), {
+  ssr: false,
+  loading: () => <div className="w-full h-72 bg-muted/20 animate-pulse rounded-2xl my-6" aria-hidden="true" />,
+});
 
 const WhatsappIcon = () => (
     <svg role="img" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5">
@@ -251,6 +255,9 @@ export default function HomeClient() {
               <AdSlot slotKey="home_between_sections" />
             </div>
         </div>
+
+        {/* Featured Stores Section - متاجر سوق العرب المميزة */}
+        <FeaturedStoresSection />
 
         {/* Topics Section */}
         {(topicsLoading || recentTopics.length > 0) && (
