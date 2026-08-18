@@ -17,6 +17,8 @@ const t = {
   noStores: "لا توجد متاجر متاحة حاليًا.",
 };
 
+import { DEMO_GULF_STORE } from "../store/[id]/StoreClient";
+
 export default function ShopsPage() {
   const { getUsersWithStores } = useAuth();
   const [stores, setStores] = useState<(UserProfile & { id: string })[]>([]);
@@ -26,10 +28,17 @@ export default function ShopsPage() {
     const fetchStores = async () => {
       setLoading(true);
       try {
-        const usersWithStores = await getUsersWithStores();
+        let usersWithStores: (UserProfile & { id: string })[] = [];
+        if (getUsersWithStores) {
+          usersWithStores = await getUsersWithStores();
+        }
+        if (!usersWithStores.some(s => s.id === DEMO_GULF_STORE.id)) {
+          usersWithStores = [DEMO_GULF_STORE, ...usersWithStores];
+        }
         setStores(usersWithStores);
       } catch (error) {
         console.error("Failed to fetch stores:", error);
+        setStores([DEMO_GULF_STORE]);
       } finally {
         setLoading(false);
       }
