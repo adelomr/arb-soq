@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { Home, LayoutGrid, Plus, MapPin, User, LogIn, Settings } from 'lucide-react';
+import { Home, LayoutGrid, Plus, MapPin, Settings } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import RequireAuthModal from '@/components/RequireAuthModal';
 import SettingsModal from '@/components/SettingsModal';
@@ -89,19 +89,11 @@ export default function BottomNav() {
     }
   };
 
-  const handleAccountClick = (e: React.MouseEvent) => {
-    if (!isAuthenticated) {
-      e.preventDefault();
-      router.push('/login?redirectUrl=/profile');
-    }
-  };
-
   const isHomeActive = pathname === '/';
   const isCategoriesActive = pathname?.startsWith('/categories') || pathname?.startsWith('/category');
   const isAddActive = pathname === '/submit';
   const isBaladnaActive = pathname?.startsWith('/sooq-baladna');
-  const isSettingsActive = showSettingsModal || pathname === '/settings';
-  const isAccountActive = pathname?.startsWith('/profile') || pathname?.startsWith('/dashboard') || pathname?.startsWith('/login');
+  const isSettingsActive = showSettingsModal || pathname === '/settings' || pathname?.startsWith('/profile') || pathname?.startsWith('/dashboard');
 
   return (
     <>
@@ -110,13 +102,13 @@ export default function BottomNav() {
         aria-label="شريط التنقل السريع"
         className="fixed bottom-0 inset-x-0 z-50 md:hidden bg-background/95 backdrop-blur-xl border-t border-border/80 shadow-[0_-4px_25px_rgba(0,0,0,0.08)] dark:shadow-[0_-4px_25px_rgba(0,0,0,0.4)] transition-all duration-300 select-none pb-[max(env(safe-area-inset-bottom,0px),6px)] pt-1"
       >
-        <div className="max-w-lg mx-auto px-1 flex items-center justify-around relative">
+        <div className="max-w-md mx-auto px-2 flex items-center justify-between relative">
           
           {/* 1. الرئيسية */}
           <Link
             href="/"
             className={cn(
-              "flex flex-col items-center justify-center flex-1 py-1 px-0.5 rounded-xl transition-all duration-200 group relative",
+              "flex flex-col items-center justify-center flex-1 py-1 px-1 rounded-xl transition-all duration-200 group relative",
               isHomeActive ? "text-primary font-bold" : "text-muted-foreground hover:text-foreground active:scale-95"
             )}
           >
@@ -126,7 +118,7 @@ export default function BottomNav() {
                 <span className="absolute -bottom-0.5 left-1/2 -translate-x-1/2 w-1.5 h-1.5 bg-primary rounded-full animate-pulse" />
               )}
             </div>
-            <span className={cn("text-[10px] sm:text-[11px] tracking-tight transition-all duration-200 mt-0.5", isHomeActive ? "font-bold text-primary" : "font-medium")}>
+            <span className={cn("text-[11px] tracking-tight transition-all duration-200 mt-0.5", isHomeActive ? "font-bold text-primary" : "font-medium")}>
               الرئيسية
             </span>
           </Link>
@@ -135,7 +127,7 @@ export default function BottomNav() {
           <Link
             href="/categories"
             className={cn(
-              "flex flex-col items-center justify-center flex-1 py-1 px-0.5 rounded-xl transition-all duration-200 group relative",
+              "flex flex-col items-center justify-center flex-1 py-1 px-1 rounded-xl transition-all duration-200 group relative",
               isCategoriesActive ? "text-primary font-bold" : "text-muted-foreground hover:text-foreground active:scale-95"
             )}
           >
@@ -145,7 +137,7 @@ export default function BottomNav() {
                 <span className="absolute -bottom-0.5 left-1/2 -translate-x-1/2 w-1.5 h-1.5 bg-primary rounded-full animate-pulse" />
               )}
             </div>
-            <span className={cn("text-[10px] sm:text-[11px] tracking-tight transition-all duration-200 mt-0.5", isCategoriesActive ? "font-bold text-primary" : "font-medium")}>
+            <span className={cn("text-[11px] tracking-tight transition-all duration-200 mt-0.5", isCategoriesActive ? "font-bold text-primary" : "font-medium")}>
               الأقسام
             </span>
           </Link>
@@ -173,7 +165,7 @@ export default function BottomNav() {
             href="/sooq-baladna"
             title={savedLocationName ? `إعلانات ${savedLocationName}` : 'إعلانات بلدنا'}
             className={cn(
-              "flex flex-col items-center justify-center flex-1 py-1 px-0.5 rounded-xl transition-all duration-200 group relative",
+              "flex flex-col items-center justify-center flex-1 py-1 px-1 rounded-xl transition-all duration-200 group relative",
               isBaladnaActive ? "text-primary font-bold" : "text-muted-foreground hover:text-foreground active:scale-95"
             )}
           >
@@ -183,18 +175,18 @@ export default function BottomNav() {
                 <span className="absolute -bottom-0.5 left-1/2 -translate-x-1/2 w-1.5 h-1.5 bg-primary rounded-full animate-pulse" />
               )}
             </div>
-            <span className={cn("text-[10px] sm:text-[11px] tracking-tight transition-all duration-200 mt-0.5 truncate max-w-[62px]", isBaladnaActive ? "font-bold text-primary" : "font-medium")}>
+            <span className={cn("text-[11px] tracking-tight transition-all duration-200 mt-0.5 truncate max-w-[70px]", isBaladnaActive ? "font-bold text-primary" : "font-medium")}>
               {savedLocationName ? savedLocationName : 'إعلانات بلدنا'}
             </span>
           </Link>
 
-          {/* 5. الضبط (أيقونة الترس المضافة لفتح ضبط الموقع الجغرافي والإعدادات) */}
+          {/* 5. الضبط والحساب (أيقونة الترس المدمجة لحسابي والموقع) */}
           <button
             type="button"
             onClick={() => setShowSettingsModal(true)}
-            aria-label="الضبط"
+            aria-label="الضبط والحساب"
             className={cn(
-              "flex flex-col items-center justify-center flex-1 py-1 px-0.5 rounded-xl transition-all duration-200 group relative",
+              "flex flex-col items-center justify-center flex-1 py-1 px-1 rounded-xl transition-all duration-200 group relative",
               isSettingsActive ? "text-primary font-bold" : "text-muted-foreground hover:text-foreground active:scale-95"
             )}
           >
@@ -205,46 +197,22 @@ export default function BottomNav() {
                   isSettingsActive ? "scale-110 stroke-[2.4] rotate-90 text-primary" : "group-hover:rotate-45 group-hover:scale-105"
                 )}
               />
-              {isSettingsActive && (
-                <span className="absolute -bottom-0.5 left-1/2 -translate-x-1/2 w-1.5 h-1.5 bg-primary rounded-full animate-pulse" />
-              )}
-            </div>
-            <span className={cn("text-[10px] sm:text-[11px] tracking-tight transition-all duration-200 mt-0.5", isSettingsActive ? "font-bold text-primary" : "font-medium")}>
-              الضبط
-            </span>
-          </button>
-
-          {/* 6. حسابي / دخول */}
-          <Link
-            href={isAuthenticated ? "/profile" : "/login?redirectUrl=/profile"}
-            onClick={handleAccountClick}
-            className={cn(
-              "flex flex-col items-center justify-center flex-1 py-1 px-0.5 rounded-xl transition-all duration-200 group relative",
-              isAccountActive ? "text-primary font-bold" : "text-muted-foreground hover:text-foreground active:scale-95"
-            )}
-          >
-            <div className="relative p-0.5">
-              {isAuthenticated ? (
-                <User className={cn("w-5 h-5 transition-transform duration-200", isAccountActive ? "scale-110 stroke-[2.4]" : "group-hover:scale-105")} />
-              ) : (
-                <LogIn className={cn("w-5 h-5 transition-transform duration-200", isAccountActive ? "scale-110 stroke-[2.4]" : "group-hover:scale-105")} />
-              )}
 
               {/* شارة الإشعارات غير المقروءة */}
               {unreadCount > 0 && (
-                <span className="absolute -top-0.5 -right-1 flex h-4 min-w-4 px-1 items-center justify-center rounded-full bg-destructive text-[10px] font-black text-destructive-foreground ring-2 ring-background animate-pulse">
+                <span className="absolute -top-1 -right-1 flex h-4 min-w-4 px-1 items-center justify-center rounded-full bg-destructive text-[10px] font-black text-destructive-foreground ring-2 ring-background animate-pulse">
                   {unreadCount > 9 ? '9+' : unreadCount}
                 </span>
               )}
 
-              {isAccountActive && unreadCount === 0 && (
+              {isSettingsActive && unreadCount === 0 && (
                 <span className="absolute -bottom-0.5 left-1/2 -translate-x-1/2 w-1.5 h-1.5 bg-primary rounded-full animate-pulse" />
               )}
             </div>
-            <span className={cn("text-[10px] sm:text-[11px] tracking-tight transition-all duration-200 mt-0.5", isAccountActive ? "font-bold text-primary" : "font-medium")}>
-              {isAuthenticated ? 'حسابي' : 'دخول'}
+            <span className={cn("text-[11px] tracking-tight transition-all duration-200 mt-0.5", isSettingsActive ? "font-bold text-primary" : "font-medium")}>
+              {isAuthenticated ? 'الضبط' : 'دخول / ضبط'}
             </span>
-          </Link>
+          </button>
 
         </div>
       </nav>
@@ -257,11 +225,11 @@ export default function BottomNav() {
         redirectUrl={authModalRedirect}
       />
 
-      {/* نافذة ضبط التطبيق والموقع الجغرافي الاحترافية */}
+      {/* نافذة ضبط التطبيق والحساب والموقع الجغرافي المدمجة */}
       <SettingsModal
         isOpen={showSettingsModal}
         onClose={() => setShowSettingsModal(false)}
-        defaultTab="location"
+        defaultTab="account"
       />
     </>
   );

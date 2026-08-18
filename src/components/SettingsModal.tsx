@@ -1,13 +1,14 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
   DialogDescription,
-  DialogFooter,
 } from '@/components/ui/dialog';
 import {
   AlertDialog,
@@ -21,6 +22,7 @@ import {
 } from '@/components/ui/alert-dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/context/AuthContext';
 import {
@@ -29,7 +31,17 @@ import {
   Loader2,
   Check,
   Navigation,
-  Sparkles,
+  User,
+  LayoutDashboard,
+  Store,
+  BadgeDollarSign,
+  LogOut,
+  LogIn,
+  BadgeCheck,
+  Shield,
+  Settings,
+  UserPlus,
+  ChevronLeft,
 } from 'lucide-react';
 import {
   getCurrentGpsPosition,
@@ -40,17 +52,23 @@ import {
   LocationData,
   BALADNA_STORAGE_KEY,
 } from '@/lib/locationEngine';
+import { cn } from '@/lib/utils';
 
 interface SettingsModalProps {
   isOpen: boolean;
   onClose: () => void;
-  defaultTab?: string;
+  defaultTab?: 'account' | 'location';
 }
 
-export default function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
+export default function SettingsModal({ isOpen, onClose, defaultTab = 'account' }: SettingsModalProps) {
+  const router = useRouter();
   const { toast } = useToast();
-  const { user, userProfile } = useAuth();
+  const { user, userProfile, signOutUser } = useAuth();
 
+  const isAdmin = userProfile?.role === 'admin';
+  const hasStore = !!userProfile?.store;
+
+  const [activeTab, setActiveTab] = useState<'account' | 'location'>(defaultTab);
   const [locationName, setLocationName] = useState('');
   const [coords, setCoords] = useState<{ lat: number; lng: number } | null>(null);
   const [latestData, setLatestData] = useState<LocationData | null>(null);
@@ -61,6 +79,7 @@ export default function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
 
   useEffect(() => {
     if (isOpen) {
+      setActiveTab(defaultTab);
       const saved = loadSavedLocation();
       if (saved) {
         setLatestData(saved);
@@ -77,7 +96,7 @@ export default function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
         setLocationName(legacy);
       }
     }
-  }, [isOpen, userProfile]);
+  }, [isOpen, userProfile, defaultTab]);
 
   // 1. الضغط على زر "تحديد موقعي": إظهار رسالة طلب الصلاحية والتأكيد
   const handleLocateMeClick = () => {
@@ -128,7 +147,7 @@ export default function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
   };
 
   // 3. زر حفظ الموقع المعتمد للمستخدم
-  const handleSave = async () => {
+  const handleSaveLocation = async () => {
     const trimmed = locationName.trim();
     if (!trimmed) {
       toast({
@@ -181,108 +200,297 @@ export default function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
     }
   };
 
+  const handleNavigate = (path: string) => {
+    onClose();
+    router.push(path);
+  };
+
+  const handleLogout = async () => {
+    onClose();
+    await signOutUser();
+    toast({
+      title: 'تم تسجيل الخروج',
+      description: 'نراك قريباً في سوق العرب!',
+    });
+  };
+
+  const isAuthenticated = !!user;
+
   return (
     <>
       <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
         <DialogContent
-          className="max-w-md w-[92vw] sm:w-full p-5 text-right font-body bg-card border-border shadow-2xl rounded-2xl"
+          className="max-w-md w-[94vw] sm:w-full p-0 overflow-hidden text-right font-body bg-card border-border shadow-2xl rounded-2xl max-h-[88vh] flex flex-col"
           dir="rtl"
         >
-          <DialogHeader className="text-right space-y-1 pb-2 border-b border-border/60">
-            <div className="flex items-center gap-2 text-primary">
-              <div className="p-2 rounded-xl bg-primary/10 text-primary">
-                <MapPin className="w-5 h-5" />
+          {/* Header with Title & Tab Switcher */}
+          <DialogHeader className="p-4 pb-3 border-b border-border/60 bg-muted/30 shrink-0">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2 text-primary">
+                <div className="p-2 rounded-xl bg-primary/10 text-primary">
+                  <Settings className="w-5 h-5" />
+                </div>
+                <div>
+                  <DialogTitle className="text-base font-bold font-headline">
+                    الضبط والحساب
+                  </DialogTitle>
+                  <DialogDescription className="text-[11px] text-muted-foreground">
+                    إدارة حسابك وإعدادات الموقع والتطبيق
+                  </DialogDescription>
+                </div>
               </div>
-              <DialogTitle className="text-lg font-bold font-headline">
-                ضبط الموقع الجغرافي
-              </DialogTitle>
             </div>
-            <DialogDescription className="text-xs text-muted-foreground">
-              حدد موقعك الدقيق لتشاهد وتصل إلى الإعلانات القريبة منك جداً
-            </DialogDescription>
+
+            {/* Tab Selector */}
+            <div className="flex items-center p-1 mt-3 bg-muted rounded-xl gap-1">
+              <button
+                type="button"
+                onClick={() => setActiveTab('account')}
+                className={cn(
+                  "flex-1 py-1.5 px-3 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5",
+                  activeTab === 'account'
+                    ? "bg-background text-primary shadow-sm"
+                    : "text-muted-foreground hover:text-foreground"
+                )}
+              >
+                <User className="w-3.5 h-3.5" />
+                <span>حسابي</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setActiveTab('location')}
+                className={cn(
+                  "flex-1 py-1.5 px-3 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5",
+                  activeTab === 'location'
+                    ? "bg-background text-primary shadow-sm"
+                    : "text-muted-foreground hover:text-foreground"
+                )}
+              >
+                <MapPin className="w-3.5 h-3.5" />
+                <span>ضبط الموقع</span>
+              </button>
+            </div>
           </DialogHeader>
 
-          <div className="space-y-4 py-3">
-            {/* مربع النص وبجانبه أيقونة الموقع وزر "تحديد موقعي" */}
-            <div className="space-y-1.5">
-              <label className="text-xs font-bold text-foreground block">
-                موقعك الجغرافي (القرية أو المدينة):
-              </label>
+          {/* Modal Body */}
+          <div className="p-4 overflow-y-auto flex-1 space-y-4">
+            {activeTab === 'account' ? (
+              /* ================= 1. قسم حسابي ================= */
+              <div className="space-y-4">
+                {isAuthenticated ? (
+                  <>
+                    {/* User Card */}
+                    <div className="flex items-center gap-3 p-3 rounded-xl bg-muted/50 border border-border/80">
+                      <Avatar className="h-12 w-12 border-2 border-primary/20">
+                        <AvatarImage src={userProfile?.avatarUrl || user?.photoURL || undefined} alt={userProfile?.name} />
+                        <AvatarFallback className="bg-primary/10 text-primary font-bold">
+                          {userProfile?.name?.[0]?.toUpperCase() || 'م'}
+                        </AvatarFallback>
+                      </Avatar>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-1.5">
+                          <h4 className="text-sm font-bold text-foreground truncate">{userProfile?.name || 'مستخدم سوق العرب'}</h4>
+                          {userProfile?.verified && (
+                            <BadgeCheck className="w-4 h-4 text-blue-500 shrink-0" />
+                          )}
+                        </div>
+                        <p className="text-xs text-muted-foreground truncate">{user?.email || userProfile?.phone || ''}</p>
+                      </div>
+                    </div>
 
-              <div className="flex items-center gap-2">
-                {/* مربع النص لعرض وكتابة التسمية الأقرب */}
-                <div className="relative flex-1">
-                  <Input
-                    type="text"
-                    value={locationName}
-                    onChange={(e) => setLocationName(e.target.value)}
-                    placeholder="اكتب قريتك أو مدينتك هنا..."
-                    className="h-11 text-sm font-medium pr-9"
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter') handleSave();
-                    }}
-                  />
-                  <MapPin className="w-4 h-4 text-muted-foreground absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                    {/* Account Links */}
+                    <div className="space-y-1">
+                      {isAdmin && (
+                        <button
+                          onClick={() => handleNavigate('/admin')}
+                          className="w-full flex items-center justify-between p-2.5 rounded-xl hover:bg-muted/80 text-foreground transition-colors text-xs font-medium group"
+                        >
+                          <div className="flex items-center gap-2.5 text-primary">
+                            <Shield className="w-4 h-4" />
+                            <span className="font-bold">لوحة الإدارة (Admin)</span>
+                          </div>
+                          <ChevronLeft className="w-4 h-4 text-muted-foreground group-hover:text-foreground transition-transform" />
+                        </button>
+                      )}
+
+                      <button
+                        onClick={() => handleNavigate('/profile')}
+                        className="w-full flex items-center justify-between p-2.5 rounded-xl hover:bg-muted/80 text-foreground transition-colors text-xs font-medium group"
+                      >
+                        <div className="flex items-center gap-2.5">
+                          <User className="w-4 h-4 text-primary" />
+                          <span>الملف الشخصي وبياناتي</span>
+                        </div>
+                        <ChevronLeft className="w-4 h-4 text-muted-foreground group-hover:text-foreground transition-transform" />
+                      </button>
+
+                      <button
+                        onClick={() => handleNavigate('/dashboard')}
+                        className="w-full flex items-center justify-between p-2.5 rounded-xl hover:bg-muted/80 text-foreground transition-colors text-xs font-medium group"
+                      >
+                        <div className="flex items-center gap-2.5">
+                          <LayoutDashboard className="w-4 h-4 text-primary" />
+                          <span>لوحة التحكم وإعلاناتي</span>
+                        </div>
+                        <ChevronLeft className="w-4 h-4 text-muted-foreground group-hover:text-foreground transition-transform" />
+                      </button>
+
+                      {hasStore ? (
+                        <button
+                          onClick={() => handleNavigate(`/store/${user.uid}`)}
+                          className="w-full flex items-center justify-between p-2.5 rounded-xl hover:bg-muted/80 text-foreground transition-colors text-xs font-medium group"
+                        >
+                          <div className="flex items-center gap-2.5">
+                            <Store className="w-4 h-4 text-primary" />
+                            <span>متجري الإلكتروني</span>
+                          </div>
+                          <ChevronLeft className="w-4 h-4 text-muted-foreground group-hover:text-foreground transition-transform" />
+                        </button>
+                      ) : (
+                        <button
+                          onClick={() => handleNavigate('/store/create')}
+                          className="w-full flex items-center justify-between p-2.5 rounded-xl hover:bg-muted/80 text-foreground transition-colors text-xs font-medium group"
+                        >
+                          <div className="flex items-center gap-2.5">
+                            <Store className="w-4 h-4 text-primary" />
+                            <span>إنشاء متجر خاص</span>
+                          </div>
+                          <ChevronLeft className="w-4 h-4 text-muted-foreground group-hover:text-foreground transition-transform" />
+                        </button>
+                      )}
+
+                      <button
+                        onClick={() => handleNavigate('/pricing')}
+                        className="w-full flex items-center justify-between p-2.5 rounded-xl hover:bg-muted/80 text-foreground transition-colors text-xs font-medium group"
+                      >
+                        <div className="flex items-center gap-2.5">
+                          <BadgeDollarSign className="w-4 h-4 text-primary" />
+                          <span>الباقات والترقيات</span>
+                        </div>
+                        <ChevronLeft className="w-4 h-4 text-muted-foreground group-hover:text-foreground transition-transform" />
+                      </button>
+
+                      <div className="pt-2 border-t border-border/60">
+                        <button
+                          onClick={handleLogout}
+                          className="w-full flex items-center justify-between p-2.5 rounded-xl hover:bg-destructive/10 text-destructive transition-colors text-xs font-bold group"
+                        >
+                          <div className="flex items-center gap-2.5">
+                            <LogOut className="w-4 h-4" />
+                            <span>تسجيل الخروج</span>
+                          </div>
+                          <ChevronLeft className="w-4 h-4 opacity-50" />
+                        </button>
+                      </div>
+                    </div>
+                  </>
+                ) : (
+                  /* Guest View */
+                  <div className="space-y-4 py-2 text-center">
+                    <div className="w-16 h-16 rounded-full bg-primary/10 text-primary mx-auto flex items-center justify-center mb-1">
+                      <User className="w-8 h-8" />
+                    </div>
+                    <div className="space-y-1">
+                      <h4 className="text-sm font-bold text-foreground">أهلاً بك في سوق العرب</h4>
+                      <p className="text-xs text-muted-foreground px-4">
+                        سجل دخولك لإضافة إعلاناتك والتواصل مع البائعين وإدارة حسابك
+                      </p>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-2 pt-2">
+                      <Button
+                        type="button"
+                        onClick={() => handleNavigate('/login?redirectUrl=/profile')}
+                        className="w-full bg-primary text-primary-foreground font-bold h-10 rounded-xl text-xs gap-1.5 shadow-sm"
+                      >
+                        <LogIn className="w-4 h-4" />
+                        <span>تسجيل الدخول</span>
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() => handleNavigate('/login?mode=signup')}
+                        className="w-full border-primary/30 text-primary hover:bg-primary/10 font-bold h-10 rounded-xl text-xs gap-1.5"
+                      >
+                        <UserPlus className="w-4 h-4" />
+                        <span>حساب جديد</span>
+                      </Button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            ) : (
+              /* ================= 2. قسم ضبط الموقع ================= */
+              <div className="space-y-4 py-1">
+                <div className="space-y-2">
+                  <label className="text-xs font-bold text-foreground block">
+                    موقعك الجغرافي (القرية أو الحي أو المدينة):
+                  </label>
+
+                  <div className="flex items-center gap-2">
+                    <div className="relative flex-1">
+                      <Input
+                        type="text"
+                        value={locationName}
+                        onChange={(e) => setLocationName(e.target.value)}
+                        placeholder="اكتب قريتك أو مدينتك هنا..."
+                        className="h-11 text-sm font-medium pr-9 rounded-xl"
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') handleSaveLocation();
+                        }}
+                      />
+                      <MapPin className="w-4 h-4 text-muted-foreground absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                    </div>
+
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={handleLocateMeClick}
+                      disabled={isDetecting}
+                      className="h-11 px-3.5 rounded-xl border-primary/40 hover:bg-primary/10 hover:border-primary text-primary font-bold shrink-0 flex items-center gap-1.5 text-xs shadow-sm"
+                    >
+                      {isDetecting ? (
+                        <>
+                          <Loader2 className="w-4 h-4 animate-spin text-primary" />
+                          <span>جارٍ التحديد...</span>
+                        </>
+                      ) : (
+                        <>
+                          <LocateFixed className="w-4 h-4 text-primary" />
+                          <span>تحديد موقعي</span>
+                        </>
+                      )}
+                    </Button>
+                  </div>
+
+                  <p className="text-[11px] text-muted-foreground leading-relaxed">
+                    اضغط على <strong>تحديد موقعي</strong> لجلب أقرب قرية أو شارع بالـ GPS تلقائياً، أو اكتب اسم موقعك يدوياً ثم اضغط حفظ.
+                  </p>
                 </div>
 
-                {/* زر تحديد موقعي بجانب مربع النص */}
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={handleLocateMeClick}
-                  disabled={isDetecting}
-                  className="h-11 px-3.5 rounded-xl border-primary/40 hover:bg-primary/10 hover:border-primary text-primary font-bold shrink-0 flex items-center gap-1.5 text-xs shadow-sm"
-                >
-                  {isDetecting ? (
-                    <>
-                      <Loader2 className="w-4 h-4 animate-spin text-primary" />
-                      <span>جارٍ التحديد...</span>
-                    </>
-                  ) : (
-                    <>
-                      <LocateFixed className="w-4 h-4 text-primary" />
-                      <span>تحديد موقعي</span>
-                    </>
-                  )}
-                </Button>
+                <div className="pt-2">
+                  <Button
+                    type="button"
+                    onClick={handleSaveLocation}
+                    disabled={isSaving || isDetecting}
+                    className="w-full bg-primary text-primary-foreground font-bold hover:bg-primary/90 h-11 rounded-xl shadow-md text-xs gap-1.5"
+                  >
+                    {isSaving ? (
+                      <>
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                        <span>جارٍ الحفظ...</span>
+                      </>
+                    ) : (
+                      <>
+                        <Check className="w-4 h-4" />
+                        <span>حفظ الموقع المعتمد</span>
+                      </>
+                    )}
+                  </Button>
+                </div>
               </div>
-
-              <p className="text-[11px] text-muted-foreground">
-                يمكنك الضغط على <strong>تحديد موقعي</strong> لجلب التسمية تلقائياً أو كتابتها يدوياً في المربع.
-              </p>
-            </div>
+            )}
           </div>
-
-          <DialogFooter className="flex flex-row-reverse items-center justify-start gap-2 pt-2 border-t border-border/60">
-            {/* زر حفظ الموقع */}
-            <Button
-              type="button"
-              onClick={handleSave}
-              disabled={isSaving || isDetecting}
-              className="flex-1 bg-primary text-primary-foreground font-bold hover:bg-primary/90 h-11 rounded-xl shadow-md text-sm"
-            >
-              {isSaving ? (
-                <>
-                  <Loader2 className="w-4 h-4 animate-spin ml-1.5" />
-                  <span>جارٍ الحفظ...</span>
-                </>
-              ) : (
-                <>
-                  <Check className="w-4 h-4 ml-1.5" />
-                  <span>حفظ الموقع</span>
-                </>
-              )}
-            </Button>
-
-            <Button
-              type="button"
-              variant="ghost"
-              onClick={onClose}
-              className="h-11 px-4 font-medium text-muted-foreground hover:text-foreground rounded-xl text-xs"
-            >
-              إلغاء
-            </Button>
-          </DialogFooter>
         </DialogContent>
       </Dialog>
 
