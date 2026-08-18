@@ -17,7 +17,7 @@ const t = {
   noStores: "لا توجد متاجر متاحة حاليًا.",
 };
 
-import { DEMO_GULF_STORE } from "../store/[id]/StoreClient";
+import { DEMO_GULF_STORE } from "@/lib/demo-gulf-store";
 
 export default function ShopsPage() {
   const { getUsersWithStores } = useAuth();

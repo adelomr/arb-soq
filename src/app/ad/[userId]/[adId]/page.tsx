@@ -40,7 +40,7 @@ async function getAdData(userId: string, adId: string): Promise<Ad | null> {
 
   if (!adSnap.exists()) {
     // Fallback for demo store products
-    const { DEMO_GULF_PRODUCTS, DEMO_GULF_STORE } = await import('@/app/store/[id]/StoreClient');
+    const { DEMO_GULF_PRODUCTS, DEMO_GULF_STORE } = await import('@/lib/demo-gulf-store');
     const demoAd = DEMO_GULF_PRODUCTS.find(p => p.id === adId);
     if (demoAd) {
       return {
