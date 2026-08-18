@@ -228,6 +228,7 @@ export default function Header() {
   const isAuthenticated = !!user;
   const isAdmin = userProfile?.role === 'admin';
   const hasStore = !!userProfile?.store;
+  const isStorePage = pathname?.startsWith('/store') || pathname?.startsWith('/shops') || pathname === '/cart';
   const dateLocale = ar;
 
   const handleAddAdClick = (e?: React.MouseEvent) => {
@@ -385,17 +386,19 @@ export default function Header() {
             {isAuthenticated ? (
               <>
 
-                <Link href="/cart" passHref>
-                  <Button variant="ghost" size="icon" className="relative h-9 w-9 sm:h-10 sm:w-10 rounded-full border">
-                    <ShoppingCart className="h-5 w-5" />
-                    {cart.length > 0 && (
-                      <Badge variant="destructive" className="absolute -top-1 -right-1 h-5 w-5 p-0 flex items-center justify-center text-xs">
-                        {cart.length}
-                      </Badge>
-                    )}
-                     <span className="sr-only">{currentLabels.cart}</span>
-                  </Button>
-                </Link>
+                {isStorePage && (
+                  <Link href="/cart" passHref>
+                    <Button variant="ghost" size="icon" className="relative h-9 w-9 sm:h-10 sm:w-10 rounded-full border">
+                      <ShoppingCart className="h-5 w-5" />
+                      {cart.length > 0 && (
+                        <Badge variant="destructive" className="absolute -top-1 -right-1 h-5 w-5 p-0 flex items-center justify-center text-xs">
+                          {cart.length}
+                        </Badge>
+                      )}
+                      <span className="sr-only">{currentLabels.cart}</span>
+                    </Button>
+                  </Link>
+                )}
 
                 <DropdownMenu onOpenChange={handleOpenNotifications}>
                   <DropdownMenuTrigger asChild>
