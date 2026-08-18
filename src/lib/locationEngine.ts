@@ -95,7 +95,7 @@ export function cleanAndDeduplicateAddress(raw: {
   let governorate = (raw.governorate || '').trim();
   let country = (raw.country || '').trim();
 
-  // تطبيق منطق Cleanup كما في SignupActivity.java & UserDetailsActivity.java
+  // تنظيف التكرارات: لا نظهر المحافظة كقرية إذا كانت متطابقة
   if (village && governorate && village.toLowerCase() === governorate.toLowerCase()) {
     village = '';
   }
@@ -104,9 +104,9 @@ export function cleanAndDeduplicateAddress(raw: {
     city = '';
   }
 
-  if (village && city && village.toLowerCase() === city.toLowerCase()) {
-    // إذا كانت القرية مطابقة للمدينة، نعتمدها كمدينة ونفرغ القرية تجنباً للتكرار
-    village = '';
+  // إذا كانت القرية أو الحي غير موجودة ولكن المدينة محددة، المدينة تعتبر المكان الأقرب
+  if (!village && city) {
+    village = city;
   }
 
   const fullAddress = buildFullAddress(village, city, governorate, country);
@@ -120,14 +120,14 @@ export function cleanAndDeduplicateAddress(raw: {
     latitude: raw.latitude,
     longitude: raw.longitude,
     accuracy: raw.accuracy,
-    scope: raw.scope || 'city',
+    scope: raw.scope || (village ? 'village' : city ? 'city' : 'governorate'),
     updatedAt: Date.now(),
   };
 }
 
 /**
- * جلب العنوان الدقيق من الإحداثيات باستخدام مزودي خدمات متعددين بالعربية (Nominatim OSM + BigDataCloud)
- * مطابقة دقة كود تطبيق الأندرويد في استخراج: القرية، المدينة، المحافظة، الدولة
+ * جلب العنوان الدقيق من الإحداثيات باستخدام مزودي خدمات متعددين بالعربية
+ * الترتيب الأقرب دائماً: القرية / الحي / الشارع -> المدينة / المركز -> المحافظة -> الدولة
  */
 export async function reverseGeocodeCoordinates(
   lat: number,
@@ -150,7 +150,7 @@ export async function reverseGeocodeCoordinates(
       // 1. استخراج الدولة
       const country = addr.country || '';
 
-      // 2. استخراج المحافظة / المنطقة (AdminArea)
+      // 2. استخراج المحافظة / المنطقة
       const governorate =
         addr.state ||
         addr.governorate ||
@@ -159,29 +159,35 @@ export async function reverseGeocodeCoordinates(
         addr.state_district ||
         '';
 
-      // 3. استخراج المدينة / المركز (SubAdminArea)
+      // 3. استخراج المدينة / المركز / الدائرة
       const city =
         addr.city ||
         addr.town ||
         addr.municipality ||
-        addr.district ||
         addr.county ||
+        addr.district ||
         addr.city_district ||
+        addr.subdistrict ||
         '';
 
-      // 4. استخراج القرية / الحي / المنطقة الدقيقة (SubLocality / Locality)
+      // 4. استخراج أدق تسمية: القرية / الحي / الشارع / التجمع السكني (الأقرب جغرافياً للمستخدم)
       const village =
+        addr.neighbourhood ||
+        addr.suburb ||
+        addr.quarter ||
         addr.village ||
         addr.hamlet ||
-        addr.suburb ||
-        addr.neighbourhood ||
-        addr.quarter ||
-        addr.isolated_dwelling ||
         addr.residential ||
+        addr.isolated_dwelling ||
+        addr.road ||
+        addr.street ||
+        addr.pedestrian ||
         addr.subdivision ||
+        addr.allotments ||
+        (data.name && data.name !== country && data.name !== governorate ? data.name : '') ||
         '';
 
-      if (country || governorate || city || village) {
+      if (village || city || governorate || country) {
         return cleanAndDeduplicateAddress({
           village,
           city,
@@ -197,7 +203,43 @@ export async function reverseGeocodeCoordinates(
     console.warn('[LocationEngine] OSM Nominatim geocode error:', err);
   }
 
-  // محاولة 2: BigDataCloud Reverse Geocoding API كبديل موثوق
+  // محاولة 2: Photon Komoot Reverse Geocode (عالي الدقة ومفتوح يدعم العربية)
+  try {
+    const photonUrl = `https://photon.komoot.io/reverse?lat=${lat}&lon=${lng}&lang=ar`;
+    const response = await fetch(photonUrl);
+    if (response.ok) {
+      const data = await response.json();
+      const feature = data.features && data.features[0];
+      if (feature && feature.properties) {
+        const props = feature.properties;
+        const country = props.country || '';
+        const governorate = props.state || '';
+        const city = props.city || props.county || props.district || '';
+        const village =
+          props.district ||
+          props.street ||
+          props.name ||
+          props.locality ||
+          '';
+
+        if (village || city || governorate) {
+          return cleanAndDeduplicateAddress({
+            village,
+            city,
+            governorate,
+            country,
+            latitude: lat,
+            longitude: lng,
+            accuracy,
+          });
+        }
+      }
+    }
+  } catch (err) {
+    console.warn('[LocationEngine] Photon geocode error:', err);
+  }
+
+  // محاولة 3: BigDataCloud مع استخراج أدق المستويات الإدارية والمحلية
   try {
     const bdcUrl = `https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${lat}&longitude=${lng}&localityLanguage=ar`;
     const response = await fetch(bdcUrl);
@@ -205,11 +247,31 @@ export async function reverseGeocodeCoordinates(
       const data = await response.json();
       const country = data.countryName || '';
       const governorate = data.principalSubdivision || '';
-      const city = data.city || data.locality || '';
-      const village = (data.locality !== city ? data.locality : '') || '';
+
+      const admins: Array<{ name: string; adminLevel?: number; order?: number }> =
+        data.localityInfo?.administrative || [];
+      const informs: Array<{ name: string; description?: string }> =
+        data.localityInfo?.informative || [];
+
+      // استخراج الحي أو القرية من Informative أو أدنى مستوى إداري
+      let village = '';
+      if (informs.length > 0 && informs[0]?.name) {
+        village = informs[0].name;
+      } else {
+        // البحث عن المستويات الأكثر تفصيلاً (adminLevel >= 7 أو أعلى order)
+        const detailedAdmin = admins
+          .filter((a) => a.name && a.name !== country && a.name !== governorate)
+          .sort((a, b) => (b.order || 0) - (a.order || 0))[0];
+
+        if (detailedAdmin) {
+          village = detailedAdmin.name;
+        }
+      }
+
+      const city = data.city || data.locality || (admins.find((a) => (a.adminLevel || 0) <= 6 && a.name !== governorate)?.name || '');
 
       return cleanAndDeduplicateAddress({
-        village,
+        village: village || city,
         city,
         governorate,
         country,
