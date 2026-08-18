@@ -92,6 +92,9 @@ export async function createPaymobPayment(input: z.infer<typeof PaymobPaymentInp
                 paymentMethods.push(Number(INTEGRATION_ID));
             }
 
+            const cleanPhone = (phone_number || '+201003975823').replace(/[^\d+]/g, '') || '+201003975823';
+            const cleanEmail = (email && email.includes('@')) ? email : 'customer@arb-soq.com';
+
             const res = await axios.post('https://accept.paymob.com/v1/intention/', {
                 amount: Number(amount_cents),
                 currency: settings.currency || "EGP",
@@ -104,10 +107,10 @@ export async function createPaymobPayment(input: z.infer<typeof PaymobPaymentInp
                     quantity: 1
                 }] : [],
                 billing_data: {
-                    first_name: first_name || "عميل",
-                    last_name: last_name || "سوق العرب",
-                    phone_number: phone_number || "+201000000000",
-                    email: email,
+                    first_name: (first_name || "عميل").slice(0, 50),
+                    last_name: (last_name || "سوق العرب").slice(0, 50),
+                    phone_number: cleanPhone,
+                    email: cleanEmail,
                 }
             }, {
                 headers: {

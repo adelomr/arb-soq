@@ -30,12 +30,12 @@ export async function getPaymobSettings(): Promise<PaymobSettings> {
     if (docSnap.exists()) {
       const data = docSnap.data() as Partial<PaymobSettings>;
       return {
-        apiKey: data.apiKey || process.env.PAYMOB_API_KEY || '',
-        integrationId: data.integrationId || process.env.PAYMOB_INTEGRATION_ID || '',
-        walletIntegrationId: data.walletIntegrationId || process.env.PAYMOB_WALLET_INTEGRATION_ID || '',
-        kioskIntegrationId: data.kioskIntegrationId || process.env.PAYMOB_KIOSK_INTEGRATION_ID || '',
-        iframeId: data.iframeId || process.env.PAYMOB_IFRAME_ID || '',
-        hmacSecret: data.hmacSecret || process.env.PAYMOB_HMAC || '',
+        apiKey: data.apiKey || DEFAULT_PAYMOB_SETTINGS.apiKey,
+        integrationId: data.integrationId || DEFAULT_PAYMOB_SETTINGS.integrationId,
+        walletIntegrationId: data.walletIntegrationId || DEFAULT_PAYMOB_SETTINGS.walletIntegrationId,
+        kioskIntegrationId: data.kioskIntegrationId || DEFAULT_PAYMOB_SETTINGS.kioskIntegrationId,
+        iframeId: data.iframeId || DEFAULT_PAYMOB_SETTINGS.iframeId,
+        hmacSecret: data.hmacSecret || DEFAULT_PAYMOB_SETTINGS.hmacSecret,
         isEnabled: data.isEnabled !== undefined ? data.isEnabled : true,
         currency: data.currency || 'EGP',
       };

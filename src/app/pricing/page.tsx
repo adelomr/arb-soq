@@ -261,13 +261,14 @@ function PricingContent() {
     setLoadingPlan(planId);
 
     try {
-      const nameParts = (userProfile.name || 'عميل سوق العرب').trim().split(' ');
+      const displayName = userProfile?.name || userProfile?.fullName || user.displayName || 'عميل سوق العرب';
+      const nameParts = displayName.trim().split(' ');
       const paymentInput = {
-        amount_cents: planInfo.amountCents,
-        email: user.email || 'user@arb-soq.com',
+        amount_cents: String(planInfo.amountCents),
+        email: (user.email && user.email.includes('@')) ? user.email : ((userProfile as any)?.email || 'customer@arb-soq.com'),
         first_name: nameParts[0] || 'عميل',
         last_name: nameParts.slice(1).join(' ') || 'سوق العرب',
-        phone_number: userProfile.phoneNumber || '+201000000000',
+        phone_number: userProfile?.phoneNumber || userProfile?.phone || '+201003975823',
         userId: user.uid,
         planId: planId,
       };
