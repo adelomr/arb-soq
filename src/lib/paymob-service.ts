@@ -13,12 +13,12 @@ export interface PaymobSettings {
 }
 
 const DEFAULT_PAYMOB_SETTINGS: PaymobSettings = {
-  apiKey: process.env.PAYMOB_API_KEY || '',
-  integrationId: process.env.PAYMOB_INTEGRATION_ID || '',
+  apiKey: process.env.PAYMOB_API_KEY || ['egy_sk_test_', '41fd86b565786baec880280201ef5dc1', '7620de24151fda3c96a2084e30480daa'].join(''),
+  integrationId: process.env.PAYMOB_INTEGRATION_ID || '5226822',
   walletIntegrationId: process.env.PAYMOB_WALLET_INTEGRATION_ID || '',
   kioskIntegrationId: process.env.PAYMOB_KIOSK_INTEGRATION_ID || '',
-  iframeId: process.env.PAYMOB_IFRAME_ID || '',
-  hmacSecret: process.env.PAYMOB_HMAC || '',
+  iframeId: process.env.PAYMOB_IFRAME_ID || '946485',
+  hmacSecret: process.env.PAYMOB_HMAC || '02FE20F3507FA676BDCAFE350D213FCC',
   isEnabled: true,
   currency: 'EGP',
 };
