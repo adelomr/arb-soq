@@ -38,7 +38,18 @@ async function getAdData(userId: string, adId: string): Promise<Ad | null> {
     }
   }
 
-  if (!adSnap.exists()) return null;
+  if (!adSnap.exists()) {
+    // Fallback for demo store products
+    const { DEMO_GULF_PRODUCTS, DEMO_GULF_STORE } = await import('@/app/store/[id]/StoreClient');
+    const demoAd = DEMO_GULF_PRODUCTS.find(p => p.id === adId);
+    if (demoAd) {
+      return {
+        ...demoAd,
+        user: DEMO_GULF_STORE,
+      };
+    }
+    return null;
+  }
 
   const adData = adSnap.data() as Ad;
   const targetUserId = adData.userId || (isValidUser ? userId : '');

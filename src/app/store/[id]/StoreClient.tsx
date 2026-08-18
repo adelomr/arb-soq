@@ -772,25 +772,27 @@ export default function StoreClient({ storeId }: { storeId: string }) {
                     key={product.id}
                     className="overflow-hidden rounded-2xl border-border/80 hover:border-primary/50 transition-all duration-300 hover:shadow-xl group flex flex-col bg-card"
                   >
-                    {/* صورة المنتج */}
+                    {/* صورة المنتج مع رابط لصفحة التفاصيل المنفصلة */}
                     <div className="relative w-full aspect-[4/5] bg-muted overflow-hidden">
-                      <Image
-                        src={product.imageUrls[0]}
-                        alt={product.title}
-                        fill
-                        className="object-cover transition-transform duration-500 group-hover:scale-105"
-                      />
-                      <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+                      <Link href={`/ad/${product.userId}/${product.id}`} className="block w-full h-full">
+                        <Image
+                          src={product.imageUrls[0]}
+                          alt={product.title}
+                          fill
+                          className="object-cover transition-transform duration-500 group-hover:scale-105"
+                        />
+                        <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+                      </Link>
 
                       {/* شارات المنتج */}
-                      <div className="absolute top-2.5 right-2.5 flex flex-col gap-1">
+                      <div className="absolute top-2.5 right-2.5 flex flex-col gap-1 pointer-events-none">
                         {product.subcategory && (
-                          <Badge className="bg-primary/90 backdrop-blur-md text-primary-foreground font-bold text-[10px] px-2 py-0.5 border-none">
+                          <Badge className="bg-primary/90 backdrop-blur-md text-primary-foreground font-bold text-[10px] px-2 py-0.5 border-none shadow-sm">
                             {product.subcategory}
                           </Badge>
                         )}
                         {product.isPromoted && (
-                          <Badge className="bg-amber-500 text-white font-bold text-[10px] px-2 py-0.5 border-none">
+                          <Badge className="bg-amber-500 text-white font-bold text-[10px] px-2 py-0.5 border-none shadow-sm">
                             مميز
                           </Badge>
                         )}
@@ -812,9 +814,11 @@ export default function StoreClient({ storeId }: { storeId: string }) {
                     {/* تفاصيل المنتج */}
                     <CardContent className="p-4 flex-1 flex flex-col justify-between space-y-3">
                       <div className="space-y-1.5">
-                        <h3 className="font-bold text-sm text-foreground group-hover:text-primary transition-colors line-clamp-2 leading-snug">
-                          {product.title}
-                        </h3>
+                        <Link href={`/ad/${product.userId}/${product.id}`} className="block">
+                          <h3 className="font-bold text-sm text-foreground group-hover:text-primary transition-colors line-clamp-2 leading-snug">
+                            {product.title}
+                          </h3>
+                        </Link>
                         <p className="text-xs text-muted-foreground line-clamp-2 leading-relaxed">
                           {product.description}
                         </p>

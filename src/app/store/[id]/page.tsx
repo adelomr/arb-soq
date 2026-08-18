@@ -6,6 +6,7 @@ export const metadata: Metadata = {
   description: 'تسوقي أرقى العبايات الخليجية والمخاوير الإماراتية والجلابيات والفساتين الراقية من دار الشيخة عبر سوق العرب.',
 };
 
-export default function StorePage({ params }: { params: { id: string } }) {
-  return <StoreClient storeId={params.id} />;
+export default async function StorePage({ params }: { params: Promise<{ id: string }> }) {
+  const resolvedParams = await params;
+  return <StoreClient storeId={resolvedParams.id} />;
 }
