@@ -38,6 +38,7 @@ import NewsletterManager from "@/components/NewsletterManager";
 import GoogleAdsSettings from "@/components/GoogleAdsSettings";
 import AdPlacementManager from "@/components/AdPlacementManager";
 import PaymentGatewayManager from "@/components/PaymentGatewayManager";
+import VerificationRequestsManager from "@/components/VerificationRequestsManager";
 
 const t = {
     adminDashboard: "لوحة تحكم المسؤول",
@@ -45,6 +46,8 @@ const t = {
     accessDenied: "الوصول مرفوض",
     notAdmin: "ليس لديك الصلاحيات اللازمة للوصول إلى هذه الصفحة.",
     backToHome: "العودة إلى الرئيسية",
+    verificationRequests: "طلبات توثيق الحسابات (العلامة الزرقاء 🛡️)",
+    verificationRequestsDesc: "مراجعة وتأكيد طلبات التوثيق الواردة من المستخدمين عبر واتساب.",
     userManagement: "إدارة المستخدمين",
     userManagementDesc: "عرض، إيقاف، وحذف المستخدمين.",
     paymentGateway: "بوابة الدفع (Paymob)",
@@ -76,7 +79,7 @@ const t = {
     googleAdsSettingsDesc: "التحكم في بنرات الموقع وإعلانات جوجل أدسنس والمساحات المخصصة وإحصائياتها.",
 };
 
-type AdminView = 'dashboard' | 'users' | 'notifications' | 'settings' | 'announcement' | 'pricing' | 'categories' | 'messages' | 'pages' | 'topics' | 'create-topic' | 'newsletter' | 'ads-settings' | 'payment-gateway';
+type AdminView = 'dashboard' | 'verification-requests' | 'users' | 'notifications' | 'settings' | 'announcement' | 'pricing' | 'categories' | 'messages' | 'pages' | 'topics' | 'create-topic' | 'newsletter' | 'ads-settings' | 'payment-gateway';
 
 export default function AdminPage() {
     const { userProfile, loading } = useAuth();
@@ -134,6 +137,8 @@ export default function AdminPage() {
 
     const renderView = () => {
         switch (view) {
+            case 'verification-requests':
+                return <VerificationRequestsManager />;
             case 'users':
                 return <AdminDashboard />;
             case 'notifications':
@@ -165,6 +170,15 @@ export default function AdminPage() {
             default:
                 return (
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                        <Card onClick={() => setView('verification-requests')} className="cursor-pointer hover:border-blue-500 hover:shadow-lg transition-all bg-blue-500/10 border-blue-500/30 shadow-sm">
+                            <CardHeader>
+                                <CardTitle className="flex items-center gap-3">
+                                    <ShieldCheck className="h-6 w-6 text-blue-500"/>
+                                    {t.verificationRequests}
+                                </CardTitle>
+                                <CardDescription>{t.verificationRequestsDesc}</CardDescription>
+                            </CardHeader>
+                        </Card>
                         <Card onClick={() => setView('users')} className="cursor-pointer hover:border-primary hover:shadow-lg transition-all bg-secondary/50 border-primary/20">
                             <CardHeader>
                                 <CardTitle className="flex items-center gap-3 justify-between">

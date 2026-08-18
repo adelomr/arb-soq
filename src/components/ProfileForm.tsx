@@ -37,6 +37,8 @@ import { Badge } from './ui/badge';
 import { useLanguage } from '@/context/LanguageContext';
 import { Separator } from './ui/separator';
 import { Textarea } from './ui/textarea';
+import { firestore } from '@/lib/firebase';
+import { doc, setDoc } from 'firebase/firestore';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Label } from './ui/label';
@@ -159,6 +161,7 @@ export default function ProfileForm() {
   const [showEgyptPhoneWarning, setShowEgyptPhoneWarning] = useState(false);
   const [sendCodeAttempts, setSendCodeAttempts] = useState(0);
   const [isClient, setIsClient] = useState(false);
+  const [showVerificationSentDialog, setShowVerificationSentDialog] = useState(false);
   
   const COOLDOWN_SECONDS = 60;
   const COOLDOWN_STORAGE_KEY = 'phoneVerificationCooldown';
@@ -451,36 +454,77 @@ export default function ProfileForm() {
     }
   };
 
-  const handleVerifyAccount = async () => {
+  const handleWhatsAppVerification = async () => {
     if (!user || !userProfile) return;
-    
+
     const nameVal = form.getValues('name');
     const countryVal = form.getValues('country');
     const provinceVal = form.getValues('province');
     const cityVal = form.getValues('city');
-    const phoneVerified = userProfile.phoneVerified;
+    const phoneInputVal = form.getValues('phoneNumber');
 
-    if (!nameVal || !countryVal || !provinceVal || !cityVal) {
-        toast({ title: "بيانات غير مكتملة", description: "يرجى تعبئة الاسم والعنوان بالكامل قبل التوثيق.", variant: "destructive" });
-        return;
-    }
+    const phoneCountry = markets.find(m => m.id === (form.getValues('phoneCountryCode') || market?.id)) || market || markets[0];
+    const fullPhoneNumber = phoneInputVal
+      ? `${phoneCountry?.phoneCode}${phoneInputVal.replace(/^0+/, '')}`
+      : (userProfile.phoneNumber || '');
 
-    if (!phoneVerified) {
-        toast({ title: "الهاتف غير مؤكد", description: "يرجى تأكيد رقم الهاتف أولاً عبر كود التفعيل.", variant: "destructive" });
-        return;
+    if (!nameVal || !countryVal || !provinceVal || !cityVal || !fullPhoneNumber) {
+      toast({
+        title: "بيانات غير مكتملة",
+        description: "يرجى تعبئة الاسم الكامل والعنوان ورقم الهاتف أولاً.",
+        variant: "destructive"
+      });
+      return;
     }
 
     setIsSaving(true);
     try {
-        await updateUserProfile(user.uid, {
-            verified: true
-        });
-        toast({ title: "تم توثيق الحساب!", description: "مبروك! تم توثيق حسابك بنجاح وستظهر شارة التوثيق على إعلاناتك." });
-        await refreshUserProfile();
-    } catch (e: any) {
-        toast({ title: "خطأ أثناء التوثيق", description: e.message || "حدث خطأ غير متوقع", variant: "destructive" });
+      // 1. Save profile updates to Firestore
+      const profileData: Partial<UserProfile> = {
+        name: nameVal,
+        country: countryVal,
+        province: provinceVal,
+        city: cityVal,
+        village: form.getValues('village'),
+        profession: form.getValues('profession'),
+        specialization: form.getValues('specialization'),
+        phoneNumber: fullPhoneNumber,
+      };
+      await updateUserProfile(user.uid, profileData);
+
+      // 2. Save verification request in Firestore
+      const reqId = `${user.uid}_${Date.now()}`;
+      await setDoc(doc(firestore, 'verification_requests', reqId), {
+        id: reqId,
+        userId: user.uid,
+        userName: nameVal,
+        userEmail: user.email || '',
+        phoneNumber: fullPhoneNumber,
+        country: countryVal,
+        province: provinceVal,
+        city: cityVal,
+        profession: form.getValues('profession') || '',
+        status: 'pending',
+        createdAt: new Date().toISOString(),
+      });
+
+      // 3. Open WhatsApp chat with pre-filled message to official support number
+      const msg = `السلام عليكم إدارة سوق العرب 🛍️\nأرغب في توثيق حسابي بالعلامة الزرقاء 🛡️\n\n📌 بيانات الحساب:\n• الاسم: ${nameVal}\n• رقم الهاتف: ${fullPhoneNumber}\n• الدولة والمدينة: ${countryVal} - ${cityVal}\n• معرّف الحساب (ID): ${user.uid}`;
+      const waUrl = `https://wa.me/201003975823?text=${encodeURIComponent(msg)}`;
+      window.open(waUrl, '_blank');
+
+      // 4. Open confirmation Dialog
+      setShowVerificationSentDialog(true);
+      await refreshUserProfile();
+    } catch (err: any) {
+      console.error(err);
+      toast({
+        title: "حدث خطأ",
+        description: err.message || "فشل إرسال طلب التوثيق.",
+        variant: "destructive"
+      });
     } finally {
-        setIsSaving(false);
+      setIsSaving(false);
     }
   };
 
@@ -718,43 +762,54 @@ export default function ProfileForm() {
     <div className="mt-8 rounded-2xl border p-6 bg-card shadow-sm space-y-4">
       <div className="flex items-center gap-2 pb-3 border-b">
         <BadgeCheck className="h-6 w-6 text-blue-500 fill-blue-500/10" />
-        <h3 className="text-lg font-bold">توثيق الحساب (اختياري)</h3>
+        <h3 className="text-lg font-bold">توثيق الحساب بالعلامة الزرقاء 🛡️</h3>
       </div>
       
       {userProfile?.verified ? (
         <div className="flex items-center gap-3 p-4 rounded-xl bg-green-500/10 border border-green-500/30 text-green-700 dark:text-green-400">
           <BadgeCheck className="h-8 w-8 text-green-500 fill-green-500/10 flex-shrink-0 animate-bounce" />
           <div>
-            <h4 className="font-bold text-sm">حسابك موثق بنجاح!</h4>
-            <p className="text-xs opacity-90 mt-1">تظهر شارة التوثيق الآن على جميع إعلاناتك وصفحتك الشخصية لزيادة المصداقية وجذب المشترين.</p>
+            <h4 className="font-bold text-sm">حسابك موثق رسمياً بالعلامة الزرقاء! 🛡️✨</h4>
+            <p className="text-xs opacity-90 mt-1">تظهر شارة التوثيق الآن على جميع إعلاناتك وصفحتك الشخصية لزيادة المصداقية وجذب المشترين وتأكيد هويتك.</p>
           </div>
         </div>
       ) : (
         <div className="space-y-4">
-          <p className="text-sm text-muted-foreground">قم بتوثيق حسابك لتظهر إعلاناتك بشارة موثوقة وجذابة للمشترين. متطلبات التوثيق:</p>
+          <p className="text-sm text-muted-foreground leading-relaxed">
+            احصل على <strong>شارة التوثيق الزرقاء 🛡️</strong> الرسمية لإعلاناتك وحسابك في سوق العرب لبناء ثقة فورية مع المشترين ومضاعفة المبيعات.
+          </p>
           
-          <div className="space-y-2.5">
-            <div className="flex items-center gap-2 text-sm">
+          <div className="p-3.5 rounded-xl bg-secondary/60 border border-border/60 space-y-2.5">
+            <div className="text-xs font-bold text-foreground">بيانات التوثيق المطلوبة:</div>
+            <div className="flex items-center gap-2 text-xs">
               <span className={`w-2.5 h-2.5 rounded-full ${form.watch('name') ? 'bg-green-500' : 'bg-slate-300'}`} />
-              <span className={form.watch('name') ? 'text-foreground' : 'text-muted-foreground'}>الاسم الكامل</span>
+              <span className={form.watch('name') ? 'text-foreground font-medium' : 'text-muted-foreground'}>الاسم الكامل</span>
             </div>
-            <div className="flex items-center gap-2 text-sm">
+            <div className="flex items-center gap-2 text-xs">
               <span className={`w-2.5 h-2.5 rounded-full ${form.watch('country') && form.watch('province') && form.watch('city') ? 'bg-green-500' : 'bg-slate-300'}`} />
-              <span className={form.watch('country') && form.watch('province') && form.watch('city') ? 'text-foreground' : 'text-muted-foreground'}>العنوان بالكامل (البلد، المحافظة، المدينة)</span>
+              <span className={form.watch('country') && form.watch('province') && form.watch('city') ? 'text-foreground font-medium' : 'text-muted-foreground'}>العنوان بالكامل (البلد، المحافظة، المدينة)</span>
             </div>
-            <div className="flex items-center gap-2 text-sm">
-              <span className={`w-2.5 h-2.5 rounded-full ${userProfile?.phoneVerified ? 'bg-green-500' : 'bg-slate-300'}`} />
-              <span className={userProfile?.phoneVerified ? 'text-foreground' : 'text-muted-foreground'}>رقم هاتف تم تأكيده برمز التفعيل</span>
+            <div className="flex items-center gap-2 text-xs">
+              <span className={`w-2.5 h-2.5 rounded-full ${form.watch('phoneNumber') || userProfile?.phoneNumber ? 'bg-green-500' : 'bg-slate-300'}`} />
+              <span className={form.watch('phoneNumber') || userProfile?.phoneNumber ? 'text-foreground font-medium' : 'text-muted-foreground'}>رقم الهاتف للتواصل</span>
             </div>
           </div>
 
           <Button 
             type="button" 
-            onClick={handleVerifyAccount}
-            disabled={isSaving || !form.watch('name') || !form.watch('country') || !form.watch('province') || !form.watch('city') || !userProfile?.phoneVerified}
-            className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl h-11"
+            onClick={handleWhatsAppVerification}
+            disabled={isSaving || !form.watch('name') || !form.watch('country') || !form.watch('province') || !form.watch('city') || (!form.watch('phoneNumber') && !userProfile?.phoneNumber)}
+            className="w-full bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white font-bold rounded-xl h-12 shadow-md hover:shadow-lg transition-all text-sm sm:text-base flex items-center justify-center gap-2"
           >
-            {isSaving ? <Loader2 className="animate-spin h-4 w-4" /> : "توثيق الحساب الآن"}
+            {isSaving ? (
+              <Loader2 className="animate-spin h-5 w-5" />
+            ) : (
+              <>
+                <MessageSquare className="h-5 w-5 fill-white/20" />
+                <BadgeCheck className="h-5 w-5" />
+                <span>طلب توثيق الحساب عبر واتساب 🛡️📱</span>
+              </>
+            )}
           </Button>
         </div>
       )}
@@ -812,6 +867,30 @@ export default function ProfileForm() {
             }}>
               {t.continueAttempt}
             </AlertDialogCancel>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={showVerificationSentDialog} onOpenChange={setShowVerificationSentDialog}>
+        <AlertDialogContent className="max-w-md text-right" dir="rtl">
+          <AlertDialogHeader className="text-right">
+            <div className="mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-full bg-blue-500/10 text-blue-500 shadow-inner">
+              <BadgeCheck className="h-8 w-8" />
+            </div>
+            <AlertDialogTitle className="text-2xl font-bold font-headline text-center">
+              تم إرسال طلب التوثيق بنجاح! 🎉
+            </AlertDialogTitle>
+            <AlertDialogDescription className="text-center text-sm text-muted-foreground mt-2 leading-relaxed">
+              سيقوم فريق إدارة <strong>سوق العرب</strong> بمراجعة بياناتك والتواصل معك عبر واتساب لتأكيد وتفعيل شارة التوثيق الزرقاء 🛡️ لحسابك خلال 24 ساعة.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter className="sm:justify-center mt-4">
+            <AlertDialogAction 
+              onClick={() => setShowVerificationSentDialog(false)}
+              className="w-full sm:w-auto px-8 bg-blue-600 hover:bg-blue-700 font-bold rounded-xl h-11"
+            >
+              حسناً، فهمت
+            </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
