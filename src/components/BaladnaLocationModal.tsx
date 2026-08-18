@@ -14,6 +14,18 @@ import { Input } from '@/components/ui/input';
 import { MapPin, LocateFixed, Loader2, Check, Sparkles, AlertCircle } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
+import {
+  BALADNA_STORAGE_KEY,
+  BALADNA_COORDS_KEY,
+  getCurrentGpsPosition,
+  reverseGeocodeCoordinates,
+  saveAndSyncLocation,
+  loadSavedLocation,
+  LocationData,
+} from '@/lib/locationEngine';
+import { useAuth } from '@/context/AuthContext';
+
+export { BALADNA_STORAGE_KEY, BALADNA_COORDS_KEY };
 
 interface BaladnaLocationModalProps {
   isOpen: boolean;
@@ -21,118 +33,75 @@ interface BaladnaLocationModalProps {
   onLocationSaved?: (locationName: string) => void;
 }
 
-export const BALADNA_STORAGE_KEY = 'arb_soq_my_balad_name';
-export const BALADNA_COORDS_KEY = 'arb_soq_my_balad_coords';
-
 export default function BaladnaLocationModal({
   isOpen,
   onClose,
   onLocationSaved,
 }: BaladnaLocationModalProps) {
   const { toast } = useToast();
+  const { user } = useAuth();
   const router = useRouter();
   const [cityName, setCityName] = useState('');
   const [coords, setCoords] = useState<{ lat: number; lng: number } | null>(null);
   const [isDetecting, setIsDetecting] = useState(false);
   const [detectedDetails, setDetectedDetails] = useState<string | null>(null);
+  const [latestLocationData, setLatestLocationData] = useState<LocationData | null>(null);
 
   useEffect(() => {
     if (isOpen) {
-      const saved = localStorage.getItem(BALADNA_STORAGE_KEY) || '';
-      const savedCoords = localStorage.getItem(BALADNA_COORDS_KEY);
-      setCityName(saved);
-      if (savedCoords) {
-        try {
-          setCoords(JSON.parse(savedCoords));
-        } catch {
-          setCoords(null);
+      const saved = loadSavedLocation();
+      if (saved) {
+        setLatestLocationData(saved);
+        setCityName(saved.village || saved.city || saved.fullAddress || '');
+        if (saved.latitude && saved.longitude) {
+          setCoords({ lat: saved.latitude, lng: saved.longitude });
         }
+      } else {
+        const legacy = localStorage.getItem(BALADNA_STORAGE_KEY) || '';
+        setCityName(legacy);
       }
       setDetectedDetails(null);
     }
   }, [isOpen]);
 
-  const handleDetectGPS = () => {
-    if (!navigator.geolocation) {
-      toast({
-        title: 'غير مدعوم',
-        description: 'جهازك لا يدعم تحديد الموقع عبر GPS.',
-        variant: 'destructive',
-      });
-      return;
-    }
-
+  const handleDetectGPS = async () => {
     setIsDetecting(true);
     setDetectedDetails(null);
 
-    navigator.geolocation.getCurrentPosition(
-      async (pos) => {
-        const { latitude, longitude } = pos.coords;
-        setCoords({ lat: latitude, lng: longitude });
+    try {
+      // 1. تحديد موقع الـ GPS بأعلى دقة
+      const gps = await getCurrentGpsPosition();
+      setCoords({ lat: gps.latitude, lng: gps.longitude });
 
-        try {
-          // جلب اسم القرية / الحي / المدينة الدقيق بالعربية
-          const res = await fetch(
-            `https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${latitude}&longitude=${longitude}&localityLanguage=ar`
-          );
-          const data = await res.json();
+      // 2. تطبيق خوارزمية أندرويد الدقيقة
+      const geocoded = await reverseGeocodeCoordinates(
+        gps.latitude,
+        gps.longitude,
+        gps.accuracy
+      );
+      setLatestLocationData(geocoded);
 
-          const locality = data.locality || data.city || '';
-          const subDiv = data.principalSubdivision || '';
-          const country = data.countryName || '';
+      const bestName =
+        geocoded.village || geocoded.city || geocoded.governorate || 'موقعي الحالي';
+      setCityName(bestName);
+      setDetectedDetails(geocoded.fullAddress);
 
-          // أفضل اسم للقرية أو المدينة
-          const bestName = locality || subDiv || country || 'موقعي الحالي';
-          setCityName(bestName);
-
-          const fullDetails = [locality, subDiv, country].filter(Boolean).join('، ');
-          setDetectedDetails(fullDetails);
-
-          toast({
-            title: 'تم تحديد موقع الـ GPS بنجاح 🛰️',
-            description: `تم التعرف على: ${fullDetails}`,
-          });
-        } catch (e) {
-          // محاولة عبر OpenStreetMap
-          try {
-            const osmRes = await fetch(
-              `https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}&accept-language=ar`
-            );
-            const osmData = await osmRes.json();
-            const addr = osmData.address || {};
-            const local = addr.village || addr.hamlet || addr.suburb || addr.town || addr.city || addr.state || '';
-            if (local) {
-              setCityName(local);
-              setDetectedDetails(osmData.display_name || local);
-            }
-          } catch {
-            setCityName('موقعي الحالي');
-          }
-        } finally {
-          setIsDetecting(false);
-        }
-      },
-      (error) => {
-        setIsDetecting(false);
-        let msg = 'تعذر قراءة إشارة الـ GPS. تأكد من تفعيل الموقع (GPS) في هاتفك.';
-        if (error.code === 1) {
-          msg = 'يرجى إعطاء صلاحية الموقع (GPS) للتطبيق لتحديد بلدك بدقة.';
-        } else if (error.code === 2) {
-          msg = 'إشارة الـ GPS غير متوفرة حالياً، يرجى التواجد في مكان مفتوح أو تفعيل الموقع.';
-        } else if (error.code === 3) {
-          msg = 'استغرق البحث عن إشارة GPS وقتاً طويلاً، يرجى المحاولة مجدداً.';
-        }
-        toast({
-          title: 'تنبيه الـ GPS',
-          description: msg,
-          variant: 'destructive',
-        });
-      },
-      { enableHighAccuracy: true, timeout: 20000, maximumAge: 0 }
-    );
+      toast({
+        title: 'تم تحديد موقعك بدقة 🛰️',
+        description: `تم التعرف على: ${geocoded.fullAddress}`,
+      });
+    } catch (err: any) {
+      toast({
+        title: 'تنبيه الـ GPS',
+        description: err?.message || 'تعذر تحديد الموقع تلقائياً.',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsDetecting(false);
+    }
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
     const trimmed = cityName.trim();
     if (!trimmed) {
       toast({
@@ -143,13 +112,28 @@ export default function BaladnaLocationModal({
       return;
     }
 
-    localStorage.setItem(BALADNA_STORAGE_KEY, trimmed);
-    if (coords) {
-      localStorage.setItem(BALADNA_COORDS_KEY, JSON.stringify(coords));
-    }
+    const payload: LocationData = latestLocationData
+      ? {
+          ...latestLocationData,
+          city: latestLocationData.city || trimmed,
+          village: latestLocationData.village || trimmed,
+          fullAddress: latestLocationData.fullAddress || trimmed,
+          latitude: coords?.lat || latestLocationData.latitude || 0,
+          longitude: coords?.lng || latestLocationData.longitude || 0,
+        }
+      : {
+          village: '',
+          city: trimmed,
+          governorate: '',
+          country: '',
+          fullAddress: trimmed,
+          latitude: coords?.lat || 0,
+          longitude: coords?.lng || 0,
+          scope: 'city',
+          updatedAt: Date.now(),
+        };
 
-    // إشعار التطبيق بالتحديث الفوري
-    window.dispatchEvent(new CustomEvent('baladna-location-changed', { detail: { name: trimmed, coords } }));
+    await saveAndSyncLocation(payload, user?.uid);
 
     toast({
       title: 'تم حفظ بلدك بنجاح ✨',
@@ -241,7 +225,7 @@ export default function BaladnaLocationModal({
           <div className="p-2.5 rounded-lg bg-muted/50 border border-border text-[11.5px] text-muted-foreground flex items-center gap-2">
             <AlertCircle className="w-4 h-4 text-primary shrink-0" />
             <span>
-              💡 <strong>معلومة:</strong> يمكنك في أي وقت الضغط مطولاً على أيقونة <strong>سوق بلدنا</strong> في الشريط السفلي لتغيير موقعك فوراً.
+              💡 <strong>معلومة:</strong> يمكنك أيضاً الدخول على أيقونة <strong>الضبط ⚙️</strong> في الشريط السفلي لضبط الموقع الجغرافي بدقة واختيار النطاق.
             </span>
           </div>
         </div>

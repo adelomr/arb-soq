@@ -267,7 +267,7 @@ export default function RegularVideoPlayer({ ad, onClose, relatedAds, onAdSelect
                     />
                   )}
 
-                  {isDirectVideo && (
+                  {isDirectVideo && ad.videoUrl && (
                     <video
                       ref={videoRef}
                       src={ad.videoUrl}

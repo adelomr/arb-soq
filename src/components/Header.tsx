@@ -196,10 +196,27 @@ export default function Header() {
   }, [user, getUserNotifications]);
 
   useEffect(() => {
-    if (typeof window !== 'undefined' && window.Audio) {
+    if (typeof window !== 'undefined') {
         if (unreadCount > 0 && unreadCount > prevUnreadCountRef.current) {
-            const audio = new Audio('https://cdn.pixabay.com/audio/2022/10/13/audio_a46a6d9197.mp3');
-            audio.play().catch(error => console.error("Error playing notification sound:", error));
+            try {
+              const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
+              if (AudioCtx) {
+                const ctx = new AudioCtx();
+                const osc = ctx.createOscillator();
+                const gain = ctx.createGain();
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(587.33, ctx.currentTime);
+                osc.frequency.setValueAtTime(880, ctx.currentTime + 0.08);
+                gain.gain.setValueAtTime(0.1, ctx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.3);
+                osc.connect(gain);
+                gain.connect(ctx.destination);
+                osc.start();
+                osc.stop(ctx.currentTime + 0.3);
+              }
+            } catch {
+              // Ignore audio context auto-play limitations
+            }
         }
     }
     prevUnreadCountRef.current = unreadCount;

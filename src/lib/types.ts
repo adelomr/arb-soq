@@ -77,6 +77,11 @@ export type Ad = {
   currency?: string; // ISO 4217 currency code e.g. EGP, SAR, USD
   rating?: number; // Rating average for the ad / seller
   reviewCount?: number; // Number of reviews
+  isFeatured?: boolean;
+  featuredTier?: 'silver' | 'gold' | null;
+  featuredAt?: string | null;
+  featuredUntil?: string | null;
+  promotedByAdmin?: boolean;
 };
 
 export type Category = {

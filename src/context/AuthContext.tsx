@@ -59,6 +59,7 @@ interface AuthContextType {
   deleteAd: (userId: string, adId: string, adData: Ad) => Promise<void>;
   getAdsForModeration: (callback: (ads: (Ad & { id: string })[]) => void, setLoading: (loading: boolean) => void) => () => void;
   updateAdStatus: (userId: string, adId: string, status: AdStatus, isStoreProduct: boolean) => Promise<void>;
+  updateAdFeatureTier: (ad: Ad, tier: 'silver' | 'gold' | null, durationDays?: number, notifyUser?: boolean) => Promise<void>;
   getPricingPlans: () => Promise<PricingStructure | null>;
   savePricingPlans: (plans: PricingStructure) => Promise<void>;
   getCategories: () => Promise<Category[]>;
@@ -526,10 +527,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       await fetchUserProfile(googleUser);
       router.push('/');
     } catch (error: any) {
-      if (error.code === 'auth/popup-closed-by-user') {
+      if (
+        error.code === 'auth/popup-closed-by-user' ||
+        error.code === 'auth/cancelled-popup-request'
+      ) {
         return;
       }
-      console.error("خطأ في تسجيل الدخول عبر جوجل: ", error);
+      if (error.code === 'auth/unauthorized-domain') {
+        console.warn("Domain not authorized in Firebase Auth:", window.location.hostname);
+        return;
+      }
+      console.warn("خطأ في تسجيل الدخول عبر جوجل: ", error);
       throw error;
     }
   }, [fetchUserProfile, router]);
@@ -954,6 +962,22 @@ const addAd = useCallback(async (adData: any, imageFiles: File[], user: User, pr
     await deleteDoc(adRef);
 
   }, [getUserStore, storage]);
+
+  const getAdRef = useCallback(async (ad: Ad) => {
+    const isStoreProduct = ad.category === 'store-product';
+    if (isStoreProduct) {
+        const userStore = await getUserStore(ad.userId);
+        if (!userStore) throw new Error("تعذر العثور على متجر لهذا المنتج.");
+        return doc(firestore, 'users', ad.userId, 'store', userStore.id, 'products', ad.id);
+    } else {
+        const topLevelRef = doc(firestore, 'ads', ad.id);
+        const topLevelSnap = await getDoc(topLevelRef);
+        if (topLevelSnap.exists()) {
+            return topLevelRef;
+        }
+        return doc(firestore, 'users', ad.userId, 'ads', ad.id);
+    }
+  }, [getUserStore]);
   
  const updateAdStatus = useCallback(async (userId: string, adId: string, status: AdStatus, isStoreProduct: boolean) => {
     let adRef;
@@ -972,6 +996,53 @@ const addAd = useCallback(async (adData: any, imageFiles: File[], user: User, pr
     }
     await updateDoc(adRef, { status });
  }, [getUserStore]);
+
+  const updateAdFeatureTier = useCallback(async (
+    ad: Ad,
+    tier: 'silver' | 'gold' | null,
+    durationDays: number = 30,
+    notifyUser: boolean = true
+  ) => {
+    const adRef = await getAdRef(ad);
+    const now = new Date();
+
+    if (tier === 'gold' || tier === 'silver') {
+      const featuredUntil = new Date(now.getTime() + durationDays * 24 * 60 * 60 * 1000);
+      const updatePayload: any = {
+        isFeatured: true,
+        isPromoted: true,
+        featuredTier: tier,
+        featuredAt: now.toISOString(),
+        featuredUntil: featuredUntil.toISOString(),
+        promotedByAdmin: true,
+        updatedAt: now.toISOString(),
+      };
+
+      await updateDoc(adRef, updatePayload);
+
+      // Notify owner if required
+      if (notifyUser && ad.userId) {
+        const tierName = tier === 'gold' ? 'الذهبية 🥇' : 'الفضية 🥈';
+        const notifMsg = `تهانينا! قام فريق الإدارة بتمييز إعلانك "${ad.title}" بالباقة ${tierName} لمدة ${durationDays} يوم ليظهر في صدارة الموقع.`;
+        sendNotification(ad.userId, notifMsg, 'private', `/ad/${ad.userId || 'owner'}/${ad.id}`).catch(console.error);
+      }
+    } else {
+      // Remove boost
+      await updateDoc(adRef, {
+        isFeatured: false,
+        isPromoted: false,
+        featuredTier: null,
+        featuredUntil: null,
+        promotedByAdmin: false,
+        updatedAt: now.toISOString(),
+      });
+
+      if (notifyUser && ad.userId) {
+        const notifMsg = `تم تحديث حالة تمييز إعلانك "${ad.title}" إلى إعلان عادي.`;
+        sendNotification(ad.userId, notifMsg, 'private', `/ad/${ad.userId || 'owner'}/${ad.id}`).catch(console.error);
+      }
+    }
+  }, [getAdRef, sendNotification]);
 
   const getUserActiveAdsCount = useCallback(async (userId: string): Promise<number> => {
     try {
@@ -1338,22 +1409,6 @@ const getAds = useCallback((
       return null;
   }, [getUserStore, getUserById]);
 
-  const getAdRef = useCallback(async (ad: Ad) => {
-    const isStoreProduct = ad.category === 'store-product';
-    if (isStoreProduct) {
-        const userStore = await getUserStore(ad.userId);
-        if (!userStore) throw new Error("تعذر العثور على متجر لهذا المنتج.");
-        return doc(firestore, 'users', ad.userId, 'store', userStore.id, 'products', ad.id);
-    } else {
-        const topLevelRef = doc(firestore, 'ads', ad.id);
-        const topLevelSnap = await getDoc(topLevelRef);
-        if (topLevelSnap.exists()) {
-            return topLevelRef;
-        }
-        return doc(firestore, 'users', ad.userId, 'ads', ad.id);
-    }
-  }, [getUserStore]);
-
   const addReview = useCallback(async (sellerId: string, review: Omit<Review, 'id' | 'createdAt'>, ad?: Ad) => {
     const sellerRef = doc(firestore, 'users', sellerId);
     const reviewCollection = collection(sellerRef, 'reviews');
@@ -1603,6 +1658,7 @@ const getAds = useCallback((
     deleteAd,
     getAdsForModeration,
     updateAdStatus,
+    updateAdFeatureTier,
     getPricingPlans,
     savePricingPlans,
     getCategories,

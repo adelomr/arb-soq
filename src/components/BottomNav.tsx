@@ -3,10 +3,11 @@
 import React, { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { Home, LayoutGrid, Plus, MapPin, User, LogIn, Sparkles } from 'lucide-react';
+import { Home, LayoutGrid, Plus, MapPin, User, LogIn, Settings } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import RequireAuthModal from '@/components/RequireAuthModal';
 import BaladnaLocationModal, { BALADNA_STORAGE_KEY } from '@/components/BaladnaLocationModal';
+import SettingsModal from '@/components/SettingsModal';
 import { cn } from '@/lib/utils';
 
 export default function BottomNav() {
@@ -16,6 +17,7 @@ export default function BottomNav() {
   const [unreadCount, setUnreadCount] = useState(0);
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [showLocationModal, setShowLocationModal] = useState(false);
+  const [showSettingsModal, setShowSettingsModal] = useState(false);
   const [authModalMessage, setAuthModalMessage] = useState('يجب تسجيل الدخول حتى تتمكن من إضافة إعلان');
   const [authModalRedirect, setAuthModalRedirect] = useState('/submit');
   const [mounted, setMounted] = useState(false);
@@ -34,7 +36,11 @@ export default function BottomNav() {
     updateSavedBalad();
 
     window.addEventListener('baladna-location-changed', updateSavedBalad);
-    return () => window.removeEventListener('baladna-location-changed', updateSavedBalad);
+    window.addEventListener('arb-soq-location-updated', updateSavedBalad);
+    return () => {
+      window.removeEventListener('baladna-location-changed', updateSavedBalad);
+      window.removeEventListener('arb-soq-location-updated', updateSavedBalad);
+    };
   }, []);
 
   useEffect(() => {
@@ -91,7 +97,7 @@ export default function BottomNav() {
     }, 550); // 550ms للضغطة المطولة
   };
 
-  const handleBaladnaTouchEnd = (e: React.MouseEvent | React.TouchEvent) => {
+  const handleBaladnaTouchEnd = () => {
     if (longPressTimerRef.current) {
       clearTimeout(longPressTimerRef.current);
       longPressTimerRef.current = null;
@@ -119,6 +125,7 @@ export default function BottomNav() {
   const isCategoriesActive = pathname?.startsWith('/categories') || pathname?.startsWith('/category');
   const isAddActive = pathname === '/submit';
   const isBaladnaActive = pathname?.startsWith('/sooq-baladna');
+  const isSettingsActive = showSettingsModal || pathname === '/settings';
   const isAccountActive = pathname?.startsWith('/profile') || pathname?.startsWith('/dashboard') || pathname?.startsWith('/login');
 
   return (
@@ -126,25 +133,25 @@ export default function BottomNav() {
       <nav
         dir="rtl"
         aria-label="شريط التنقل السريع"
-        className="fixed bottom-0 inset-x-0 z-50 md:hidden bg-background/90 backdrop-blur-xl border-t border-border/80 shadow-[0_-4px_25px_rgba(0,0,0,0.08)] dark:shadow-[0_-4px_25px_rgba(0,0,0,0.35)] transition-all duration-300 select-none pb-[max(env(safe-area-inset-bottom,0px),8px)] pt-1.5"
+        className="fixed bottom-0 inset-x-0 z-50 md:hidden bg-background/95 backdrop-blur-xl border-t border-border/80 shadow-[0_-4px_25px_rgba(0,0,0,0.08)] dark:shadow-[0_-4px_25px_rgba(0,0,0,0.4)] transition-all duration-300 select-none pb-[max(env(safe-area-inset-bottom,0px),6px)] pt-1"
       >
-        <div className="max-w-md mx-auto px-3 flex items-center justify-around relative">
+        <div className="max-w-lg mx-auto px-1 flex items-center justify-around relative">
           
           {/* 1. الرئيسية */}
           <Link
             href="/"
             className={cn(
-              "flex flex-col items-center justify-center flex-1 py-1 px-1 rounded-xl transition-all duration-200 group relative",
+              "flex flex-col items-center justify-center flex-1 py-1 px-0.5 rounded-xl transition-all duration-200 group relative",
               isHomeActive ? "text-primary font-bold" : "text-muted-foreground hover:text-foreground active:scale-95"
             )}
           >
-            <div className="relative p-1">
+            <div className="relative p-0.5">
               <Home className={cn("w-5 h-5 transition-transform duration-200", isHomeActive ? "scale-110 stroke-[2.4]" : "group-hover:scale-105")} />
               {isHomeActive && (
                 <span className="absolute -bottom-0.5 left-1/2 -translate-x-1/2 w-1.5 h-1.5 bg-primary rounded-full animate-pulse" />
               )}
             </div>
-            <span className={cn("text-[11px] tracking-tight transition-all duration-200 mt-0.5", isHomeActive ? "font-bold text-primary" : "font-medium")}>
+            <span className={cn("text-[10px] sm:text-[11px] tracking-tight transition-all duration-200 mt-0.5", isHomeActive ? "font-bold text-primary" : "font-medium")}>
               الرئيسية
             </span>
           </Link>
@@ -153,40 +160,40 @@ export default function BottomNav() {
           <Link
             href="/categories"
             className={cn(
-              "flex flex-col items-center justify-center flex-1 py-1 px-1 rounded-xl transition-all duration-200 group relative",
+              "flex flex-col items-center justify-center flex-1 py-1 px-0.5 rounded-xl transition-all duration-200 group relative",
               isCategoriesActive ? "text-primary font-bold" : "text-muted-foreground hover:text-foreground active:scale-95"
             )}
           >
-            <div className="relative p-1">
+            <div className="relative p-0.5">
               <LayoutGrid className={cn("w-5 h-5 transition-transform duration-200", isCategoriesActive ? "scale-110 stroke-[2.4]" : "group-hover:scale-105")} />
               {isCategoriesActive && (
                 <span className="absolute -bottom-0.5 left-1/2 -translate-x-1/2 w-1.5 h-1.5 bg-primary rounded-full animate-pulse" />
               )}
             </div>
-            <span className={cn("text-[11px] tracking-tight transition-all duration-200 mt-0.5", isCategoriesActive ? "font-bold text-primary" : "font-medium")}>
+            <span className={cn("text-[10px] sm:text-[11px] tracking-tight transition-all duration-200 mt-0.5", isCategoriesActive ? "font-bold text-primary" : "font-medium")}>
               الأقسام
             </span>
           </Link>
 
-          {/* 3. زر أضف إعلان (FAB بارز ومميز في المنتصف) */}
-          <div className="flex-1 flex flex-col items-center justify-center relative -top-3">
+          {/* 3. زر أضف إعلان (FAB بارز في المنتصف) */}
+          <div className="flex-1 flex flex-col items-center justify-center relative -top-2.5">
             <button
               onClick={handleAddClick}
               aria-label="أضف إعلان مجاناً"
               className={cn(
-                "relative group flex items-center justify-center w-13 h-13 rounded-full bg-gradient-to-tr from-primary via-primary to-accent text-primary-foreground shadow-lg shadow-primary/35 hover:shadow-primary/50 transition-all duration-300 hover:scale-105 active:scale-90 border-[3px] border-background",
+                "relative group flex items-center justify-center w-12 h-12 rounded-full bg-gradient-to-tr from-primary via-primary to-accent text-primary-foreground shadow-lg shadow-primary/35 hover:shadow-primary/50 transition-all duration-300 hover:scale-105 active:scale-90 border-[3px] border-background",
                 isAddActive && "ring-2 ring-primary ring-offset-2 ring-offset-background"
               )}
             >
-              <Plus className="w-7 h-7 stroke-[2.8] transition-transform duration-300 group-hover:rotate-90" />
+              <Plus className="w-6 h-6 stroke-[2.8] transition-transform duration-300 group-hover:rotate-90" />
               <span className="absolute inset-0 rounded-full bg-white/20 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
             </button>
-            <span className={cn("text-[10.5px] font-bold text-primary tracking-tight mt-0.5", isAddActive && "text-accent")}>
+            <span className={cn("text-[10px] font-bold text-primary tracking-tight mt-0.5", isAddActive && "text-accent")}>
               أضف إعلان
             </span>
           </div>
 
-          {/* 4. سوق بلدنا (مع دعم الضغطة المطولة لتحديد/تغيير البلد) */}
+          {/* 4. سوق بلدنا */}
           <Link
             href="/sooq-baladna"
             onClick={handleBaladnaClick}
@@ -200,11 +207,11 @@ export default function BottomNav() {
             }}
             title={savedBalad ? `سوق بلدنا (${savedBalad}) - اضغط مطولاً لتغيير البلد` : 'سوق بلدنا - اضغط مطولاً لتحديد بلدك'}
             className={cn(
-              "flex flex-col items-center justify-center flex-1 py-1 px-1 rounded-xl transition-all duration-200 group relative",
+              "flex flex-col items-center justify-center flex-1 py-1 px-0.5 rounded-xl transition-all duration-200 group relative",
               isBaladnaActive ? "text-primary font-bold" : "text-muted-foreground hover:text-foreground active:scale-95"
             )}
           >
-            <div className="relative p-1">
+            <div className="relative p-0.5">
               <MapPin className={cn("w-5 h-5 transition-transform duration-200", isBaladnaActive ? "scale-110 stroke-[2.4] text-primary" : "group-hover:scale-105")} />
               {savedBalad && !isBaladnaActive && (
                 <span className="absolute top-0 right-0 w-2 h-2 bg-emerald-500 rounded-full ring-1 ring-background" title={`محدد: ${savedBalad}`} />
@@ -213,21 +220,47 @@ export default function BottomNav() {
                 <span className="absolute -bottom-0.5 left-1/2 -translate-x-1/2 w-1.5 h-1.5 bg-primary rounded-full animate-pulse" />
               )}
             </div>
-            <span className={cn("text-[11px] tracking-tight transition-all duration-200 mt-0.5 truncate max-w-[70px]", isBaladnaActive ? "font-bold text-primary" : "font-medium")}>
+            <span className={cn("text-[10px] sm:text-[11px] tracking-tight transition-all duration-200 mt-0.5 truncate max-w-[58px]", isBaladnaActive ? "font-bold text-primary" : "font-medium")}>
               {savedBalad ? savedBalad : 'سوق بلدنا'}
             </span>
           </Link>
 
-          {/* 5. حسابي / دخول */}
+          {/* 5. الضبط (أيقونة الترس المضافة لفتح ضبط الموقع الجغرافي والإعدادات) */}
+          <button
+            type="button"
+            onClick={() => setShowSettingsModal(true)}
+            aria-label="الضبط"
+            className={cn(
+              "flex flex-col items-center justify-center flex-1 py-1 px-0.5 rounded-xl transition-all duration-200 group relative",
+              isSettingsActive ? "text-primary font-bold" : "text-muted-foreground hover:text-foreground active:scale-95"
+            )}
+          >
+            <div className="relative p-0.5">
+              <Settings
+                className={cn(
+                  "w-5 h-5 transition-transform duration-300",
+                  isSettingsActive ? "scale-110 stroke-[2.4] rotate-90 text-primary" : "group-hover:rotate-45 group-hover:scale-105"
+                )}
+              />
+              {isSettingsActive && (
+                <span className="absolute -bottom-0.5 left-1/2 -translate-x-1/2 w-1.5 h-1.5 bg-primary rounded-full animate-pulse" />
+              )}
+            </div>
+            <span className={cn("text-[10px] sm:text-[11px] tracking-tight transition-all duration-200 mt-0.5", isSettingsActive ? "font-bold text-primary" : "font-medium")}>
+              الضبط
+            </span>
+          </button>
+
+          {/* 6. حسابي / دخول */}
           <Link
             href={isAuthenticated ? "/profile" : "/login?redirectUrl=/profile"}
             onClick={handleAccountClick}
             className={cn(
-              "flex flex-col items-center justify-center flex-1 py-1 px-1 rounded-xl transition-all duration-200 group relative",
+              "flex flex-col items-center justify-center flex-1 py-1 px-0.5 rounded-xl transition-all duration-200 group relative",
               isAccountActive ? "text-primary font-bold" : "text-muted-foreground hover:text-foreground active:scale-95"
             )}
           >
-            <div className="relative p-1">
+            <div className="relative p-0.5">
               {isAuthenticated ? (
                 <User className={cn("w-5 h-5 transition-transform duration-200", isAccountActive ? "scale-110 stroke-[2.4]" : "group-hover:scale-105")} />
               ) : (
@@ -245,7 +278,7 @@ export default function BottomNav() {
                 <span className="absolute -bottom-0.5 left-1/2 -translate-x-1/2 w-1.5 h-1.5 bg-primary rounded-full animate-pulse" />
               )}
             </div>
-            <span className={cn("text-[11px] tracking-tight transition-all duration-200 mt-0.5", isAccountActive ? "font-bold text-primary" : "font-medium")}>
+            <span className={cn("text-[10px] sm:text-[11px] tracking-tight transition-all duration-200 mt-0.5", isAccountActive ? "font-bold text-primary" : "font-medium")}>
               {isAuthenticated ? 'حسابي' : 'دخول'}
             </span>
           </Link>
@@ -265,6 +298,13 @@ export default function BottomNav() {
       <BaladnaLocationModal
         isOpen={showLocationModal}
         onClose={() => setShowLocationModal(false)}
+      />
+
+      {/* نافذة ضبط التطبيق والموقع الجغرافي الاحترافية */}
+      <SettingsModal
+        isOpen={showSettingsModal}
+        onClose={() => setShowSettingsModal(false)}
+        defaultTab="location"
       />
     </>
   );

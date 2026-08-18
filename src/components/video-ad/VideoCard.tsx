@@ -345,7 +345,7 @@ export default function VideoCard({ ad, isActive, isMuted, onToggleMute }: Video
       )}
 
       {/* Direct Video */}
-      {isDirectVideo && !videoError && (
+      {isDirectVideo && !videoError && ad.videoUrl && (
         <video
           ref={videoRef}
           src={ad.videoUrl}

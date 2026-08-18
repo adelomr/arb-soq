@@ -11,7 +11,14 @@ export default function GoogleOneTap() {
 
   useEffect(() => {
     // Only run on client-side, when user is not logged in and auth finished loading
-    if (loading || user) return;
+    if (loading || user || typeof window === 'undefined') return;
+
+    // Skip on local network IP addresses in development to avoid GSI origin warning
+    const hostname = window.location.hostname;
+    const isLocalIp = /^(?:[0-9]{1,3}\.){3}[0-9]{1,3}$/.test(hostname);
+    if (isLocalIp) {
+      return;
+    }
 
     // Load Google Identity Services script if not already loaded
     const scriptId = 'google-gsi-client';
@@ -31,15 +38,16 @@ export default function GoogleOneTap() {
   }, [user, loading]);
 
   useEffect(() => {
-    if (!scriptLoaded || user || loading) return;
+    if (!scriptLoaded || user || loading || typeof window === 'undefined') return;
 
-    const clientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID;
-    if (!clientId) {
-      console.warn(
-        'Google One Tap: NEXT_PUBLIC_GOOGLE_CLIENT_ID is not configured in environment variables.'
-      );
+    const hostname = window.location.hostname;
+    const isLocalIp = /^(?:[0-9]{1,3}\.){3}[0-9]{1,3}$/.test(hostname);
+    if (isLocalIp) {
       return;
     }
+
+    const clientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID;
+    if (!clientId) return;
 
     try {
       const handleCredentialResponse = async (response: any) => {
@@ -47,7 +55,7 @@ export default function GoogleOneTap() {
           const credential = GoogleAuthProvider.credential(response.credential);
           await signInWithCredential(auth, credential);
         } catch (err) {
-          console.error('Google One Tap Sign-In Error:', err);
+          console.warn('Google One Tap Sign-In Error:', err);
         }
       };
 
@@ -56,7 +64,7 @@ export default function GoogleOneTap() {
       window.google?.accounts.id.initialize({
         client_id: clientId,
         callback: handleCredentialResponse,
-        auto_select: false, // Don't log in automatically without consent
+        auto_select: false,
         itp_support: true,
       });
 
@@ -64,13 +72,13 @@ export default function GoogleOneTap() {
       // @ts-ignore
       window.google?.accounts.id.prompt((notification) => {
         if (notification.isNotDisplayed()) {
-          console.log('One Tap prompt is not displayed:', notification.getNotDisplayedReason());
+          // Logged silently
         } else if (notification.isSkippedMoment()) {
-          console.log('One Tap prompt skipped:', notification.getSkippedReason());
+          // Logged silently
         }
       });
     } catch (error) {
-      console.error('Error initializing Google One Tap:', error);
+      // Ignored in dev
     }
   }, [scriptLoaded, user, loading]);
 

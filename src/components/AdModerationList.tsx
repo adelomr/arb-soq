@@ -22,8 +22,12 @@ import {
   Activity,
   Search,
   Filter,
-  Tag,
-  RotateCcw
+  RotateCcw,
+  Crown,
+  Sparkles,
+  Zap,
+  Clock,
+  Tag
 } from 'lucide-react';
 import { useLanguage } from '@/context/LanguageContext';
 import { useToast } from '@/hooks/use-toast';
@@ -58,6 +62,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import AdForm from '@/components/AdForm';
+import AdminFeatureAdDialog from '@/components/AdminFeatureAdDialog';
 
 const translations = {
   ar: {
@@ -164,6 +169,7 @@ export default function AdModerationList() {
   const [currentAction, setCurrentAction] = useState<ActionType | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<AdWithId | null>(null);
   const [editTarget, setEditTarget] = useState<AdWithId | null>(null);
+  const [featureTarget, setFeatureTarget] = useState<AdWithId | null>(null);
 
   // Filter and Search States
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
@@ -308,6 +314,9 @@ export default function AdModerationList() {
     if (selectedStatus !== 'all') {
       if (selectedStatus === 'needs_update') {
         if (!checkNeedsCategoryUpdate(ad, categories)) return false;
+      } else if (selectedStatus === 'featured') {
+        const isBoostActive = (ad.isFeatured || ad.isPromoted) && (!ad.featuredUntil || new Date(ad.featuredUntil) > new Date());
+        if (!isBoostActive) return false;
       } else if (ad.status !== selectedStatus) {
         return false;
       }
@@ -452,6 +461,7 @@ export default function AdModerationList() {
               </span>
               {[
                 { id: 'all', label: 'الكل', count: ads.length },
+                { id: 'featured', label: 'المميزة ⭐', count: ads.filter(a => (a.isFeatured || a.isPromoted) && (!a.featuredUntil || new Date(a.featuredUntil) > new Date())).length },
                 { id: 'active', label: 'نشط', count: ads.filter(a => a.status === 'active').length },
                 { id: 'pending', label: 'قيد المراجعة', count: ads.filter(a => a.status === 'pending').length },
                 { id: 'rejected', label: 'موقوف', count: ads.filter(a => a.status === 'rejected').length },
@@ -564,9 +574,37 @@ export default function AdModerationList() {
 
                           {/* Status Cell */}
                           <TableCell className="hidden sm:table-cell">
-                            <div className="flex flex-col gap-1">
+                            <div className="flex flex-col gap-1.5 items-start">
                               {getStatusBadge(ad.status)}
-                              {ad.isPromoted && <Badge className="mt-1">{t.promoted}</Badge>}
+                              {((ad.isFeatured || ad.isPromoted) && (!ad.featuredUntil || new Date(ad.featuredUntil) > new Date())) ? (
+                                <Badge 
+                                  variant="secondary" 
+                                  className={cn(
+                                    "text-2xs font-bold gap-1 px-1.5 py-0.5 shadow-sm",
+                                    ad.featuredTier === 'gold'
+                                      ? "bg-amber-500/15 text-amber-700 dark:text-amber-300 border border-amber-500/40"
+                                      : "bg-blue-500/15 text-blue-700 dark:text-blue-300 border border-blue-500/40"
+                                  )}
+                                >
+                                  {ad.featuredTier === 'gold' ? (
+                                    <>
+                                      <Crown className="h-3 w-3 text-amber-500" />
+                                      <span>باقة ذهبية 🥇</span>
+                                    </>
+                                  ) : (
+                                    <>
+                                      <Sparkles className="h-3 w-3 text-blue-500" />
+                                      <span>باقة فضية 🥈</span>
+                                    </>
+                                  )}
+                                </Badge>
+                              ) : null}
+                              {ad.featuredUntil && new Date(ad.featuredUntil) > new Date() && (
+                                <span className="text-[10px] text-muted-foreground flex items-center gap-0.5">
+                                  <Clock className="h-2.5 w-2.5" />
+                                  <span>متبقي {Math.max(0, Math.ceil((new Date(ad.featuredUntil).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24)))} يوم</span>
+                                </span>
+                              )}
                             </div>
                           </TableCell>
 
@@ -578,6 +616,30 @@ export default function AdModerationList() {
                           {/* Actions Cell */}
                           <TableCell>
                             <div className="flex items-center justify-center gap-1.5">
+                              {/* زر تمييز وترقية الإعلان */}
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => setFeatureTarget(ad)}
+                                disabled={updatingId === ad.id}
+                                className={cn(
+                                  "h-8 px-2.5 text-xs font-bold gap-1 transition-all",
+                                  ((ad.isFeatured || ad.isPromoted) && (!ad.featuredUntil || new Date(ad.featuredUntil) > new Date()))
+                                    ? (ad.featuredTier === 'gold'
+                                        ? "bg-amber-500/15 text-amber-700 dark:text-amber-300 border-amber-500/50 hover:bg-amber-500/25"
+                                        : "bg-blue-500/15 text-blue-700 dark:text-blue-300 border-blue-500/50 hover:bg-blue-500/25")
+                                    : "text-amber-600 dark:text-amber-400 border-amber-500/40 hover:bg-amber-500/10"
+                                )}
+                                title="ترقية وتمييز الإعلان (الباقة الذهبية / الفضية)"
+                              >
+                                {ad.featuredTier === 'gold' ? (
+                                  <Crown className="h-3.5 w-3.5 text-amber-500" />
+                                ) : (
+                                  <Sparkles className="h-3.5 w-3.5 text-amber-500" />
+                                )}
+                                <span>تمييز</span>
+                              </Button>
+
                               {/* زر السجل المباشر */}
                               <Button asChild size="sm" variant="outline" className="h-8 px-2.5 text-xs font-semibold gap-1 text-primary border-primary/30 hover:bg-primary/10 hover:text-primary">
                                 <Link href={`/ad/${ad.userId || 'owner'}/${ad.id}/log`}>
@@ -725,6 +787,16 @@ export default function AdModerationList() {
           )}
         </DialogContent>
       </Dialog>
+
+      {/* Admin Feature / Boost Ad Dialog */}
+      <AdminFeatureAdDialog
+        ad={featureTarget}
+        open={!!featureTarget}
+        onOpenChange={(open) => { if (!open) setFeatureTarget(null); }}
+        onSuccess={() => {
+          getAdsForModeration(setAds, setLoading);
+        }}
+      />
     </>
   );
 }

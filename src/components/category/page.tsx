@@ -98,9 +98,20 @@ export default function CategoryPage() {
 
       // Fetch ads
       if (categoriesForAdFetch.length > 0) {
-        setAdsLoading(true);
+        const isBoostActive = (ad: any) => (ad.isFeatured || ad.isPromoted) && (!ad.featuredUntil || new Date(ad.featuredUntil) > new Date());
         const unsubscribe = getAds({ market: market.id, status: 'active', categories: categoriesForAdFetch }, (fetchedAds) => {
-          setAdsInCategory(fetchedAds);
+          const sorted = [...fetchedAds].sort((a: any, b: any) => {
+            const aBoost = isBoostActive(a);
+            const bBoost = isBoostActive(b);
+            if (aBoost && !bBoost) return -1;
+            if (!aBoost && bBoost) return 1;
+            if (aBoost && bBoost) {
+              if (a.featuredTier === 'gold' && b.featuredTier !== 'gold') return -1;
+              if (a.featuredTier !== 'gold' && b.featuredTier === 'gold') return 1;
+            }
+            return new Date(b.postedAt || b.createdAt || 0).getTime() - new Date(a.postedAt || a.createdAt || 0).getTime();
+          });
+          setAdsInCategory(sorted);
           setAdsLoading(false);
         });
         return () => unsubscribe();
