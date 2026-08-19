@@ -27,10 +27,20 @@ import {
   PlusCircle,
   Sparkles,
   Check,
+  Facebook,
+  Twitter,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 
 import { DEMO_GULF_STORE, DEMO_GULF_PRODUCTS } from '@/lib/demo-gulf-store';
+
+const WhatsappShareIcon = () => (
+  <svg role="img" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="currentColor">
+    <path d="M17.472 14.382c-.022-.08-.115-.188-.417-.329-.3-.14-1.778-.877-2.037-.972-.26-.095-.448-.142-.642.148-.193.29-.749.972-.919 1.162-.17.19-.34.21-.641.07-.3-.14-1.272-.468-2.423-1.493-.895-.8-1.5-1.787-1.675-2.09-.175-.3-.018-.463.132-.613.136-.135.3-.35.45-.524.15-.175.2-.292.3-.487.1-.197.05-.369-.025-.51-.07-.14-.642-1.547-.882-2.128-.233-.564-.47-.488-.642-.496-.166-.008-.356-.01-.546-.01-.19 0-.5.07-.76.357-.26.29-1 .975-1 2.378 0 1.4 1.01 2.75 1.15 2.94.14.19 1.98 3.03 4.8 4.24.67.29 1.2.46 1.61.59.67.21 1.28.18 1.76.11.53-.08 1.63-.67 1.86-1.32.23-.65.23-1.2.16-1.32-.07-.12-.26-.19-.56-.33zM12.002 2c-5.523 0-10 4.477-10 10 0 1.778.463 3.507 1.345 5.032L2 22l5.132-1.347c1.472.8 3.12 1.222 4.87 1.222 5.523 0 10-4.477 10-10s-4.477-10-10-10z"/>
+  </svg>
+);
+
 
 export default function StoreClient({ storeId }: { storeId: string }) {
   const { toast } = useToast();
@@ -122,18 +132,9 @@ export default function StoreClient({ storeId }: { storeId: string }) {
     window.open(`https://wa.me/${phone.replace(/[^0-9]/g, '')}?text=${text}`, '_blank');
   };
 
-  const handleShareStore = () => {
-    if (navigator.share) {
-      navigator.share({
-        title: storeData?.store?.storeName || 'متجر دار الشيخة',
-        text: 'تسوقي أرقى العبايات والجلابيات الخليجية عبر سوق العرب',
-        url: window.location.href,
-      });
-    } else {
-      navigator.clipboard.writeText(window.location.href);
-      toast({ title: 'تم نسخ رابط المتجر بنجاح 📋' });
-    }
-  };
+  const [shareOpen, setShareOpen] = useState(false);
+
+  const getShareUrl = () => typeof window !== 'undefined' ? window.location.href : '';
 
   if (loading) {
     return (
@@ -220,14 +221,55 @@ export default function StoreClient({ storeId }: { storeId: string }) {
                   <MessageCircle className="w-4 h-4" />
                   <span>تواصل واتساب</span>
                 </Button>
-                <Button
-                  onClick={handleShareStore}
-                  variant="secondary"
-                  className="bg-white/20 hover:bg-white/30 backdrop-blur-md text-white font-bold text-xs sm:text-sm h-10 px-3.5 rounded-xl gap-1.5 border border-white/20"
-                >
-                  <Share2 className="w-4 h-4" />
-                  <span className="hidden sm:inline">مشاركة</span>
-                </Button>
+
+                {/* زر المشاركة مع قائمة منسدلة */}
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button
+                      variant="secondary"
+                      className="bg-white/20 hover:bg-white/30 backdrop-blur-md text-white font-bold text-xs sm:text-sm h-10 px-3.5 rounded-xl gap-1.5 border border-white/20"
+                    >
+                      <Share2 className="w-4 h-4" />
+                      <span className="hidden sm:inline">مشاركة</span>
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="text-right min-w-[150px]">
+                    <DropdownMenuItem asChild>
+                      <a
+                        href={`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(getShareUrl())}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex items-center gap-2 cursor-pointer justify-end"
+                      >
+                        <span>فيسبوك</span>
+                        <Facebook className="h-4 w-4 text-blue-600" />
+                      </a>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem asChild>
+                      <a
+                        href={`https://twitter.com/intent/tweet?url=${encodeURIComponent(getShareUrl())}&text=${encodeURIComponent(storeData?.store?.storeName || 'متجر سوق العرب')}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex items-center gap-2 cursor-pointer justify-end"
+                      >
+                        <span>تويتر / X</span>
+                        <Twitter className="h-4 w-4" />
+                      </a>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem asChild>
+                      <a
+                        href={`https://api.whatsapp.com/send?text=${encodeURIComponent(storeData?.store?.storeName || 'متجر سوق العرب')}%20${encodeURIComponent(getShareUrl())}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex items-center gap-2 cursor-pointer justify-end"
+                      >
+                        <span>واتساب</span>
+                        <WhatsappShareIcon />
+                      </a>
+                    </DropdownMenuItem>
+
+                  </DropdownMenuContent>
+                </DropdownMenu>
               </div>
             </div>
           </div>

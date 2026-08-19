@@ -6,6 +6,12 @@ import ContactForm from '@/components/ContactForm';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 
+const WhatsAppIcon = () => (
+  <svg role="img" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="currentColor">
+    <path d="M17.472 14.382c-.022-.08-.115-.188-.417-.329-.3-.14-1.778-.877-2.037-.972-.26-.095-.448-.142-.642.148-.193.29-.749.972-.919 1.162-.17.19-.34.21-.641.07-.3-.14-1.272-.468-2.423-1.493-.895-.8-1.5-1.787-1.675-2.09-.175-.3-.018-.463.132-.613.136-.135.3-.35.45-.524.15-.175.2-.292.3-.487.1-.197.05-.369-.025-.51-.07-.14-.642-1.547-.882-2.128-.233-.564-.47-.488-.642-.496-.166-.008-.356-.01-.546-.01-.19 0-.5.07-.76.357-.26.29-1 .975-1 2.378 0 1.4 1.01 2.75 1.15 2.94.14.19 1.98 3.03 4.8 4.24.67.29 1.2.46 1.61.59.67.21 1.28.18 1.76.11.53-.08 1.63-.67 1.86-1.32.23-.65.23-1.2.16-1.32-.07-.12-.26-.19-.56-.33zM12.002 2c-5.523 0-10 4.477-10 10 0 1.778.463 3.507 1.345 5.032L2 22l5.132-1.347c1.472.8 3.12 1.222 4.87 1.222 5.523 0 10-4.477 10-10s-4.477-10-10-10z"/>
+  </svg>
+);
+
 interface ContactPageClientProps {
   title: string;
   content: string;
@@ -65,6 +71,19 @@ export default function ContactPageClient({ title, content }: ContactPageClientP
           ))}
         </CardContent>
       </Card>
+
+      {/* زر واتساب المباشر */}
+      <div className="max-w-2xl mx-auto mt-4" dir="rtl">
+        <a
+          href="https://wa.me/201003975823"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="flex items-center justify-center gap-3 w-full p-4 rounded-xl bg-[#25D366] hover:bg-[#1EBE5D] text-white font-bold text-base transition-all duration-200 shadow-md hover:shadow-lg hover:scale-[1.01]"
+        >
+          <WhatsAppIcon />
+          <span>تواصل معنا عبر واتساب</span>
+        </a>
+      </div>
       <style jsx global>{`
         .dynamic-contact-desc p {
           margin-bottom: 0.75rem;

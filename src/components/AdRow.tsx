@@ -145,29 +145,6 @@ function AdRow({ ad }: AdRowProps) {
           <Separator className="my-4"/>
 
           <div className="flex items-center justify-between w-full mt-auto">
-             {typeof navigator !== 'undefined' && typeof navigator.share === 'function' ? (
-                <Button 
-                    variant="ghost" 
-                    size="sm" 
-                    aria-label={t.share}
-                    onClick={async (e) => {
-                        e.preventDefault();
-                        e.stopPropagation();
-                        try {
-                            await navigator.share({
-                                title: ad.title,
-                                text: `${ad.title} - سوق العرب`,
-                                url: adUrl,
-                            });
-                        } catch {
-                            // User closed native share
-                        }
-                    }}
-                >
-                    <Share2 className="w-4 h-4" />
-                    <span className="mx-2">{t.share}</span>
-                </Button>
-             ) : (
               <DropdownMenu modal={false}>
                  <DropdownMenuTrigger asChild>
                       <Button 
@@ -186,7 +163,7 @@ function AdRow({ ad }: AdRowProps) {
                  <DropdownMenuContent onClick={(e) => e.stopPropagation()}>
                      <DropdownMenuItem asChild>
                          <a href={`https://www.facebook.com/sharer/sharer.php?u=${adUrl}`} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 cursor-pointer">
-                             <Facebook className="h-4 w-4" />
+                             <Facebook className="h-4 w-4 text-blue-600" />
                              {t.facebook}
                          </a>
                      </DropdownMenuItem>
@@ -202,9 +179,10 @@ function AdRow({ ad }: AdRowProps) {
                              {t.whatsapp}
                          </a>
                      </DropdownMenuItem>
+
                  </DropdownMenuContent>
               </DropdownMenu>
-             )}
+
             {!!ad.price && Number(ad.price) > 0 && (
                 <div className="flex items-center gap-2">
                   <Tag className="w-5 h-5 text-primary" />
