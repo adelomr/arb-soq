@@ -17,10 +17,25 @@ jobs:
           cache: 'npm'
       - run: npm ci
       - run: npm run build
+      - name: Set Firebase Service Account
+        id: sa
+        env:
+          SA1: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_ARB_SOQ }}
+          SA2: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_ARB_SOOQ }}
+        run: |
+          if [ -n "$SA1" ]; then
+            echo "service_account<<EOF" >> $GITHUB_OUTPUT
+            echo "$SA1" >> $GITHUB_OUTPUT
+            echo "EOF" >> $GITHUB_OUTPUT
+          else
+            echo "service_account<<EOF" >> $GITHUB_OUTPUT
+            echo "$SA2" >> $GITHUB_OUTPUT
+            echo "EOF" >> $GITHUB_OUTPUT
+          fi
       - uses: FirebaseExtended/action-hosting-deploy@v0
         with:
           repoToken: ${{ secrets.GITHUB_TOKEN }}
-          firebaseServiceAccount: '${{ secrets.FIREBASE_SERVICE_ACCOUNT_ARB_SOQ || secrets.FIREBASE_SERVICE_ACCOUNT_ARB_SOOQ }}'
+          firebaseServiceAccount: ${{ steps.sa.outputs.service_account }}
           channelId: live
           projectId: arb-soq
         env:
