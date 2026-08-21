@@ -31,6 +31,7 @@ export default function AdSlot({
   const { adSenseSettings } = useAuth();
   const [placement, setPlacement] = useState<AdPlacement | null>(null);
   const [loading, setLoading] = useState(true);
+  const [isUnfilled, setIsUnfilled] = useState(false);
   const adRef = useRef<HTMLDivElement>(null);
   const impressionTrackedRef = useRef(false);
   const adSensePushedRef = useRef(false);
@@ -84,22 +85,63 @@ export default function AdSlot({
     return () => observer.disconnect();
   }, [placement]);
 
-  // Initialize AdSense script push
+  // Initialize AdSense script push and observe fill status
   useEffect(() => {
-    if (!placement || placement.ad_type !== 'adsense' || !globalAdsEnabled || adSensePushedRef.current) return;
+    if (!placement || placement.ad_type !== 'adsense' || !globalAdsEnabled) return;
 
-    try {
-      if (typeof window !== 'undefined' && window.adsbygoogle) {
-        (window.adsbygoogle = window.adsbygoogle || []).push({});
-        adSensePushedRef.current = true;
+    if (!adSensePushedRef.current) {
+      try {
+        if (typeof window !== 'undefined' && window.adsbygoogle) {
+          (window.adsbygoogle = window.adsbygoogle || []).push({});
+          adSensePushedRef.current = true;
+        }
+      } catch (err) {
+        console.warn(`AdSense push error for ${slotKey}:`, err);
       }
-    } catch (err) {
-      console.warn(`AdSense push error for ${slotKey}:`, err);
     }
+
+    const element = adRef.current;
+    if (!element) return;
+
+    const checkStatus = () => {
+      const ins = element.querySelector('ins.adsbygoogle') as HTMLElement | null;
+      const iframe = element.querySelector('iframe');
+      if (ins) {
+        const status = ins.getAttribute('data-ad-status') || ins.getAttribute('data-adsbygoogle-status');
+        if (status === 'unfilled') {
+          setIsUnfilled(true);
+        }
+      }
+    };
+
+    const observer = new MutationObserver(() => {
+      checkStatus();
+    });
+
+    observer.observe(element, {
+      attributes: true,
+      attributeFilter: ['data-ad-status', 'data-adsbygoogle-status'],
+      childList: true,
+      subtree: true,
+    });
+
+    // Auto-collapse if no ad was returned after timeout
+    const timeout = setTimeout(() => {
+      const ins = element.querySelector('ins.adsbygoogle') as HTMLElement | null;
+      const iframe = element.querySelector('iframe');
+      if (!iframe && (!ins || ins.getAttribute('data-ad-status') !== 'filled')) {
+        setIsUnfilled(true);
+      }
+    }, 4500);
+
+    return () => {
+      observer.disconnect();
+      clearTimeout(timeout);
+    };
   }, [placement, globalAdsEnabled, slotKey]);
 
-  // If ads are globally disabled or loading or no active placement, collapse seamlessly
-  if (!globalAdsEnabled || loading || !placement || !placement.is_active) {
+  // If ads are globally disabled or loading or no active placement or unfilled, collapse seamlessly
+  if (!globalAdsEnabled || loading || !placement || !placement.is_active || isUnfilled) {
     return fallback ? <>{fallback}</> : null;
   }
 
@@ -215,17 +257,14 @@ export default function AdSlot({
     );
   }
 
-  const slotMinHeight = type === 'square' ? '250px' : type === 'in-feed' ? '120px' : '90px';
-
   return (
     <div 
       ref={adRef}
-      className={cn("w-full overflow-hidden text-center", className || "my-4")}
-      style={{ minHeight: slotMinHeight }}
+      className={cn("adslot-container w-full overflow-hidden text-center transition-all duration-300", className || "my-2")}
     >
       <ins
-        className="adsbygoogle"
-        style={{ display: 'block', minHeight: slotMinHeight }}
+        className="adsbygoogle block w-full"
+        style={{ display: 'block' }}
         data-ad-client={clientId}
         data-ad-slot={slotId}
         data-ad-format="auto"

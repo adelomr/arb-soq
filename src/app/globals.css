@@ -489,3 +489,25 @@ footer {
   content-visibility: auto;
   contain-intrinsic-size: 0 400px;
 }
+
+/* Google AdSense: Auto-collapse and hide unfilled / empty ad units */
+ins.adsbygoogle[data-ad-status="unfilled"],
+ins.adsbygoogle[data-adsbygoogle-status="unfilled"] {
+  display: none !important;
+  height: 0 !important;
+  min-height: 0 !important;
+  margin: 0 !important;
+  padding: 0 !important;
+}
+
+.adsbygoogle-container:has(ins.adsbygoogle[data-ad-status="unfilled"]),
+.adslot-container:has(ins.adsbygoogle[data-ad-status="unfilled"]),
+.adsbygoogle-container:has(ins.adsbygoogle[data-adsbygoogle-status="unfilled"]),
+.adslot-container:has(ins.adsbygoogle[data-adsbygoogle-status="unfilled"]) {
+  display: none !important;
+  height: 0 !important;
+  min-height: 0 !important;
+  margin: 0 !important;
+  padding: 0 !important;
+}
+
