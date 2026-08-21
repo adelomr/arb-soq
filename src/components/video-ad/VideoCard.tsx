@@ -74,6 +74,27 @@ export default function VideoCard({ ad, isActive, isMuted, onToggleMute }: Video
   const [videoError, setVideoError] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
   const iframeRef = useRef<HTMLIFrameElement>(null);
+  const touchPosRef = useRef({ x: 0, y: 0, moved: false });
+
+  const handleTouchStart = (e: React.TouchEvent) => {
+    if (e.touches.length > 0) {
+      touchPosRef.current = {
+        x: e.touches[0].clientX,
+        y: e.touches[0].clientY,
+        moved: false,
+      };
+    }
+  };
+
+  const handleTouchMove = (e: React.TouchEvent) => {
+    if (e.touches.length > 0) {
+      const dx = Math.abs(e.touches[0].clientX - touchPosRef.current.x);
+      const dy = Math.abs(e.touches[0].clientY - touchPosRef.current.y);
+      if (dx > 8 || dy > 8) {
+        touchPosRef.current.moved = true;
+      }
+    }
+  };
 
   // 1. ROBUST AD-TYPE DETECTION
   const adTypeRaw = (ad.adType || '').toString().toLowerCase().trim();
@@ -562,7 +583,21 @@ export default function VideoCard({ ad, isActive, isMuted, onToggleMute }: Video
       <div className="absolute right-4 bottom-24 md:relative md:inset-auto md:flex md:flex-col md:items-center md:gap-7 z-50">
 
         {/* Share Button */}
-        <button className="flex flex-col items-center group/btn" onClick={(e) => { e.stopPropagation(); shareAd(); }}>
+        <button 
+          className="flex flex-col items-center group/btn touch-manipulation" 
+          onTouchStart={handleTouchStart}
+          onTouchMove={handleTouchMove}
+          onClick={(e) => { 
+            if (touchPosRef.current.moved) {
+              e.preventDefault();
+              e.stopPropagation();
+              touchPosRef.current.moved = false;
+              return;
+            }
+            e.stopPropagation(); 
+            shareAd(); 
+          }}
+        >
           <div className="w-12 h-12 rounded-full bg-secondary/80 md:bg-neutral-800/90 backdrop-blur-xl flex items-center justify-center mb-1 group-active/btn:scale-90 transition-all border border-white/20 shadow-[0_4px_15px_rgba(0,0,0,0.4)] hover:bg-neutral-700">
             <Share2 className="w-6 h-6 text-foreground md:text-white" />
           </div>
@@ -583,8 +618,16 @@ export default function VideoCard({ ad, isActive, isMuted, onToggleMute }: Video
                             href={user ? `https://wa.me/${formatWhatsAppNumber(phoneNumber)}?text=${encodeURIComponent(`السلام عليكم، أتواصل معك بخصوص إعلانك: "${ad.title}" المعروض على 🏪 منصة سوق العرب 🛍️`)}` : '#'}
                             target={user ? "_blank" : undefined}
                             rel={user ? "noopener noreferrer" : undefined}
-                            className="w-12 h-12 rounded-full bg-[#25D366] flex items-center justify-center shadow-lg border-2 border-white/20 transition-transform active:scale-90 hover:scale-105 cursor-pointer"
+                            className="w-12 h-12 rounded-full bg-[#25D366] flex items-center justify-center shadow-lg border-2 border-white/20 transition-transform active:scale-90 hover:scale-105 cursor-pointer touch-manipulation"
+                            onTouchStart={handleTouchStart}
+                            onTouchMove={handleTouchMove}
                             onClick={(e) => {
+                              if (touchPosRef.current.moved) {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                touchPosRef.current.moved = false;
+                                return;
+                              }
                               e.stopPropagation();
                               if (!user) {
                                 e.preventDefault();
@@ -602,7 +645,15 @@ export default function VideoCard({ ad, isActive, isMuted, onToggleMute }: Video
                     {/* Call Button */}
                     <div className="flex flex-col items-center gap-1 group/call">
                         <button
+                            onTouchStart={handleTouchStart}
+                            onTouchMove={handleTouchMove}
                             onClick={(e) => {
+                                if (touchPosRef.current.moved) {
+                                  e.preventDefault();
+                                  e.stopPropagation();
+                                  touchPosRef.current.moved = false;
+                                  return;
+                                }
                                 e.stopPropagation();
                                 if (!user) {
                                   setAuthModalMessage('يجب تسجيل الدخول حتى تتمكن من الاتصال بالمعلن');
@@ -614,7 +665,7 @@ export default function VideoCard({ ad, isActive, isMuted, onToggleMute }: Video
                                     description: "للاتصال المباشر، يرجى تحميل واستخدام تطبيق سوق العرب متوفر علي متجر بلاي",
                                 });
                             }}
-                            className="w-12 h-12 rounded-full bg-blue-500 flex items-center justify-center shadow-lg border-2 border-white/20 transition-transform active:scale-90 hover:scale-105 cursor-pointer"
+                            className="w-12 h-12 rounded-full bg-blue-500 flex items-center justify-center shadow-lg border-2 border-white/20 transition-transform active:scale-90 hover:scale-105 cursor-pointer touch-manipulation"
                         >
                             <Phone className="w-6 h-6 text-white" />
                         </button>
@@ -624,12 +675,20 @@ export default function VideoCard({ ad, isActive, isMuted, onToggleMute }: Video
                 {/* Main Toggle Button */}
                 <div className="flex flex-col items-center gap-1">
                     <button
+                        onTouchStart={handleTouchStart}
+                        onTouchMove={handleTouchMove}
                         onClick={(e) => {
+                            if (touchPosRef.current.moved) {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              touchPosRef.current.moved = false;
+                              return;
+                            }
                             e.stopPropagation();
                             setIsContactOpen(!isContactOpen);
                         }}
                         className={cn(
-                            "w-14 h-14 rounded-full bg-primary flex items-center justify-center shadow-xl border-2 border-primary-foreground/30 transition-all duration-300 hover:scale-105",
+                            "w-14 h-14 rounded-full bg-primary flex items-center justify-center shadow-xl border-2 border-primary-foreground/30 transition-all duration-300 hover:scale-105 touch-manipulation",
                             isContactOpen ? "rotate-[135deg] bg-neutral-800 border-neutral-600" : ""
                         )}
                     >

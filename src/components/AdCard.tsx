@@ -10,7 +10,7 @@ import { useAuth } from '@/context/AuthContext';
 import { useCart } from '@/context/CartContext';
 import { Button } from './ui/button';
 import { useToast } from '@/hooks/use-toast';
-import { useEffect, useState, memo } from 'react';
+import { useEffect, useState, memo, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { navTranslations } from './Header';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
@@ -78,6 +78,28 @@ function AdCard({ ad, priority = false }: AdCardProps) {
   const [authModalMessage, setAuthModalMessage] = useState('يجب تسجيل الدخول لمشاركة الإعلان');
   const router = useRouter();
   
+  const touchPosRef = useRef({ x: 0, y: 0, moved: false });
+
+  const handleTouchStart = (e: React.TouchEvent) => {
+    if (e.touches.length > 0) {
+      touchPosRef.current = {
+        x: e.touches[0].clientX,
+        y: e.touches[0].clientY,
+        moved: false,
+      };
+    }
+  };
+
+  const handleTouchMove = (e: React.TouchEvent) => {
+    if (e.touches.length > 0) {
+      const dx = Math.abs(e.touches[0].clientX - touchPosRef.current.x);
+      const dy = Math.abs(e.touches[0].clientY - touchPosRef.current.y);
+      if (dx > 8 || dy > 8) {
+        touchPosRef.current.moved = true;
+      }
+    }
+  };
+
   const adUrl = typeof window !== 'undefined' ? `${window.location.origin}/ad/${ad.userId}/${ad.id}` : '';
   const shareText = encodeURIComponent(ad.title);
 
@@ -276,10 +298,18 @@ function AdCard({ ad, priority = false }: AdCardProps) {
                     )}
                     {!user ? (
                       <Button 
-                          className="w-full h-9"
+                          className="w-full h-9 touch-manipulation"
                           variant="outline" 
                           aria-label={t.share}
+                          onTouchStart={handleTouchStart}
+                          onTouchMove={handleTouchMove}
                           onClick={(e) => {
+                              if (touchPosRef.current.moved) {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                touchPosRef.current.moved = false;
+                                return;
+                              }
                               e.preventDefault();
                               e.stopPropagation();
                               setAuthModalMessage('يجب تسجيل الدخول حتى تتمكن من مشاركة الإعلانات');
@@ -293,10 +323,18 @@ function AdCard({ ad, priority = false }: AdCardProps) {
                       <DropdownMenu modal={false}>
                         <DropdownMenuTrigger asChild>
                              <Button 
-                                className="w-full h-9"
+                                className="w-full h-9 touch-manipulation"
                                 variant="outline" 
                                 aria-label={t.share}
+                                onTouchStart={handleTouchStart}
+                                onTouchMove={handleTouchMove}
                                 onClick={(e) => {
+                                    if (touchPosRef.current.moved) {
+                                      e.preventDefault();
+                                      e.stopPropagation();
+                                      touchPosRef.current.moved = false;
+                                      return;
+                                    }
                                     e.preventDefault();
                                     e.stopPropagation();
                                 }}

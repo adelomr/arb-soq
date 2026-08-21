@@ -18,7 +18,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { Button } from './ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { safeParseDate } from '@/lib/utils';
-import { memo, useState } from 'react';
+import { memo, useState, useRef } from 'react';
 import AdPlaceholder from '@/components/AdPlaceholder';
 import RequireAuthModal from '@/components/RequireAuthModal';
 
@@ -53,6 +53,28 @@ function AdRow({ ad }: AdRowProps) {
   const { incrementAdClick, getUserById, user } = useAuth();
   const { toast } = useToast();
   const [showAuthModal, setShowAuthModal] = useState(false);
+  const touchPosRef = useRef({ x: 0, y: 0, moved: false });
+
+  const handleTouchStart = (e: React.TouchEvent) => {
+    if (e.touches.length > 0) {
+      touchPosRef.current = {
+        x: e.touches[0].clientX,
+        y: e.touches[0].clientY,
+        moved: false,
+      };
+    }
+  };
+
+  const handleTouchMove = (e: React.TouchEvent) => {
+    if (e.touches.length > 0) {
+      const dx = Math.abs(e.touches[0].clientX - touchPosRef.current.x);
+      const dy = Math.abs(e.touches[0].clientY - touchPosRef.current.y);
+      if (dx > 8 || dy > 8) {
+        touchPosRef.current.moved = true;
+      }
+    }
+  };
+
   const t = translations.ar;
   const direction = 'rtl';
   const dateLocale = ar;
@@ -136,8 +158,17 @@ function AdRow({ ad }: AdRowProps) {
                 <Button 
                     variant="ghost" 
                     size="sm" 
+                    className="touch-manipulation"
                     aria-label={t.share}
+                    onTouchStart={handleTouchStart}
+                    onTouchMove={handleTouchMove}
                     onClick={(e) => {
+                       if (touchPosRef.current.moved) {
+                         e.preventDefault();
+                         e.stopPropagation();
+                         touchPosRef.current.moved = false;
+                         return;
+                       }
                        e.preventDefault();
                        e.stopPropagation();
                        setShowAuthModal(true);
@@ -152,8 +183,17 @@ function AdRow({ ad }: AdRowProps) {
                         <Button 
                            variant="ghost" 
                            size="sm" 
+                           className="touch-manipulation"
                            aria-label={t.share}
+                           onTouchStart={handleTouchStart}
+                           onTouchMove={handleTouchMove}
                            onClick={(e) => {
+                              if (touchPosRef.current.moved) {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                touchPosRef.current.moved = false;
+                                return;
+                              }
                               e.preventDefault();
                               e.stopPropagation();
                            }}
