@@ -136,6 +136,13 @@ export default function StoreClient({ storeId }: { storeId: string }) {
 
   const getShareUrl = () => typeof window !== 'undefined' ? window.location.href : '';
 
+  const getProductShareUrl = (product: Ad) => {
+    if (typeof window !== 'undefined') {
+      return `${window.location.origin}/ad/${product.userId}/${product.id}`;
+    }
+    return '';
+  };
+
   if (loading) {
     return (
       <div className="flex flex-col min-h-screen bg-background">
@@ -391,6 +398,62 @@ export default function StoreClient({ storeId }: { storeId: string }) {
                         )}
                       </div>
 
+                      {/* زر مشاركة المنتج العائم أعلى يسار الصورة */}
+                      <div className="absolute top-2.5 left-2.5 z-20">
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button
+                              type="button"
+                              size="icon"
+                              variant="secondary"
+                              className="h-8 w-8 rounded-full bg-background/85 hover:bg-background backdrop-blur-md border border-border/60 shadow-md text-foreground/80 hover:text-primary transition-all active:scale-95"
+                              aria-label="مشاركة المنتج"
+                              onClick={(e) => e.stopPropagation()}
+                            >
+                              <Share2 className="w-3.5 h-3.5" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="start" className="text-right min-w-[150px] z-50">
+                            <DropdownMenuItem asChild>
+                              <a
+                                href={`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(getProductShareUrl(product))}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="flex items-center gap-2 cursor-pointer justify-end"
+                                onClick={(e) => e.stopPropagation()}
+                              >
+                                <span>فيسبوك</span>
+                                <Facebook className="h-4 w-4 text-blue-600" />
+                              </a>
+                            </DropdownMenuItem>
+                            <DropdownMenuItem asChild>
+                              <a
+                                href={`https://twitter.com/intent/tweet?url=${encodeURIComponent(getProductShareUrl(product))}&text=${encodeURIComponent(product.title)}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="flex items-center gap-2 cursor-pointer justify-end"
+                                onClick={(e) => e.stopPropagation()}
+                              >
+                                <span>تويتر / X</span>
+                                <Twitter className="h-4 w-4" />
+                              </a>
+                            </DropdownMenuItem>
+                            <DropdownMenuItem asChild>
+                              <a
+                                href={`https://api.whatsapp.com/send?text=${encodeURIComponent(product.title)}%20${encodeURIComponent(getProductShareUrl(product))}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="flex items-center gap-2 cursor-pointer justify-end"
+                                onClick={(e) => e.stopPropagation()}
+                              >
+                                <span>واتساب</span>
+                                <WhatsappShareIcon />
+                              </a>
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </div>
+
                       <div className="absolute bottom-2.5 left-2.5 right-2.5 flex items-center justify-between opacity-0 group-hover:opacity-100 transition-opacity">
                         <Button
                           type="button"
@@ -425,30 +488,86 @@ export default function StoreClient({ storeId }: { storeId: string }) {
                           </span>
                         </div>
 
-                        {/* زر إضافة إلى السلة */}
-                        <Button
-                          type="button"
-                          onClick={() => handleAddToCart(product)}
-                          disabled={isInCart}
-                          className={cn(
-                            "h-9 px-3.5 rounded-xl font-bold text-xs transition-all gap-1.5 shadow-sm",
-                            isInCart
-                              ? "bg-muted text-muted-foreground hover:bg-muted"
-                              : "bg-primary text-primary-foreground hover:bg-primary/90"
-                          )}
-                        >
-                          {isInCart ? (
-                            <>
-                              <Check className="w-3.5 h-3.5 text-primary" />
-                              <span>في السلة</span>
-                            </>
-                          ) : (
-                            <>
-                              <PlusCircle className="w-3.5 h-3.5" />
-                              <span>أضف للسلة</span>
-                            </>
-                          )}
-                        </Button>
+                        <div className="flex items-center gap-1.5">
+                          {/* زر مشاركة إضافي بجانب السلة */}
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button
+                                type="button"
+                                size="icon"
+                                variant="outline"
+                                className="h-9 w-9 rounded-xl border-border/80 text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors shrink-0"
+                                aria-label="مشاركة المنتج"
+                                onClick={(e) => e.stopPropagation()}
+                              >
+                                <Share2 className="w-3.5 h-3.5" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end" className="text-right min-w-[150px] z-50">
+                              <DropdownMenuItem asChild>
+                                <a
+                                  href={`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(getProductShareUrl(product))}`}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="flex items-center gap-2 cursor-pointer justify-end"
+                                  onClick={(e) => e.stopPropagation()}
+                                >
+                                  <span>فيسبوك</span>
+                                  <Facebook className="h-4 w-4 text-blue-600" />
+                                </a>
+                              </DropdownMenuItem>
+                              <DropdownMenuItem asChild>
+                                <a
+                                  href={`https://twitter.com/intent/tweet?url=${encodeURIComponent(getProductShareUrl(product))}&text=${encodeURIComponent(product.title)}`}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="flex items-center gap-2 cursor-pointer justify-end"
+                                  onClick={(e) => e.stopPropagation()}
+                                >
+                                  <span>تويتر / X</span>
+                                  <Twitter className="h-4 w-4" />
+                                </a>
+                              </DropdownMenuItem>
+                              <DropdownMenuItem asChild>
+                                <a
+                                  href={`https://api.whatsapp.com/send?text=${encodeURIComponent(product.title)}%20${encodeURIComponent(getProductShareUrl(product))}`}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="flex items-center gap-2 cursor-pointer justify-end"
+                                  onClick={(e) => e.stopPropagation()}
+                                >
+                                  <span>واتساب</span>
+                                  <WhatsappShareIcon />
+                                </a>
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+
+                          {/* زر إضافة إلى السلة */}
+                          <Button
+                            type="button"
+                            onClick={() => handleAddToCart(product)}
+                            disabled={isInCart}
+                            className={cn(
+                              "h-9 px-3.5 rounded-xl font-bold text-xs transition-all gap-1.5 shadow-sm",
+                              isInCart
+                                ? "bg-muted text-muted-foreground hover:bg-muted"
+                                : "bg-primary text-primary-foreground hover:bg-primary/90"
+                            )}
+                          >
+                            {isInCart ? (
+                              <>
+                                <Check className="w-3.5 h-3.5 text-primary" />
+                                <span>في السلة</span>
+                              </>
+                            ) : (
+                              <>
+                                <PlusCircle className="w-3.5 h-3.5" />
+                                <span>أضف للسلة</span>
+                              </>
+                            )}
+                          </Button>
+                        </div>
                       </div>
                     </CardContent>
                   </Card>
