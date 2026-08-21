@@ -366,13 +366,12 @@ function AdCard({ ad, priority = false }: AdCardProps) {
                         )}
                     </div>
                 ) : (
-                    <div className="flex items-center justify-between mt-2 pt-2 border-t border-border/40">
-                        <span className="text-[11px] text-muted-foreground font-medium">مشاركة</span>
+                    <div className="flex items-center justify-end mt-2 pt-2 border-t border-border/40">
                         {!user ? (
                           <Button 
-                              size="icon"
                               variant="ghost" 
-                              className="h-8 w-8 rounded-full text-muted-foreground hover:text-primary hover:bg-primary/10 touch-manipulation"
+                              size="sm"
+                              className="h-8 px-3 rounded-full text-xs text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors gap-1.5 font-medium touch-manipulation"
                               aria-label={t.share}
                               onTouchStart={handleTouchStart}
                               onTouchMove={handleTouchMove}
@@ -390,14 +389,15 @@ function AdCard({ ad, priority = false }: AdCardProps) {
                               }}
                           >
                               <Share2 className="w-3.5 h-3.5" />
+                              <span>مشاركة</span>
                           </Button>
                         ) : (
                           <DropdownMenu modal={false}>
                             <DropdownMenuTrigger asChild>
                                  <Button 
-                                    size="icon"
                                     variant="ghost" 
-                                    className="h-8 w-8 rounded-full text-muted-foreground hover:text-primary hover:bg-primary/10 touch-manipulation"
+                                    size="sm"
+                                    className="h-8 px-3 rounded-full text-xs text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors gap-1.5 font-medium touch-manipulation"
                                     aria-label={t.share}
                                     onTouchStart={handleTouchStart}
                                     onTouchMove={handleTouchMove}
@@ -413,6 +413,7 @@ function AdCard({ ad, priority = false }: AdCardProps) {
                                     }}
                                 >
                                     <Share2 className="w-3.5 h-3.5" />
+                                    <span>مشاركة</span>
                                 </Button>
                             </DropdownMenuTrigger>
                             <DropdownMenuContent onClick={(e) => e.stopPropagation()}>

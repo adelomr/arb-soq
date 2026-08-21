@@ -157,8 +157,8 @@ function AdRow({ ad }: AdRowProps) {
               {!user ? (
                 <Button 
                     variant="ghost" 
-                    size="icon" 
-                    className="h-8 w-8 rounded-full text-muted-foreground hover:text-primary hover:bg-primary/10 touch-manipulation"
+                    size="sm" 
+                    className="h-8 px-3 rounded-full text-xs text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors gap-1.5 font-medium touch-manipulation"
                     aria-label={t.share}
                     onTouchStart={handleTouchStart}
                     onTouchMove={handleTouchMove}
@@ -174,15 +174,16 @@ function AdRow({ ad }: AdRowProps) {
                        setShowAuthModal(true);
                     }}
                 >
-                    <Share2 className="w-4 h-4" />
+                    <Share2 className="w-3.5 h-3.5" />
+                    <span>{t.share}</span>
                 </Button>
               ) : (
                 <DropdownMenu modal={false}>
                    <DropdownMenuTrigger asChild>
                         <Button 
                            variant="ghost" 
-                           size="icon" 
-                           className="h-8 w-8 rounded-full text-muted-foreground hover:text-primary hover:bg-primary/10 touch-manipulation"
+                           size="sm" 
+                           className="h-8 px-3 rounded-full text-xs text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors gap-1.5 font-medium touch-manipulation"
                            aria-label={t.share}
                            onTouchStart={handleTouchStart}
                            onTouchMove={handleTouchMove}
@@ -197,7 +198,8 @@ function AdRow({ ad }: AdRowProps) {
                               e.stopPropagation();
                            }}
                        >
-                           <Share2 className="w-4 h-4" />
+                           <Share2 className="w-3.5 h-3.5" />
+                           <span>{t.share}</span>
                        </Button>
                    </DropdownMenuTrigger>
                    <DropdownMenuContent onClick={(e) => e.stopPropagation()}>
