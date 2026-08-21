@@ -21,6 +21,36 @@ export default function BottomNav() {
   const [authModalRedirect, setAuthModalRedirect] = useState('/submit');
   const [mounted, setMounted] = useState(false);
   const [savedLocationName, setSavedLocationName] = useState<string>('');
+  const [isNavVisible, setIsNavVisible] = useState(true);
+
+  useEffect(() => {
+    let lastScrollY = window.scrollY;
+    let ticking = false;
+
+    const handleScroll = () => {
+      if (!ticking) {
+        window.requestAnimationFrame(() => {
+          const currentScrollY = window.scrollY;
+          // Always show near the top of the page
+          if (currentScrollY < 50) {
+            setIsNavVisible(true);
+          } else if (currentScrollY > lastScrollY + 10) {
+            // Scrolling down by more than 10px -> hide
+            setIsNavVisible(false);
+          } else if (currentScrollY < lastScrollY - 10) {
+            // Scrolling up by more than 10px -> show
+            setIsNavVisible(true);
+          }
+          lastScrollY = currentScrollY;
+          ticking = false;
+        });
+        ticking = true;
+      }
+    };
+
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
 
   useEffect(() => {
     setMounted(true);
@@ -100,7 +130,10 @@ export default function BottomNav() {
       <nav
         dir="rtl"
         aria-label="شريط التنقل السريع"
-        className="fixed bottom-0 inset-x-0 z-50 md:hidden bg-background/95 backdrop-blur-xl border-t border-border/80 shadow-[0_-4px_25px_rgba(0,0,0,0.08)] dark:shadow-[0_-4px_25px_rgba(0,0,0,0.4)] transition-all duration-300 select-none pb-[max(env(safe-area-inset-bottom,0px),6px)] pt-1"
+        className={cn(
+          "fixed bottom-0 inset-x-0 z-50 md:hidden bg-background/95 backdrop-blur-xl border-t border-border/80 shadow-[0_-4px_25px_rgba(0,0,0,0.08)] dark:shadow-[0_-4px_25px_rgba(0,0,0,0.4)] transition-transform duration-300 ease-in-out select-none pb-[max(env(safe-area-inset-bottom,0px),6px)] pt-1",
+          !isNavVisible && "translate-y-full pointer-events-none"
+        )}
       >
         <div className="max-w-md mx-auto px-2 flex items-center justify-between relative">
           

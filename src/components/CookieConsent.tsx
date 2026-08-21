@@ -3,12 +3,12 @@
 
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
-import { Cookie } from 'lucide-react';
+import { Cookie, X } from 'lucide-react';
 
 const t = {
-    cookieConsent: "يستخدم هذا الموقع ملفات تعريف الارتباط لضمان حصولك على أفضل تجربة.",
+    cookieConsent: "يستخدم هذا الموقع ملفات تعريف الارتباط لضمان حصولك على أفضل تجربة تصفح واستخدام.",
     accept: "موافق",
-}
+};
 
 export default function CookieConsent() {
   const [isVisible, setIsVisible] = useState(false);
@@ -39,14 +39,38 @@ export default function CookieConsent() {
   }
 
   return (
-    <div className="fixed bottom-0 left-0 right-0 bg-background border-t border-border shadow-lg p-4 z-50">
-      <div className="container mx-auto flex flex-col sm:flex-row items-center justify-between gap-4">
-        <div className="flex items-center gap-3 text-sm text-foreground">
-          <Cookie className="h-5 w-5 shrink-0" />
-          <p>{t.cookieConsent}</p>
+    <div 
+      dir="rtl"
+      className="fixed bottom-20 md:bottom-6 inset-x-3 sm:inset-x-auto sm:left-6 sm:max-w-md bg-card/95 backdrop-blur-xl border border-border/90 shadow-2xl rounded-2xl p-4 z-[100] transition-all duration-300 animate-in fade-in slide-in-from-bottom-5"
+    >
+      <div className="flex flex-col gap-3">
+        <div className="flex items-start justify-between gap-3">
+          <div className="flex items-center gap-2.5">
+            <div className="p-2 rounded-xl bg-primary/10 text-primary shrink-0">
+              <Cookie className="h-5 w-5" />
+            </div>
+            <span className="font-bold text-sm text-foreground">ملفات تعريف الارتباط</span>
+          </div>
+          <button 
+            onClick={handleAccept}
+            className="text-muted-foreground hover:text-foreground p-1 rounded-lg hover:bg-muted transition-colors"
+            aria-label="إغلاق"
+          >
+            <X className="h-4 w-4" />
+          </button>
         </div>
-        <Button onClick={handleAccept}>{t.accept}</Button>
+        
+        <p className="text-xs text-muted-foreground leading-relaxed">
+          {t.cookieConsent}
+        </p>
+
+        <div className="flex items-center justify-end gap-2 pt-1">
+          <Button size="sm" onClick={handleAccept} className="w-full sm:w-auto font-medium shadow-sm">
+            {t.accept}
+          </Button>
+        </div>
       </div>
     </div>
   );
 }
+
