@@ -17,21 +17,30 @@ jobs:
           cache: 'npm'
       - run: npm ci
       - run: npm run build
-      - name: Set Firebase Service Account
+      - name: Sanitize and Set Firebase Service Account
         id: sa
         env:
           SA1: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_ARB_SOQ }}
           SA2: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_ARB_SOOQ }}
         run: |
-          if [ -n "$SA1" ]; then
-            echo "service_account<<EOF" >> $GITHUB_OUTPUT
-            echo "$SA1" >> $GITHUB_OUTPUT
-            echo "EOF" >> $GITHUB_OUTPUT
-          else
-            echo "service_account<<EOF" >> $GITHUB_OUTPUT
-            echo "$SA2" >> $GITHUB_OUTPUT
-            echo "EOF" >> $GITHUB_OUTPUT
-          fi
+          node -e '
+            const fs = require("fs");
+            const raw = (process.env.SA1 || process.env.SA2 || "").trim();
+            let parsed;
+            try {
+              parsed = JSON.parse(raw);
+            } catch (e) {
+              const start = raw.indexOf("{");
+              const end = raw.lastIndexOf("}");
+              if (start !== -1 && end !== -1 && end > start) {
+                parsed = JSON.parse(raw.substring(start, end + 1));
+              } else {
+                throw new Error("Could not parse Firebase Service Account JSON: " + e.message);
+              }
+            }
+            const cleanJson = JSON.stringify(parsed);
+            fs.appendFileSync(process.env.GITHUB_OUTPUT, `service_account=${cleanJson}\n`);
+          '
       - uses: FirebaseExtended/action-hosting-deploy@v0
         with:
           repoToken: ${{ secrets.GITHUB_TOKEN }}
