@@ -15,6 +15,7 @@ import { useRouter } from 'next/navigation';
 import { navTranslations } from './Header';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import AdPlaceholder from '@/components/AdPlaceholder';
+import RequireAuthModal from '@/components/RequireAuthModal';
 
 const WhatsappIcon = () => (
     <svg role="img" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="currentColor">
@@ -69,10 +70,12 @@ function AdCard({ ad, priority = false }: AdCardProps) {
   const { market } = useMarket();
   const t = translations.ar;
   const direction = 'rtl';
-  const { getUserById, incrementAdClick } = useAuth();
+  const { getUserById, incrementAdClick, user } = useAuth();
   const { addToCart, cart } = useCart();
   const { toast } = useToast();
   const [adUser, setAdUser] = useState(ad.user);
+  const [showAuthModal, setShowAuthModal] = useState(false);
+  const [authModalMessage, setAuthModalMessage] = useState('يجب تسجيل الدخول لمشاركة الإعلان');
   const router = useRouter();
   
   const adUrl = typeof window !== 'undefined' ? `${window.location.origin}/ad/${ad.userId}/${ad.id}` : '';
@@ -108,6 +111,11 @@ function AdCard({ ad, priority = false }: AdCardProps) {
   const handleAddToCart = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
+    if (!user) {
+      setAuthModalMessage('يجب تسجيل الدخول لإضافة المنتجات إلى السلة');
+      setShowAuthModal(true);
+      return;
+    }
     if(ad){
         addToCart(ad);
     }
@@ -266,46 +274,67 @@ function AdCard({ ad, priority = false }: AdCardProps) {
                             )}
                         </Button>
                     )}
-                    <DropdownMenu modal={false}>
-                      <DropdownMenuTrigger asChild>
-                           <Button 
-                              className="w-full h-9"
-                              variant="outline" 
-                              aria-label={t.share}
-                              onClick={(e) => {
-                                  e.preventDefault();
-                                  e.stopPropagation();
-                              }}
-                          >
-                              <Share2 className={`w-4 h-4 ${!isStoreProduct && (direction === 'rtl' ? 'ml-2' : 'mr-2')}`} />
-                              <span className="mx-2 text-xs">{t.share}</span>
-                          </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent onClick={(e) => e.stopPropagation()}>
-                          <DropdownMenuItem asChild>
-                              <a href={`https://www.facebook.com/sharer/sharer.php?u=${adUrl}`} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 cursor-pointer">
-                                  <Facebook className="h-4 w-4 text-blue-600" />
-                                  {t.facebook}
-                              </a>
-                          </DropdownMenuItem>
-                          <DropdownMenuItem asChild>
-                              <a href={`https://twitter.com/intent/tweet?url=${adUrl}&text=${shareText}`} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 cursor-pointer">
-                                  <Twitter className="h-4 w-4" />
-                                  {t.twitter}
-                              </a>
-                          </DropdownMenuItem>
-                          <DropdownMenuItem asChild>
-                              <a href={`https://api.whatsapp.com/send?text=${shareText}%20${adUrl}`} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 cursor-pointer">
-                                  <WhatsappIcon />
-                                  {t.whatsapp}
-                              </a>
-                          </DropdownMenuItem>
-
-                      </DropdownMenuContent>
-                    </DropdownMenu>
+                    {!user ? (
+                      <Button 
+                          className="w-full h-9"
+                          variant="outline" 
+                          aria-label={t.share}
+                          onClick={(e) => {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              setAuthModalMessage('يجب تسجيل الدخول حتى تتمكن من مشاركة الإعلانات');
+                              setShowAuthModal(true);
+                          }}
+                      >
+                          <Share2 className={`w-4 h-4 ${!isStoreProduct && (direction === 'rtl' ? 'ml-2' : 'mr-2')}`} />
+                          <span className="mx-2 text-xs">{t.share}</span>
+                      </Button>
+                    ) : (
+                      <DropdownMenu modal={false}>
+                        <DropdownMenuTrigger asChild>
+                             <Button 
+                                className="w-full h-9"
+                                variant="outline" 
+                                aria-label={t.share}
+                                onClick={(e) => {
+                                    e.preventDefault();
+                                    e.stopPropagation();
+                                }}
+                            >
+                                <Share2 className={`w-4 h-4 ${!isStoreProduct && (direction === 'rtl' ? 'ml-2' : 'mr-2')}`} />
+                                <span className="mx-2 text-xs">{t.share}</span>
+                            </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent onClick={(e) => e.stopPropagation()}>
+                            <DropdownMenuItem asChild>
+                                <a href={`https://www.facebook.com/sharer/sharer.php?u=${adUrl}`} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 cursor-pointer">
+                                    <Facebook className="h-4 w-4 text-blue-600" />
+                                    {t.facebook}
+                                </a>
+                            </DropdownMenuItem>
+                            <DropdownMenuItem asChild>
+                                <a href={`https://twitter.com/intent/tweet?url=${adUrl}&text=${shareText}`} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 cursor-pointer">
+                                    <Twitter className="h-4 w-4" />
+                                    {t.twitter}
+                                </a>
+                            </DropdownMenuItem>
+                            <DropdownMenuItem asChild>
+                                <a href={`https://api.whatsapp.com/send?text=${shareText}%20${adUrl}`} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 cursor-pointer">
+                                    <WhatsappIcon />
+                                    {t.whatsapp}
+                                </a>
+                            </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    )}
                 </div>
             </CardContent>
         </Card>
+        <RequireAuthModal 
+          isOpen={showAuthModal} 
+          onClose={() => setShowAuthModal(false)} 
+          message={authModalMessage} 
+        />
     </Link>
   );
 }

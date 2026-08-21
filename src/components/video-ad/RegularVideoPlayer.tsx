@@ -14,6 +14,7 @@ import { toast } from '@/hooks/use-toast';
 import { cn, formatWhatsAppNumber } from '@/lib/utils';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import RequireAuthModal from '@/components/RequireAuthModal';
 
 const WhatsAppIcon = () => (
     <svg viewBox="0 0 24 24" fill="currentColor" className="w-5 h-5">

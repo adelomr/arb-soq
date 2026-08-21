@@ -34,6 +34,7 @@ import AdSlot from '@/components/AdSlot';
 import { safeParseDate, cn, formatWhatsAppNumber } from '@/lib/utils';
 import { logAdActivity } from '@/lib/ad-log-service';
 import PromoteAdDialog from '@/components/PromoteAdDialog';
+import RequireAuthModal from '@/components/RequireAuthModal';
 
 const Header = dynamic(() => import('@/components/Header'), { ssr: false });
 const Footer = dynamic(() => import('@/components/Footer'), { ssr: false });
@@ -182,6 +183,8 @@ export default function AdDetailClient({ initialAd }: { initialAd: Ad }) {
   const [ad, setAd] = useState<Ad>(initialAd);
   const [seller, setSeller] = useState<UserProfile | null>(initialAd.user || null);
   const [selectedImageIndex, setSelectedImageIndex] = useState(0);
+  const [showAuthModal, setShowAuthModal] = useState(false);
+  const [authModalMessage, setAuthModalMessage] = useState('يجب تسجيل الدخول للتواصل مع البائع');
   const hasImage = !!(ad.imageUrls && ad.imageUrls.length > 0 && ad.imageUrls[0]);
   const viewIncremented = useRef(false);
 
@@ -205,6 +208,11 @@ export default function AdDetailClient({ initialAd }: { initialAd: Ad }) {
   const isInCart = cart.some(item => item.id === adId);
 
   const handleAddToCart = () => {
+    if (!user) {
+      setAuthModalMessage('يجب تسجيل الدخول لإضافة المنتجات إلى السلة');
+      setShowAuthModal(true);
+      return;
+    }
     if (ad) {
       addToCart(ad);
     }
@@ -252,6 +260,11 @@ export default function AdDetailClient({ initialAd }: { initialAd: Ad }) {
   const effectivePhone = (ad.phoneNumber && ad.phoneNumber.trim()) || seller.phoneNumber || null;
 
   const handleWhatsAppClick = () => {
+    if (!user) {
+      setAuthModalMessage('يجب تسجيل الدخول حتى تتمكن من مراسلة البائع عبر واتساب');
+      setShowAuthModal(true);
+      return;
+    }
     if (effectivePhone) {
       if (ad?.id) {
         logAdActivity(ad.id, 'whatsapp', { userId: user?.uid, sellerUserId: ad.userId || seller?.id });
@@ -533,20 +546,23 @@ export default function AdDetailClient({ initialAd }: { initialAd: Ad }) {
                         ) : (
                             <>
                                 <Button 
-                                    asChild 
                                     className="w-full" 
                                     size="lg" 
                                     disabled={!effectivePhone}
+                                    onClick={() => {
+                                      if (!user) {
+                                        setAuthModalMessage('يجب تسجيل الدخول حتى تتمكن من الاتصال بالبائع');
+                                        setShowAuthModal(true);
+                                        return;
+                                      }
+                                      if (ad?.id) logAdActivity(ad.id, 'call', { userId: user?.uid, sellerUserId: ad.userId || seller?.id });
+                                      if (effectivePhone) {
+                                        window.location.href = `tel:${effectivePhone}`;
+                                      }
+                                    }}
                                 >
-                                    <a 
-                                      href={`tel:${effectivePhone}`} 
-                                      onClick={() => {
-                                        if (ad?.id) logAdActivity(ad.id, 'call', { userId: user?.uid, sellerUserId: ad.userId || seller?.id });
-                                      }}
-                                    >
-                                        <Phone className="mr-2 h-5 w-5" />
-                                        {effectivePhone ? t.callSeller : t.phoneNotAvailable}
-                                    </a>
+                                    <Phone className="mr-2 h-5 w-5" />
+                                    {effectivePhone ? t.callSeller : t.phoneNotAvailable}
                                 </Button>
                                 <Button 
                                     variant="outline" 
@@ -570,6 +586,12 @@ export default function AdDetailClient({ initialAd }: { initialAd: Ad }) {
         </div>
       </main>
       <Footer />
+      <RequireAuthModal 
+        isOpen={showAuthModal} 
+        onClose={() => setShowAuthModal(false)} 
+        message={authModalMessage} 
+        redirectUrl={typeof window !== 'undefined' ? window.location.pathname : '/'}
+      />
     </div>
   );
 }

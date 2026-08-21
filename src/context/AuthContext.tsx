@@ -3,7 +3,7 @@
 'use client';
 
 import { createContext, useContext, useEffect, useState, ReactNode, useCallback, useRef } from 'react';
-import { onAuthStateChanged, User, signInWithEmailAndPassword, signOut, createUserWithEmailAndPassword, GoogleAuthProvider, signInWithPopup, RecaptchaVerifier, signInWithPhoneNumber, ConfirmationResult, sendPasswordResetEmail, verifyPasswordResetCode, confirmPasswordReset, updatePhoneNumber, PhoneAuthProvider, linkWithCredential, PhoneAuthCredential, deleteUser } from 'firebase/auth';
+import { onAuthStateChanged, User, signInWithEmailAndPassword, signOut, createUserWithEmailAndPassword, GoogleAuthProvider, signInWithPopup, signInWithCredential, RecaptchaVerifier, signInWithPhoneNumber, ConfirmationResult, sendPasswordResetEmail, verifyPasswordResetCode, confirmPasswordReset, updatePhoneNumber, PhoneAuthProvider, linkWithCredential, PhoneAuthCredential, deleteUser } from 'firebase/auth';
 import { doc, getDoc, setDoc, updateDoc, collection, getDocs, deleteDoc, addDoc, serverTimestamp, query, where, onSnapshot, orderBy, writeBatch, collectionGroup, QueryConstraint, Query, runTransaction, increment, getCountFromServer, arrayUnion, arrayRemove } from 'firebase/firestore';
 import { ref as dbRef, get, child, set } from "firebase/database";
 import { getStorage } from 'firebase/storage';
@@ -519,6 +519,39 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [fetchUserProfile, router]);
 
   const signInWithGoogle = useCallback(async () => {
+    // 1. Check if running inside the Android Container app with native Google Play Services bridge
+    if (typeof window !== 'undefined' && (window as any).AndroidAuth?.launchGoogleSignIn) {
+      return new Promise<void>((resolve, reject) => {
+        (window as any).onNativeGoogleSignInSuccess = async (idToken: string) => {
+          try {
+            const credential = GoogleAuthProvider.credential(idToken);
+            const userCredential = await signInWithCredential(auth, credential);
+            if (userCredential.user) {
+              await fetchUserProfile(userCredential.user);
+            }
+            router.push('/');
+            resolve();
+          } catch (err: any) {
+            console.error("Native Google sign in Firebase Auth error:", err);
+            reject(err);
+          }
+        };
+
+        (window as any).onNativeGoogleSignInError = (errMsg: string) => {
+          console.warn("Native Google sign in cancelled or error:", errMsg);
+          reject(new Error(errMsg));
+        };
+
+        try {
+          (window as any).AndroidAuth.launchGoogleSignIn();
+        } catch (e) {
+          console.error("Error invoking AndroidAuth.launchGoogleSignIn:", e);
+          reject(e);
+        }
+      });
+    }
+
+    // 2. Standard Web Browser Flow
     const provider = new GoogleAuthProvider();
     try {
       const result = await signInWithPopup(auth, provider);

@@ -17,7 +17,6 @@ import {
   MessageSquare,
   FileText,
   NotebookPen,
-  Mail,
   CreditCard
 } from "lucide-react";
 import { Card, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -34,7 +33,6 @@ import CategoryManager from "@/components/CategoryManager";
 import ContactMessages from "@/components/ContactMessages";
 import PageManager from "@/components/PageManager";
 import TopicManager from "@/components/TopicManager";
-import NewsletterManager from "@/components/NewsletterManager";
 import GoogleAdsSettings from "@/components/GoogleAdsSettings";
 import AdPlacementManager from "@/components/AdPlacementManager";
 import PaymentGatewayManager from "@/components/PaymentGatewayManager";
@@ -73,13 +71,11 @@ const t = {
     createTopicDesc: "كتابة ونشر مقال أو موضوع جديد مباشرة.",
 
     backToDashboard: "العودة إلى لوحة التحكم",
-    newsletterManagement: "إدارة القائمة البريدية",
-    newsletterManagementDesc: "إرسال النشرات البريدية للمشتركين وضبط إعدادات الخدمة.",
     googleAdsSettings: "إدارة المساحات الإعلانية والبنرات",
     googleAdsSettingsDesc: "التحكم في بنرات الموقع وإعلانات جوجل أدسنس والمساحات المخصصة وإحصائياتها.",
 };
 
-type AdminView = 'dashboard' | 'verification-requests' | 'users' | 'notifications' | 'settings' | 'announcement' | 'pricing' | 'categories' | 'messages' | 'pages' | 'topics' | 'create-topic' | 'newsletter' | 'ads-settings' | 'payment-gateway';
+type AdminView = 'dashboard' | 'verification-requests' | 'users' | 'notifications' | 'settings' | 'announcement' | 'pricing' | 'categories' | 'messages' | 'pages' | 'topics' | 'create-topic' | 'ads-settings' | 'payment-gateway';
 
 export default function AdminPage() {
     const { userProfile, loading } = useAuth();
@@ -160,8 +156,6 @@ export default function AdminPage() {
                 return <TopicManager initialView={topicInitialView} />;
             case 'create-topic':
                 return <TopicManager initialView="create" />;
-            case 'newsletter':
-                return <NewsletterManager />;
             case 'ads-settings':
                 return <AdPlacementManager />;
             case 'payment-gateway':
@@ -280,15 +274,6 @@ export default function AdminPage() {
                                     {t.topicManagement}
                                 </CardTitle>
                                 <CardDescription>{t.topicManagementDesc}</CardDescription>
-                            </CardHeader>
-                        </Card>
-                        <Card onClick={() => setView('newsletter')} className="cursor-pointer hover:border-primary hover:shadow-lg transition-all bg-secondary/50 border-primary/20">
-                            <CardHeader>
-                                <CardTitle className="flex items-center gap-3">
-                                    <Mail className="h-6 w-6 text-primary"/>
-                                    {t.newsletterManagement}
-                                </CardTitle>
-                                <CardDescription>{t.newsletterManagementDesc}</CardDescription>
                             </CardHeader>
                         </Card>
                         <Card onClick={() => setView('ads-settings')} className="cursor-pointer hover:border-primary hover:shadow-lg transition-all bg-secondary/50 border-primary/20">

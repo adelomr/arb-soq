@@ -18,8 +18,9 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { Button } from './ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { safeParseDate } from '@/lib/utils';
-import { memo } from 'react';
+import { memo, useState } from 'react';
 import AdPlaceholder from '@/components/AdPlaceholder';
+import RequireAuthModal from '@/components/RequireAuthModal';
 
 
 const WhatsappIcon = () => (
@@ -49,8 +50,9 @@ type AdRowProps = {
 
 function AdRow({ ad }: AdRowProps) {
   const { market } = useMarket();
-  const { incrementAdClick, getUserById } = useAuth();
+  const { incrementAdClick, getUserById, user } = useAuth();
   const { toast } = useToast();
+  const [showAuthModal, setShowAuthModal] = useState(false);
   const t = translations.ar;
   const direction = 'rtl';
   const dateLocale = ar;
@@ -67,55 +69,60 @@ function AdRow({ ad }: AdRowProps) {
   
   const hasImage = ad.imageUrls && ad.imageUrls.length > 0 && ad.imageUrls[0];
 
-  const realRating = ad.rating;
-  const realReviewCount = ad.reviewCount;
-  const hasRealRating = typeof realRating === 'number' && realRating > 0 && typeof realReviewCount === 'number' && realReviewCount > 0;
+  const realRating = (ad as any).rating || 0;
+  const realReviewCount = (ad as any).reviewCount || 0;
+  const hasRealRating = realRating > 0 && realReviewCount > 0;
 
   const effectiveUserId = ad.userId || ad.user?.id || 'owner';
 
   return (
     <Link href={`/ad/${effectiveUserId}/${ad.id}`} className="block group" onClick={() => incrementAdClick(ad)}>
-      <Card className="flex flex-col sm:flex-row overflow-hidden h-full transition-all duration-300 hover:shadow-lg hover:border-primary/50">
-        <div className="sm:w-1/3 md:w-1/4 relative bg-muted overflow-hidden">
-          <div className="aspect-video sm:aspect-square w-full h-full relative">
-             {hasImage ? (
-                <Image
-                    src={ad.imageUrls[0]}
-                    alt={ad.title}
-                    fill
-                    loading="lazy"
-                    decoding="async"
-                    className="object-cover transition-transform duration-500 group-hover:scale-105"
-                    sizes="(max-width: 768px) 100vw, (max-width: 1200px) 30vw, 25vw"
-                />
-              ) : (
-                <AdPlaceholder category={ad.category} iconClassName="h-12 w-12" />
-              )}
-          </div>
+      <Card className="overflow-hidden transition-all duration-300 group-hover:shadow-lg group-hover:border-primary/50 flex flex-col md:flex-row h-full">
+        <div className="md:w-1/3 relative aspect-[4/3] md:aspect-auto">
+          {hasImage ? (
+             <Image
+             src={ad.imageUrls[0]}
+             alt={ad.title}
+             fill
+             sizes="(max-width: 768px) 100vw, 33vw"
+             className="object-cover"
+           />
+          ) : (
+             <AdPlaceholder category={ad.category} />
+          )}
+          {ad.isPromoted && (
+             <Badge variant="destructive" className="absolute top-2 right-2 z-10">
+                 {t.promoted}
+             </Badge>
+          )}
         </div>
-        <div className="p-4 flex flex-col flex-1">
-          <div className="flex justify-between items-start mb-1">
-            <h3 className="text-lg font-bold leading-tight group-hover:text-primary transition-colors text-right w-full">
-              {ad.title}
-            </h3>
-            {ad.isPromoted && (
-              <Badge variant="destructive" className="bg-accent text-accent-foreground text-xs flex-shrink-0">
-                <Star className={`w-3 h-3 ${direction === 'rtl' ? 'ml-1' : 'mr-1'}`}/>
-                {t.promoted}
-              </Badge>
-            )}
+
+        <div className="p-4 flex flex-col justify-between flex-1">
+          <div className="flex items-center justify-between mb-2">
+            <Badge variant="outline">{ad.category}</Badge>
+            <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                 {(ad as any).isService && <Badge variant="secondary" className="gap-1"><Wrench className="w-3 h-3"/>{t.service}</Badge>}
+                 {(ad as any).isRequested && <Badge variant="secondary" className="gap-1"><Handshake className="w-3 h-3"/>{t.requested}</Badge>}
+            </div>
           </div>
 
-          {/* Rating below title — Amazon/Noon style */}
+          <h3 className="font-semibold font-headline text-lg group-hover:text-primary transition-colors line-clamp-1 mb-2">
+            {ad.title}
+          </h3>
+
+          <p className="text-sm text-muted-foreground line-clamp-2 mb-4">
+            {ad.description}
+          </p>
+
           {hasRealRating && (
-            <div className="flex items-center gap-1.5 mb-2">
-              {[1,2,3,4,5].map(i => (
+            <div className="flex items-center gap-1 mb-2" dir="rtl">
+              {[1, 2, 3, 4, 5].map((star) => (
                 <Star
-                  key={i}
+                  key={star}
                   className={`w-3.5 h-3.5 ${
-                    i <= Math.round(realRating)
-                      ? 'fill-amber-400 text-amber-400'
-                      : 'fill-muted text-muted-foreground/30'
+                    star <= Math.round(realRating)
+                      ? 'text-amber-400 fill-amber-400'
+                      : 'text-muted-foreground/30'
                   }`}
                 />
               ))}
@@ -124,64 +131,59 @@ function AdRow({ ad }: AdRowProps) {
             </div>
           )}
 
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between text-sm text-muted-foreground mt-auto pt-2 gap-y-2">
-             <div className="flex items-center gap-2">
-                <Avatar className="h-6 w-6">
-                    <AvatarImage src={ad.user?.avatarUrl} alt={ad.user?.name} />
-                    <AvatarFallback>{ad.user?.name?.[0]?.toUpperCase() || '؟'}</AvatarFallback>
-                </Avatar>
-                <span className="truncate">{ad.user?.name || 'مستخدم سوق العرب'}</span>
-             </div>
-             <div className="flex items-center gap-2">
-                <Calendar className="w-4 h-4" />
-                <span>{formatDistanceToNow(safeParseDate(ad.postedAt), { addSuffix: true, locale: dateLocale })}</span>
-             </div>
-             <div className="flex items-center gap-2">
-                 <MapPin className="w-4 h-4" />
-                <span>{ad.location}</span>
-             </div>
-          </div>
-          
-          <Separator className="my-4"/>
-
           <div className="flex items-center justify-between w-full mt-auto">
-              <DropdownMenu modal={false}>
-                 <DropdownMenuTrigger asChild>
-                      <Button 
-                         variant="ghost" 
-                         size="sm" 
-                         aria-label={t.share}
-                         onClick={(e) => {
-                            e.preventDefault();
-                            e.stopPropagation();
-                         }}
-                     >
-                         <Share2 className="w-4 h-4" />
-                         <span className="mx-2">{t.share}</span>
-                     </Button>
-                 </DropdownMenuTrigger>
-                 <DropdownMenuContent onClick={(e) => e.stopPropagation()}>
-                     <DropdownMenuItem asChild>
-                         <a href={`https://www.facebook.com/sharer/sharer.php?u=${adUrl}`} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 cursor-pointer">
-                             <Facebook className="h-4 w-4 text-blue-600" />
-                             {t.facebook}
-                         </a>
-                     </DropdownMenuItem>
-                      <DropdownMenuItem asChild>
-                         <a href={`https://twitter.com/intent/tweet?url=${adUrl}&text=${shareText}`} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 cursor-pointer">
-                             <Twitter className="h-4 w-4" />
-                             {t.twitter}
-                         </a>
-                     </DropdownMenuItem>
-                      <DropdownMenuItem asChild>
-                         <a href={`https://api.whatsapp.com/send?text=${shareText}%20${adUrl}`} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 cursor-pointer">
-                             <WhatsappIcon />
-                             {t.whatsapp}
-                         </a>
-                     </DropdownMenuItem>
-
-                 </DropdownMenuContent>
-              </DropdownMenu>
+              {!user ? (
+                <Button 
+                    variant="ghost" 
+                    size="sm" 
+                    aria-label={t.share}
+                    onClick={(e) => {
+                       e.preventDefault();
+                       e.stopPropagation();
+                       setShowAuthModal(true);
+                    }}
+                >
+                    <Share2 className="w-4 h-4" />
+                    <span className="mx-2">{t.share}</span>
+                </Button>
+              ) : (
+                <DropdownMenu modal={false}>
+                   <DropdownMenuTrigger asChild>
+                        <Button 
+                           variant="ghost" 
+                           size="sm" 
+                           aria-label={t.share}
+                           onClick={(e) => {
+                              e.preventDefault();
+                              e.stopPropagation();
+                           }}
+                       >
+                           <Share2 className="w-4 h-4" />
+                           <span className="mx-2">{t.share}</span>
+                       </Button>
+                   </DropdownMenuTrigger>
+                   <DropdownMenuContent onClick={(e) => e.stopPropagation()}>
+                       <DropdownMenuItem asChild>
+                           <a href={`https://www.facebook.com/sharer/sharer.php?u=${adUrl}`} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 cursor-pointer">
+                               <Facebook className="h-4 w-4 text-blue-600" />
+                               {t.facebook}
+                           </a>
+                       </DropdownMenuItem>
+                        <DropdownMenuItem asChild>
+                           <a href={`https://twitter.com/intent/tweet?url=${adUrl}&text=${shareText}`} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 cursor-pointer">
+                               <Twitter className="h-4 w-4" />
+                               {t.twitter}
+                           </a>
+                       </DropdownMenuItem>
+                        <DropdownMenuItem asChild>
+                           <a href={`https://api.whatsapp.com/send?text=${shareText}%20${adUrl}`} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 cursor-pointer">
+                               <WhatsappIcon />
+                               {t.whatsapp}
+                           </a>
+                       </DropdownMenuItem>
+                   </DropdownMenuContent>
+                </DropdownMenu>
+              )}
 
             {!!ad.price && Number(ad.price) > 0 && (
                 <div className="flex items-center gap-2">
@@ -194,6 +196,11 @@ function AdRow({ ad }: AdRowProps) {
           </div>
         </div>
       </Card>
+      <RequireAuthModal 
+        isOpen={showAuthModal} 
+        onClose={() => setShowAuthModal(false)} 
+        message="يجب تسجيل الدخول حتى تتمكن من مشاركة الإعلان" 
+      />
     </Link>
   );
 }
