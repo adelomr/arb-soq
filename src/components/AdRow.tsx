@@ -157,8 +157,8 @@ function AdRow({ ad }: AdRowProps) {
               {!user ? (
                 <Button 
                     variant="ghost" 
-                    size="sm" 
-                    className="touch-manipulation"
+                    size="icon" 
+                    className="h-8 w-8 rounded-full text-muted-foreground hover:text-primary hover:bg-primary/10 touch-manipulation"
                     aria-label={t.share}
                     onTouchStart={handleTouchStart}
                     onTouchMove={handleTouchMove}
@@ -175,15 +175,14 @@ function AdRow({ ad }: AdRowProps) {
                     }}
                 >
                     <Share2 className="w-4 h-4" />
-                    <span className="mx-2">{t.share}</span>
                 </Button>
               ) : (
                 <DropdownMenu modal={false}>
                    <DropdownMenuTrigger asChild>
                         <Button 
                            variant="ghost" 
-                           size="sm" 
-                           className="touch-manipulation"
+                           size="icon" 
+                           className="h-8 w-8 rounded-full text-muted-foreground hover:text-primary hover:bg-primary/10 touch-manipulation"
                            aria-label={t.share}
                            onTouchStart={handleTouchStart}
                            onTouchMove={handleTouchMove}
@@ -199,7 +198,6 @@ function AdRow({ ad }: AdRowProps) {
                            }}
                        >
                            <Share2 className="w-4 h-4" />
-                           <span className="mx-2">{t.share}</span>
                        </Button>
                    </DropdownMenuTrigger>
                    <DropdownMenuContent onClick={(e) => e.stopPropagation()}>

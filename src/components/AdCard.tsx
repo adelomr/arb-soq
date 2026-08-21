@@ -275,10 +275,10 @@ function AdCard({ ad, priority = false }: AdCardProps) {
                         </div>
                     )}
                 </div>
-                <div className="flex items-center gap-2 mt-3">
-                    {isStoreProduct && adUser && (
+                {isStoreProduct && adUser ? (
+                    <div className="flex items-center gap-2 mt-3">
                         <Button 
-                            className="w-full h-9" 
+                            className="flex-1 h-9" 
                             variant={isInCart ? "secondary" : "default"}
                             onClick={handleAddToCart}
                             disabled={isInCart}
@@ -295,77 +295,150 @@ function AdCard({ ad, priority = false }: AdCardProps) {
                                 </>
                             )}
                         </Button>
-                    )}
-                    {!user ? (
-                      <Button 
-                          className="w-full h-9 touch-manipulation"
-                          variant="outline" 
-                          aria-label={t.share}
-                          onTouchStart={handleTouchStart}
-                          onTouchMove={handleTouchMove}
-                          onClick={(e) => {
-                              if (touchPosRef.current.moved) {
-                                e.preventDefault();
-                                e.stopPropagation();
-                                touchPosRef.current.moved = false;
-                                return;
-                              }
-                              e.preventDefault();
-                              e.stopPropagation();
-                              setAuthModalMessage('يجب تسجيل الدخول حتى تتمكن من مشاركة الإعلانات');
-                              setShowAuthModal(true);
-                          }}
-                      >
-                          <Share2 className={`w-4 h-4 ${!isStoreProduct && (direction === 'rtl' ? 'ml-2' : 'mr-2')}`} />
-                          <span className="mx-2 text-xs">{t.share}</span>
-                      </Button>
-                    ) : (
-                      <DropdownMenu modal={false}>
-                        <DropdownMenuTrigger asChild>
-                             <Button 
-                                className="w-full h-9 touch-manipulation"
-                                variant="outline" 
-                                aria-label={t.share}
-                                onTouchStart={handleTouchStart}
-                                onTouchMove={handleTouchMove}
-                                onClick={(e) => {
-                                    if (touchPosRef.current.moved) {
-                                      e.preventDefault();
-                                      e.stopPropagation();
-                                      touchPosRef.current.moved = false;
-                                      return;
-                                    }
+                        {!user ? (
+                          <Button 
+                              size="icon"
+                              variant="outline" 
+                              className="h-9 w-9 rounded-full shrink-0 text-muted-foreground hover:text-primary hover:bg-primary/10 touch-manipulation"
+                              aria-label={t.share}
+                              onTouchStart={handleTouchStart}
+                              onTouchMove={handleTouchMove}
+                              onClick={(e) => {
+                                  if (touchPosRef.current.moved) {
                                     e.preventDefault();
                                     e.stopPropagation();
-                                }}
-                            >
-                                <Share2 className={`w-4 h-4 ${!isStoreProduct && (direction === 'rtl' ? 'ml-2' : 'mr-2')}`} />
-                                <span className="mx-2 text-xs">{t.share}</span>
-                            </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent onClick={(e) => e.stopPropagation()}>
-                            <DropdownMenuItem asChild>
-                                <a href={`https://www.facebook.com/sharer/sharer.php?u=${adUrl}`} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 cursor-pointer">
-                                    <Facebook className="h-4 w-4 text-blue-600" />
-                                    {t.facebook}
-                                </a>
-                            </DropdownMenuItem>
-                            <DropdownMenuItem asChild>
-                                <a href={`https://twitter.com/intent/tweet?url=${adUrl}&text=${shareText}`} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 cursor-pointer">
-                                    <Twitter className="h-4 w-4" />
-                                    {t.twitter}
-                                </a>
-                            </DropdownMenuItem>
-                            <DropdownMenuItem asChild>
-                                <a href={`https://api.whatsapp.com/send?text=${shareText}%20${adUrl}`} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 cursor-pointer">
-                                    <WhatsappIcon />
-                                    {t.whatsapp}
-                                </a>
-                            </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    )}
-                </div>
+                                    touchPosRef.current.moved = false;
+                                    return;
+                                  }
+                                  e.preventDefault();
+                                  e.stopPropagation();
+                                  setAuthModalMessage('يجب تسجيل الدخول حتى تتمكن من مشاركة الإعلانات');
+                                  setShowAuthModal(true);
+                              }}
+                          >
+                              <Share2 className="w-4 h-4" />
+                          </Button>
+                        ) : (
+                          <DropdownMenu modal={false}>
+                            <DropdownMenuTrigger asChild>
+                                 <Button 
+                                    size="icon"
+                                    variant="outline" 
+                                    className="h-9 w-9 rounded-full shrink-0 text-muted-foreground hover:text-primary hover:bg-primary/10 touch-manipulation"
+                                    aria-label={t.share}
+                                    onTouchStart={handleTouchStart}
+                                    onTouchMove={handleTouchMove}
+                                    onClick={(e) => {
+                                        if (touchPosRef.current.moved) {
+                                          e.preventDefault();
+                                          e.stopPropagation();
+                                          touchPosRef.current.moved = false;
+                                          return;
+                                        }
+                                        e.preventDefault();
+                                        e.stopPropagation();
+                                    }}
+                                >
+                                    <Share2 className="w-4 h-4" />
+                                </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent onClick={(e) => e.stopPropagation()}>
+                                <DropdownMenuItem asChild>
+                                    <a href={`https://www.facebook.com/sharer/sharer.php?u=${adUrl}`} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 cursor-pointer">
+                                        <Facebook className="h-4 w-4 text-blue-600" />
+                                        {t.facebook}
+                                    </a>
+                                </DropdownMenuItem>
+                                <DropdownMenuItem asChild>
+                                    <a href={`https://twitter.com/intent/tweet?url=${adUrl}&text=${shareText}`} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 cursor-pointer">
+                                        <Twitter className="h-4 w-4" />
+                                        {t.twitter}
+                                    </a>
+                                </DropdownMenuItem>
+                                <DropdownMenuItem asChild>
+                                    <a href={`https://api.whatsapp.com/send?text=${shareText}%20${adUrl}`} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 cursor-pointer">
+                                        <WhatsappIcon />
+                                        {t.whatsapp}
+                                    </a>
+                                </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        )}
+                    </div>
+                ) : (
+                    <div className="flex items-center justify-between mt-2 pt-2 border-t border-border/40">
+                        <span className="text-[11px] text-muted-foreground font-medium">مشاركة</span>
+                        {!user ? (
+                          <Button 
+                              size="icon"
+                              variant="ghost" 
+                              className="h-8 w-8 rounded-full text-muted-foreground hover:text-primary hover:bg-primary/10 touch-manipulation"
+                              aria-label={t.share}
+                              onTouchStart={handleTouchStart}
+                              onTouchMove={handleTouchMove}
+                              onClick={(e) => {
+                                  if (touchPosRef.current.moved) {
+                                    e.preventDefault();
+                                    e.stopPropagation();
+                                    touchPosRef.current.moved = false;
+                                    return;
+                                  }
+                                  e.preventDefault();
+                                  e.stopPropagation();
+                                  setAuthModalMessage('يجب تسجيل الدخول حتى تتمكن من مشاركة الإعلانات');
+                                  setShowAuthModal(true);
+                              }}
+                          >
+                              <Share2 className="w-3.5 h-3.5" />
+                          </Button>
+                        ) : (
+                          <DropdownMenu modal={false}>
+                            <DropdownMenuTrigger asChild>
+                                 <Button 
+                                    size="icon"
+                                    variant="ghost" 
+                                    className="h-8 w-8 rounded-full text-muted-foreground hover:text-primary hover:bg-primary/10 touch-manipulation"
+                                    aria-label={t.share}
+                                    onTouchStart={handleTouchStart}
+                                    onTouchMove={handleTouchMove}
+                                    onClick={(e) => {
+                                        if (touchPosRef.current.moved) {
+                                          e.preventDefault();
+                                          e.stopPropagation();
+                                          touchPosRef.current.moved = false;
+                                          return;
+                                        }
+                                        e.preventDefault();
+                                        e.stopPropagation();
+                                    }}
+                                >
+                                    <Share2 className="w-3.5 h-3.5" />
+                                </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent onClick={(e) => e.stopPropagation()}>
+                                <DropdownMenuItem asChild>
+                                    <a href={`https://www.facebook.com/sharer/sharer.php?u=${adUrl}`} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 cursor-pointer">
+                                        <Facebook className="h-4 w-4 text-blue-600" />
+                                        {t.facebook}
+                                    </a>
+                                </DropdownMenuItem>
+                                <DropdownMenuItem asChild>
+                                    <a href={`https://twitter.com/intent/tweet?url=${adUrl}&text=${shareText}`} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 cursor-pointer">
+                                        <Twitter className="h-4 w-4" />
+                                        {t.twitter}
+                                    </a>
+                                </DropdownMenuItem>
+                                <DropdownMenuItem asChild>
+                                    <a href={`https://api.whatsapp.com/send?text=${shareText}%20${adUrl}`} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 cursor-pointer">
+                                        <WhatsappIcon />
+                                        {t.whatsapp}
+                                    </a>
+                                </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        )}
+                    </div>
+                )}
             </CardContent>
         </Card>
         <RequireAuthModal 
