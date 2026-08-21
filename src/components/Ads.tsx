@@ -3,6 +3,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useAuth } from "@/context/AuthContext";
+import { cn } from "@/lib/utils";
 
 declare global {
   interface Window {
