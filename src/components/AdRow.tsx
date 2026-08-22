@@ -45,9 +45,10 @@ const translations = {
 
 type AdRowProps = {
   ad: Ad;
+  priority?: boolean;
 };
 
-function AdRow({ ad }: AdRowProps) {
+function AdRow({ ad, priority = false }: AdRowProps) {
   const { market } = useMarket();
   const { incrementAdClick, getUserById, user } = useAuth();
   const { toast } = useToast();
@@ -105,6 +106,7 @@ function AdRow({ ad }: AdRowProps) {
               src={ad.imageUrls[0]}
               alt={ad.title}
               fill
+              priority={priority}
               sizes="(max-width: 768px) 100vw, 33vw"
               className="object-cover"
             />

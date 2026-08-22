@@ -46,7 +46,7 @@ const StoreSidebarSection = dynamic(() => import('@/components/StoreSidebarSecti
 });
 const CategoriesGridHero = dynamic(() => import('@/components/CategoriesGridHero'), {
   ssr: false,
-  loading: () => <div className="w-full" style={{ minHeight: '200px' }} aria-hidden="true" />,
+  loading: () => <div className="w-full h-16 bg-background" aria-hidden="true" />,
 });
 const FeaturedStoresSection = dynamic(() => import('@/components/FeaturedStoresSection'), {
   ssr: false,
@@ -100,22 +100,22 @@ export default function HomeClient() {
   const [recentTopics, setRecentTopics] = useState<BlogPost[]>([]);
   const [topicsLoading, setTopicsLoading] = useState(true);
 
+  // Fetch blogs for topics section
   useEffect(() => {
-    incrementSiteVisit();
-  }, [incrementSiteVisit]);
-
-  useEffect(() => {
-    const fetchTopics = async () => {
+    let isMounted = true;
+    const fetchBlogs = async () => {
       try {
-        const data = await getRecentBlogs(4);
-        setRecentTopics(data);
-      } catch (error) {
-        console.error("Failed to fetch recent topics:", error);
+        const blogs = await getRecentBlogs(4);
+        if (isMounted) {
+          setRecentTopics(blogs);
+        }
+      } catch (e) {
+        console.error("Error fetching blogs on home:", e);
       } finally {
         setTopicsLoading(false);
       }
     };
-    fetchTopics();
+    fetchBlogs();
   }, []);
 
   const sortAndSetAds = useCallback((allAds: Ad[], location: { latitude: number, longitude: number } | null, currentMarket: { id: string; name: { ar: string } }) => {
@@ -183,14 +183,14 @@ export default function HomeClient() {
       if (view === 'grid') {
         return (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-              {ads.map((ad, idx) => <AdCard key={ad.id} ad={ad} priority={idx < 4} />)}
+              {ads.map((ad, idx) => <AdCard key={ad.id} ad={ad} priority={idx < 2} />)}
           </div>
         )
       }
 
       return (
           <div className="space-y-4">
-              {ads.map(ad => <AdRow key={ad.id} ad={ad} />)}
+              {ads.map((ad, idx) => <AdRow key={ad.id} ad={ad} priority={idx < 2} />)}
           </div>
       )
     }, [adsLoading, view])

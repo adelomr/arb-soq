@@ -15,12 +15,11 @@ import { Store, MapPin, Star, BadgeCheck, ChevronLeft, ArrowLeft, Sparkles } fro
 
 export default function FeaturedStoresSection() {
   const { getUsersWithStores } = useAuth();
-  const [stores, setStores] = useState<(UserProfile & { id: string })[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [stores, setStores] = useState<(UserProfile & { id: string })[]>([DEMO_GULF_STORE]);
+  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     async function loadStores() {
-      setLoading(true);
       try {
         let list: (UserProfile & { id: string })[] = [];
         if (getUsersWithStores) {
@@ -33,8 +32,6 @@ export default function FeaturedStoresSection() {
       } catch (error) {
         console.error('Failed to load featured stores:', error);
         setStores([DEMO_GULF_STORE]);
-      } finally {
-        setLoading(false);
       }
     }
     loadStores();

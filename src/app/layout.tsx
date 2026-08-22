@@ -100,7 +100,7 @@ export default function RootLayout({
           id="google-gtm"
           async
           src="https://www.googletagmanager.com/gtag/js?id=G-EKJ4JF0LZQ"
-          strategy="afterInteractive"
+          strategy="lazyOnload"
         />
         <Script
           id="google-analytics-init"
