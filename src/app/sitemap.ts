@@ -17,27 +17,39 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       priority: 1.0,
     },
     {
+      url: `${BASE_URL}/shops`,
+      lastModified: new Date(),
+      changeFrequency: 'daily',
+      priority: 0.95,
+    },
+    {
+      url: `${BASE_URL}/categories`,
+      lastModified: new Date(),
+      changeFrequency: 'weekly',
+      priority: 0.9,
+    },
+    {
       url: `${BASE_URL}/blog`,
       lastModified: new Date(),
       changeFrequency: 'daily',
       priority: 0.9,
     },
     {
-      url: `${BASE_URL}/pricing`,
-      lastModified: new Date(),
-      changeFrequency: 'weekly',
-      priority: 0.8,
-    },
-    {
       url: `${BASE_URL}/services`,
       lastModified: new Date(),
-      changeFrequency: 'weekly',
-      priority: 0.8,
+      changeFrequency: 'daily',
+      priority: 0.85,
     },
     {
       url: `${BASE_URL}/sooq-baladna`,
       lastModified: new Date(),
       changeFrequency: 'daily',
+      priority: 0.85,
+    },
+    {
+      url: `${BASE_URL}/pricing`,
+      lastModified: new Date(),
+      changeFrequency: 'weekly',
       priority: 0.8,
     },
   ];
@@ -55,8 +67,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
           ? new Date(page.updatedAt.seconds * 1000)
           : new Date(),
         changeFrequency: (page.pageType === 'landing' ? 'weekly' : 'monthly') as 'weekly' | 'monthly',
-        // صفحات الهبوط لها أعلى أولوية لأنها تستخدم في إعلانات جوجل
-        priority: page.pageType === 'landing' ? 0.95 : 0.6,
+        priority: page.pageType === 'landing' ? 0.95 : 0.7,
       }));
   } catch (e) {
     console.error('Error fetching pages for sitemap:', e);
@@ -77,13 +88,40 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
           ? new Date(blog.createdAt.seconds * 1000)
           : new Date(),
         changeFrequency: 'monthly' as const,
-        priority: 0.8,
+        priority: 0.85,
       }));
   } catch (e) {
     console.error('Error fetching blogs for sitemap:', e);
   }
 
-  // 4. صفحات الإعلانات النشطة (أعلى أولوية لأنها المحتوى الرئيسي)
+  // 4. صفحات المتاجر الموثقة الفردية
+  let storeRoutes: MetadataRoute.Sitemap = [
+    {
+      url: `${BASE_URL}/store/gulf-fashion-store-demo`,
+      lastModified: new Date(),
+      changeFrequency: 'daily',
+      priority: 0.9,
+    },
+  ];
+  try {
+    const usersSnapshot = await getDocs(collection(firestore, 'users'));
+    const dynamicStores = usersSnapshot.docs
+      .filter((doc) => {
+        const data = doc.data();
+        return data.store && data.store.storeName;
+      })
+      .map((doc) => ({
+        url: `${BASE_URL}/store/${doc.id}`,
+        lastModified: new Date(),
+        changeFrequency: 'daily' as const,
+        priority: 0.9,
+      }));
+    storeRoutes = [...storeRoutes, ...dynamicStores];
+  } catch (e) {
+    console.error('Error fetching stores for sitemap:', e);
+  }
+
+  // 5. صفحات الإعلانات النشطة (أعلى أولوية لأنها المحتوى الرئيسي)
   let adRoutes: MetadataRoute.Sitemap = [];
   try {
     const adsSnapshot = await getDocs(
@@ -91,7 +129,6 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     );
     adRoutes = adsSnapshot.docs.map((doc) => {
       const ad = doc.data();
-      // استخدم أحدث التواريخ المتاحة
       let lastMod = new Date();
       if (ad.updatedAt?.seconds) lastMod = new Date(ad.updatedAt.seconds * 1000);
       else if (ad.postedAt) lastMod = new Date(ad.postedAt);
@@ -101,15 +138,14 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
         url: `${BASE_URL}/ad/${ad.userId}/${doc.id}`,
         lastModified: lastMod,
         changeFrequency: 'weekly' as const,
-        // إعلانات مميزة أولوية أعلى، الباقي 0.75 لأنها المحتوى الأساسي
-        priority: ad.isPromoted ? 0.9 : 0.75,
+        priority: ad.isPromoted ? 0.9 : 0.8,
       };
     });
   } catch (e) {
     console.error('Error fetching ads for sitemap:', e);
   }
 
-  // 5. صفحات العمال المتحقق منهم
+  // 6. صفحات العمال المتحقق منهم
   let workerRoutes: MetadataRoute.Sitemap = [];
   try {
     const usersSnapshot = await getDocs(collection(firestore, 'users'));
@@ -119,7 +155,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
         url: `${BASE_URL}/worker/${doc.id}`,
         lastModified: new Date(),
         changeFrequency: 'monthly' as const,
-        priority: 0.6,
+        priority: 0.7,
       }));
   } catch (e) {
     console.error('Error fetching workers for sitemap:', e);
@@ -127,9 +163,10 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
 
   return [
     ...staticRoutes,
-    ...pageRoutes,   // صفحات الهبوط أولاً
-    ...blogRoutes,
-    ...adRoutes,
-    ...workerRoutes,
+    ...storeRoutes,  // صفحات المتاجر
+    ...pageRoutes,   // صفحات الهبوط
+    ...blogRoutes,   // مقالات المدونة
+    ...adRoutes,     // الإعلانات النشطة
+    ...workerRoutes, // العمال
   ];
 }
