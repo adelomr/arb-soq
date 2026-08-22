@@ -3,7 +3,7 @@
 
 import Link from 'next/link';
 import Image from 'next/image';
-import { Twitter, Facebook, Instagram, Users, Megaphone, Eye, Store, Rocket, ChevronDown, ExternalLink, Smartphone, LayoutGrid } from 'lucide-react';
+import { Twitter, Facebook, Instagram, Users, Megaphone, Eye, Store, Rocket, ChevronDown, ExternalLink, Smartphone, LayoutGrid, MessageCircle } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { useEffect, useState } from 'react';
 import type { SiteStats, PageData } from '@/lib/types';
@@ -278,8 +278,17 @@ export default function Footer() {
             </div>
             </div>
 
-        <div className="mt-6 border-t pt-8 text-center text-sm text-muted-foreground">
-            &copy; {new Date().getFullYear()} {t.rightsReserved}
+        <div className="mt-6 border-t pt-8 flex flex-col sm:flex-row items-center justify-between gap-4 text-sm text-muted-foreground">
+            <div>&copy; {new Date().getFullYear()} {t.rightsReserved}</div>
+            <a
+                href="https://wa.me/201127556848"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-primary transition-colors group"
+            >
+                <MessageCircle className="h-3.5 w-3.5 text-green-500 group-hover:scale-110 transition-transform" />
+                <span>برمجة وتصميم ابو القعقاع للصيانة وادارة الاعلانات</span>
+            </a>
         </div>
       </div>
     </footer>

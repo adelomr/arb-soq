@@ -79,7 +79,7 @@ export default function RelatedAdsSidebar({ category, currentAdId }: RelatedAdsS
             </div>
           ))
         ) : (
-          mostViewedAds.map((ad, index) => (
+          mostViewedAds.map((ad) => (
             <Fragment key={ad.id}>
                 <Link href={`/ad/${ad.userId}/${ad.id}`} className="block group">
                   <div className="flex flex-col sm:flex-row items-stretch sm:items-start gap-3 p-2 rounded-xl hover:bg-secondary border border-border/40 sm:border-transparent transition-all duration-200">
@@ -96,10 +96,6 @@ export default function RelatedAdsSidebar({ category, currentAdId }: RelatedAdsS
                         <div className="absolute bottom-2 right-2 sm:hidden bg-black/70 backdrop-blur-sm text-white text-[11px] px-2 py-0.5 rounded-full flex items-center gap-1 font-medium">
                           <Eye className="h-3 w-3 text-primary" />
                           <span>{ad.views || 0} مشاهدة</span>
-                        </div>
-                        {/* Desktop rank badge */}
-                        <div className="hidden sm:flex absolute top-1.5 left-1.5 bg-black/70 backdrop-blur-sm text-white text-[10px] w-5 h-5 rounded-full items-center justify-center font-bold">
-                          {index + 1}
                         </div>
                     </div>
                     {/* Text */}

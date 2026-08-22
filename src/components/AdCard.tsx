@@ -235,13 +235,10 @@ function AdCard({ ad, priority = false }: AdCardProps) {
                                 )}
                             </div>
                             <div className="flex items-center gap-1 text-2xs text-muted-foreground/80">
-                                <span className="truncate max-w-[80px]">{effectiveUser.name}</span>
+                                <span className="truncate max-w-[120px]">{effectiveUser.name}</span>
                                 {effectiveUser?.verified && (
                                     <BadgeCheck className="w-3.5 h-3.5 text-blue-500 fill-blue-500/10" />
                                 )}
-                                <span className="mx-1">•</span>
-                                <Eye className="w-3 h-3 text-muted-foreground/75" />
-                                <span>{ad.views || 0}</span>
                             </div>
                         </div>
                     )}
@@ -259,10 +256,6 @@ function AdCard({ ad, priority = false }: AdCardProps) {
                                 {adUser?.verified && (
                                     <BadgeCheck className="w-3.5 h-3.5 text-blue-500 fill-blue-500/10 flex-shrink-0" />
                                 )}
-                            </div>
-                            <div className="flex items-center gap-1 text-2xs text-muted-foreground">
-                                <Eye className="w-3.5 h-3.5 text-muted-foreground/75" />
-                                <span>{ad.views || 0}</span>
                             </div>
                         </div>
                     )}
@@ -299,7 +292,7 @@ function AdCard({ ad, priority = false }: AdCardProps) {
                           <Button 
                               size="icon"
                               variant="outline" 
-                              className="h-9 w-9 rounded-full shrink-0 text-muted-foreground hover:text-primary hover:bg-primary/10 touch-manipulation"
+                              className="h-9 w-9 rounded-full shrink-0 text-primary bg-primary/10 hover:bg-primary hover:text-primary-foreground border border-primary/25 shadow-xs transition-all hover:scale-110 active:scale-95 touch-manipulation"
                               aria-label={t.share}
                               onTouchStart={handleTouchStart}
                               onTouchMove={handleTouchMove}
@@ -324,7 +317,7 @@ function AdCard({ ad, priority = false }: AdCardProps) {
                                  <Button 
                                     size="icon"
                                     variant="outline" 
-                                    className="h-9 w-9 rounded-full shrink-0 text-muted-foreground hover:text-primary hover:bg-primary/10 touch-manipulation"
+                                    className="h-9 w-9 rounded-full shrink-0 text-primary bg-primary/10 hover:bg-primary hover:text-primary-foreground border border-primary/25 shadow-xs transition-all hover:scale-110 active:scale-95 touch-manipulation"
                                     aria-label={t.share}
                                     onTouchStart={handleTouchStart}
                                     onTouchMove={handleTouchMove}
@@ -366,12 +359,16 @@ function AdCard({ ad, priority = false }: AdCardProps) {
                         )}
                     </div>
                 ) : (
-                    <div className="flex items-center justify-end mt-2 pt-2 border-t border-border/40">
+                    <div className="flex items-center justify-between mt-2 pt-2 border-t border-border/40 text-xs text-muted-foreground">
+                        <span className="flex items-center gap-1">
+                            <Eye className="h-3.5 w-3.5 text-primary/70" />
+                            <span>{(ad.views || 0).toLocaleString('en-US')} مشاهدة</span>
+                        </span>
                         {!user ? (
                           <Button 
-                              variant="ghost" 
+                              variant="outline" 
                               size="sm"
-                              className="h-8 px-3 rounded-full text-xs text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors gap-1.5 font-medium touch-manipulation"
+                              className="h-8 px-3 rounded-full text-xs font-medium text-primary bg-primary/10 hover:bg-primary hover:text-primary-foreground border border-primary/25 shadow-xs transition-all gap-1.5 touch-manipulation group/share hover:scale-105 active:scale-95"
                               aria-label={t.share}
                               onTouchStart={handleTouchStart}
                               onTouchMove={handleTouchMove}
@@ -388,16 +385,18 @@ function AdCard({ ad, priority = false }: AdCardProps) {
                                   setShowAuthModal(true);
                               }}
                           >
-                              <Share2 className="w-3.5 h-3.5" />
+                              <span className="w-5 h-5 rounded-full bg-primary/20 group-hover/share:bg-white/20 flex items-center justify-center transition-colors">
+                                  <Share2 className="w-3 h-3 text-primary group-hover/share:text-white transition-colors" />
+                              </span>
                               <span>مشاركة</span>
                           </Button>
                         ) : (
                           <DropdownMenu modal={false}>
                             <DropdownMenuTrigger asChild>
                                  <Button 
-                                    variant="ghost" 
+                                    variant="outline" 
                                     size="sm"
-                                    className="h-8 px-3 rounded-full text-xs text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors gap-1.5 font-medium touch-manipulation"
+                                    className="h-8 px-3 rounded-full text-xs font-medium text-primary bg-primary/10 hover:bg-primary hover:text-primary-foreground border border-primary/25 shadow-xs transition-all gap-1.5 touch-manipulation group/share hover:scale-105 active:scale-95"
                                     aria-label={t.share}
                                     onTouchStart={handleTouchStart}
                                     onTouchMove={handleTouchMove}
@@ -412,7 +411,9 @@ function AdCard({ ad, priority = false }: AdCardProps) {
                                         e.stopPropagation();
                                     }}
                                 >
-                                    <Share2 className="w-3.5 h-3.5" />
+                                    <span className="w-5 h-5 rounded-full bg-primary/20 group-hover/share:bg-white/20 flex items-center justify-center transition-colors">
+                                        <Share2 className="w-3 h-3 text-primary group-hover/share:text-white transition-colors" />
+                                    </span>
                                     <span>مشاركة</span>
                                 </Button>
                             </DropdownMenuTrigger>

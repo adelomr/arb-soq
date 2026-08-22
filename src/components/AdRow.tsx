@@ -5,7 +5,7 @@ import type { Ad } from '@/lib/types';
 import Image from 'next/image';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { MapPin, Tag, Star, Wrench, Handshake, ImageIcon, Calendar, Share2, Facebook, Twitter } from 'lucide-react';
+import { MapPin, Tag, Star, Wrench, Handshake, ImageIcon, Calendar, Share2, Facebook, Twitter, Eye } from 'lucide-react';
 import Link from 'next/link';
 import { useMarket } from '@/context/MarketContext';
 import { useAuth } from '@/context/AuthContext';
@@ -153,12 +153,17 @@ function AdRow({ ad, priority = false }: AdRowProps) {
             </div>
           )}
 
-          <div className="flex items-center justify-between w-full mt-auto">
+          <div className="flex items-center justify-between w-full mt-auto text-xs text-muted-foreground">
+            <span className="flex items-center gap-1 font-medium">
+              <Eye className="h-3.5 w-3.5 text-primary/70" />
+              <span>{(ad.views || 0).toLocaleString('en-US')} مشاهدة</span>
+            </span>
+
             {!user ? (
               <Button
-                variant="ghost"
+                variant="outline"
                 size="sm"
-                className="h-8 px-3 rounded-full text-xs text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors gap-1.5 font-medium touch-manipulation"
+                className="h-8 px-3 rounded-full text-xs font-medium text-primary bg-primary/10 hover:bg-primary hover:text-primary-foreground border border-primary/25 shadow-xs transition-all gap-1.5 touch-manipulation group/share hover:scale-105 active:scale-95"
                 aria-label={t.share}
                 onTouchStart={handleTouchStart}
                 onTouchMove={handleTouchMove}
@@ -174,16 +179,18 @@ function AdRow({ ad, priority = false }: AdRowProps) {
                   setShowAuthModal(true);
                 }}
               >
-                <Share2 className="w-3.5 h-3.5" />
+                <span className="w-5 h-5 rounded-full bg-primary/20 group-hover/share:bg-white/20 flex items-center justify-center transition-colors">
+                  <Share2 className="w-3 h-3 text-primary group-hover/share:text-white transition-colors" />
+                </span>
                 <span>{t.share}</span>
               </Button>
             ) : (
               <DropdownMenu modal={false}>
                 <DropdownMenuTrigger asChild>
                   <Button
-                    variant="ghost"
+                    variant="outline"
                     size="sm"
-                    className="h-8 px-3 rounded-full text-xs text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors gap-1.5 font-medium touch-manipulation"
+                    className="h-8 px-3 rounded-full text-xs font-medium text-primary bg-primary/10 hover:bg-primary hover:text-primary-foreground border border-primary/25 shadow-xs transition-all gap-1.5 touch-manipulation group/share hover:scale-105 active:scale-95"
                     aria-label={t.share}
                     onTouchStart={handleTouchStart}
                     onTouchMove={handleTouchMove}
@@ -198,7 +205,9 @@ function AdRow({ ad, priority = false }: AdRowProps) {
                       e.stopPropagation();
                     }}
                   >
-                    <Share2 className="w-3.5 h-3.5" />
+                    <span className="w-5 h-5 rounded-full bg-primary/20 group-hover/share:bg-white/20 flex items-center justify-center transition-colors">
+                      <Share2 className="w-3 h-3 text-primary group-hover/share:text-white transition-colors" />
+                    </span>
                     <span>{t.share}</span>
                   </Button>
                 </DropdownMenuTrigger>

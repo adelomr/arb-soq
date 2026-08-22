@@ -561,6 +561,24 @@ export default function LandingPageClient({ page }: Props) {
         </div>
       </section>
 
+      {/* ========== Footer & Developer Credits ========== */}
+      <footer className="border-t border-border/40 bg-card/60 backdrop-blur-sm py-8 text-center text-sm text-muted-foreground pb-28 md:pb-8">
+        <div className="container mx-auto px-4 flex flex-col items-center justify-center gap-3">
+          <a
+            href="https://wa.me/201127556848"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-secondary/80 hover:bg-secondary text-foreground hover:text-primary border border-border/50 text-xs md:text-sm font-medium transition-all shadow-sm group"
+          >
+            <MessageCircle className="h-4 w-4 text-green-500 group-hover:scale-110 transition-transform" />
+            <span>برمجة وتصميم ابو القعقاع للصيانة وادارة الاعلانات</span>
+          </a>
+          <p className="text-xs text-muted-foreground/80">
+            جميع الحقوق محفوظة &copy; {new Date().getFullYear()}
+          </p>
+        </div>
+      </footer>
+
       {/* ========== FLOATING CTA (mobile) ========== */}
       {hasCta && (
         <div className="fixed bottom-0 left-0 right-0 z-50 md:hidden flex bg-background/90 backdrop-blur-md border-t border-border shadow-2xl">

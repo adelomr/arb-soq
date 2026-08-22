@@ -362,12 +362,14 @@ export default function HomeClient() {
                           <DropdownMenu>
                             <DropdownMenuTrigger asChild>
                               <Button 
-                                variant="ghost" 
+                                variant="outline" 
                                 size="sm" 
-                                className="h-6 px-2 text-[10px] gap-1 hover:bg-muted text-muted-foreground hover:text-foreground"
+                                className="h-6 px-2 text-[10px] gap-1.5 rounded-full text-primary bg-primary/10 hover:bg-primary hover:text-primary-foreground border border-primary/25 shadow-xs transition-all group/share hover:scale-105 active:scale-95"
                                 onClick={(e) => { e.preventDefault(); e.stopPropagation(); }}
                               >
-                                <Share2 className="w-3 h-3" />
+                                <span className="w-3.5 h-3.5 rounded-full bg-primary/20 group-hover/share:bg-white/20 flex items-center justify-center transition-colors">
+                                  <Share2 className="w-2.5 h-2.5 text-primary group-hover/share:text-white transition-colors" />
+                                </span>
                                 <span>مشاركة</span>
                               </Button>
                             </DropdownMenuTrigger>
