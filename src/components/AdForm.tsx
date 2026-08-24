@@ -1567,8 +1567,8 @@ function AdFormContent({ adId, userId, isEditMode, onSuccess }: { adId?: string 
                             name="governorate"
                             render={({ field }) => (
                                 <FormItem className="pt-2 animate-in fade-in">
-                                    <FormLabel className="text-xs text-muted-foreground">اسم المحافظة</FormLabel>
-                                    <FormControl><Input placeholder="أدخل اسم المحافظة..." {...field} /></FormControl>
+                                    <FormLabel className="text-xs text-muted-foreground">اسم المحافظة / المنطقة</FormLabel>
+                                    <FormControl><Input placeholder="مثال: منطقة الرياض / محافظة القاهرة" {...field} /></FormControl>
                                 </FormItem>
                             )}
                         />
@@ -1579,8 +1579,8 @@ function AdFormContent({ adId, userId, isEditMode, onSuccess }: { adId?: string 
                             name="city"
                             render={({ field }) => (
                                 <FormItem className="pt-2 animate-in fade-in">
-                                    <FormLabel className="text-xs text-muted-foreground">اسم المدينة/المركز</FormLabel>
-                                    <FormControl><Input placeholder="أدخل اسم المدينة..." {...field} /></FormControl>
+                                    <FormLabel className="text-xs text-muted-foreground">اسم المدينة / الشارع الرئيسي</FormLabel>
+                                    <FormControl><Input placeholder="مثال: الرياض - شارع الملك فهد" {...field} /></FormControl>
                                 </FormItem>
                             )}
                         />
@@ -1591,8 +1591,8 @@ function AdFormContent({ adId, userId, isEditMode, onSuccess }: { adId?: string 
                             name="village"
                             render={({ field }) => (
                                 <FormItem className="pt-2 animate-in fade-in">
-                                    <FormLabel className="text-xs text-muted-foreground">اسم القرية/الحي</FormLabel>
-                                    <FormControl><Input placeholder="أدخل اسم القرية..." {...field} /></FormControl>
+                                    <FormLabel className="text-xs text-muted-foreground">اسم الحي / الشارع التفصيلي</FormLabel>
+                                    <FormControl><Input placeholder="مثال: حي العليا - شارع التحلية" {...field} /></FormControl>
                                 </FormItem>
                             )}
                         />
@@ -1645,7 +1645,7 @@ function AdFormContent({ adId, userId, isEditMode, onSuccess }: { adId?: string 
                                 <FormControl>
                                     <div className="relative">
                                         <Input
-                                            placeholder="شمال الرياض حي العارض"
+                                            placeholder="مثال: شارع الملك فهد - حي العليا"
                                             {...field}
                                             className="h-11 text-sm bg-background pl-10 placeholder:text-muted-foreground/60"
                                         />
