@@ -28,7 +28,7 @@ import {
 } from "@/components/ui/alert-dialog"
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { MoreHorizontal, Pencil, Trash2, Loader2, LayoutDashboard, Store, PlusCircle, Building, Edit, Eye, MousePointerClick, RotateCcw, AlertTriangle, Activity, BarChart3 } from 'lucide-react';
+import { MoreHorizontal, Pencil, Trash2, Loader2, LayoutDashboard, Store, PlusCircle, Building, Edit, Eye, MousePointerClick, RotateCcw, AlertTriangle, Activity, BarChart3, CarFront, Download, Sparkles } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -516,6 +516,7 @@ export default function UserDashboard() {
   const { language } = useLanguage();
   const { user, userProfile, getAds, getUserById } = useAuth();
   const searchParams = useSearchParams();
+  const { toast } = useToast();
   const t = translations.ar;
 
   const urlUserId = searchParams.get('userId');
@@ -526,6 +527,7 @@ export default function UserDashboard() {
   const [externalProfile, setExternalProfile] = useState<UserProfile | null>(null);
 
   const isAdmin = userProfile?.role === 'admin';
+  const isSelf = user?.uid && targetUserId === user.uid;
   const hasStore = !!userProfile?.store || !!externalProfile?.store;
   
   useEffect(() => {
@@ -563,20 +565,32 @@ export default function UserDashboard() {
 
   const effectiveProfile = userProfile || externalProfile;
 
-
   return (
     <div className="space-y-8">
       {/* Main user dashboard card */}
       <Card>
-        <CardHeader>
-          <CardTitle className="text-2xl md:text-3xl font-headline flex items-center gap-3">
-              <LayoutDashboard className="h-6 w-6 md:h-8 md:w-8" />
-              {t.dashboardTitle}
-          </CardTitle>
-          <CardDescription>
-              {t.dashboardDescription}
-              {urlUserId && <Badge variant="outline" className="ml-2">عرض ملف: {effectiveProfile?.name}</Badge>}
-          </CardDescription>
+        <CardHeader className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <div>
+            <CardTitle className="text-2xl md:text-3xl font-headline flex items-center gap-3">
+                <LayoutDashboard className="h-6 w-6 md:h-8 md:w-8" />
+                {t.dashboardTitle}
+            </CardTitle>
+            <CardDescription>
+                {t.dashboardDescription}
+                {urlUserId && <Badge variant="outline" className="ml-2">عرض ملف: {effectiveProfile?.name}</Badge>}
+            </CardDescription>
+          </div>
+
+          {isSelf && (
+            <div className="flex flex-wrap items-center gap-2">
+              <Button asChild size="sm" className="flex items-center gap-1.5 text-xs font-bold cursor-pointer">
+                <Link href="/submit">
+                  <PlusCircle className="h-3.5 w-3.5" />
+                  <span>إضافة إعلان جديد</span>
+                </Link>
+              </Button>
+            </div>
+          )}
         </CardHeader>
         <CardContent>
             <Tabs defaultValue="ads" className="w-full">

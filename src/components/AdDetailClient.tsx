@@ -385,29 +385,93 @@ export default function AdDetailClient({ initialAd }: { initialAd: Ad }) {
                     {/* Image Section */}
                     {hasImage ? (
                       <Dialog>
-                          <DialogTrigger asChild>
-                              <div className="relative w-full aspect-[4/3] rounded-2xl overflow-hidden mb-3 shadow-xl border border-border/40 cursor-zoom-in group min-h-[300px]" {...swipe}>
-                                  <Image
-                                      src={ad.imageUrls[selectedImageIndex] || ad.imageUrls[0]}
-                                      alt={ad.title}
-                                      fill
-                                      priority
-                                      className="object-contain bg-black/10 dark:bg-black/40 transition-transform duration-300 group-hover:scale-105"
-                                      sizes="(max-width: 1024px) 100vw, 66vw"
-                                  />
-                                  {ad.imageUrls.length > 1 && (
-                                      <div className="absolute bottom-3 left-3 bg-black/60 backdrop-blur-md text-white px-2.5 py-1 rounded-lg text-xs font-medium shadow-md z-30 border border-white/10">
-                                          {selectedImageIndex + 1} / {ad.imageUrls.length}
-                                      </div>
-                                  )}
-
-                                  {/* Zoom hint badge */}
-                                  <div className="absolute bottom-3 right-3 bg-black/60 backdrop-blur-md text-white/90 px-2.5 py-1 rounded-lg text-xs font-medium flex items-center gap-1.5 shadow-md z-30 border border-white/10">
-                                    <ZoomIn className="h-3.5 w-3.5" />
-                                    <span>تكبير</span>
-                                  </div>
+                          <div className="relative w-full aspect-[4/3] rounded-2xl overflow-hidden mb-3 shadow-xl border border-border/40 group min-h-[300px] select-none touch-pan-y" {...swipe.handlers}>
+                            <DialogTrigger asChild>
+                              <div className="relative w-full h-full cursor-zoom-in">
+                                <Image
+                                    src={ad.imageUrls[selectedImageIndex] || ad.imageUrls[0]}
+                                    alt={ad.title}
+                                    fill
+                                    priority
+                                    className="object-contain bg-black/10 dark:bg-black/40 transition-transform duration-300 group-hover:scale-102"
+                                    sizes="(max-width: 1024px) 100vw, 66vw"
+                                />
                               </div>
-                          </DialogTrigger>
+                            </DialogTrigger>
+
+                            {/* أزرار الأسهم للتنقل السريع يميناً ويساراً */}
+                            {ad.imageUrls.length > 1 && (
+                              <>
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.preventDefault();
+                                    e.stopPropagation();
+                                    setSelectedImageIndex((prev) => (prev > 0 ? prev - 1 : ad.imageUrls.length - 1));
+                                  }}
+                                  className="absolute right-2 top-1/2 -translate-y-1/2 w-9 h-9 sm:w-11 sm:h-11 rounded-full bg-black/60 hover:bg-black/85 text-white flex items-center justify-center backdrop-blur-md shadow-lg border border-white/20 transition-all z-30 cursor-pointer active:scale-90"
+                                  aria-label="الصورة السابقة"
+                                  title="الصورة السابقة"
+                                >
+                                  <ChevronRight className="h-5 w-5" />
+                                </button>
+
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.preventDefault();
+                                    e.stopPropagation();
+                                    setSelectedImageIndex((prev) => (prev < ad.imageUrls.length - 1 ? prev + 1 : 0));
+                                  }}
+                                  className="absolute left-2 top-1/2 -translate-y-1/2 w-9 h-9 sm:w-11 sm:h-11 rounded-full bg-black/60 hover:bg-black/85 text-white flex items-center justify-center backdrop-blur-md shadow-lg border border-white/20 transition-all z-30 cursor-pointer active:scale-90"
+                                  aria-label="الصورة التالية"
+                                  title="الصورة التالية"
+                                >
+                                  <ChevronLeft className="h-5 w-5" />
+                                </button>
+                              </>
+                            )}
+
+                            {/* عداد الصور */}
+                            {ad.imageUrls.length > 1 && (
+                                <div className="absolute top-3 left-3 bg-black/60 backdrop-blur-md text-white px-2.5 py-1 rounded-lg text-xs font-semibold shadow-md z-30 border border-white/10">
+                                    {selectedImageIndex + 1} / {ad.imageUrls.length}
+                                </div>
+                            )}
+
+                            {/* نقاط التنقل التفاعلية في أسفل الصورة */}
+                            {ad.imageUrls.length > 1 && (
+                              <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex items-center gap-1.5 bg-black/50 backdrop-blur-md py-1.5 px-3 rounded-full z-30">
+                                {ad.imageUrls.map((_, idx) => (
+                                  <button
+                                    key={idx}
+                                    type="button"
+                                    onClick={(e) => {
+                                      e.preventDefault();
+                                      e.stopPropagation();
+                                      setSelectedImageIndex(idx);
+                                    }}
+                                    className={cn(
+                                      "h-2 rounded-full transition-all duration-300 cursor-pointer",
+                                      selectedImageIndex === idx ? "w-6 bg-primary" : "w-2 bg-white/60 hover:bg-white"
+                                    )}
+                                    aria-label={`الانتقال لصورة ${idx + 1}`}
+                                  />
+                                ))}
+                              </div>
+                            )}
+
+                            {/* زر التكبير */}
+                            <DialogTrigger asChild>
+                              <button
+                                type="button"
+                                className="absolute bottom-3 right-3 bg-black/60 backdrop-blur-md text-white/90 hover:text-white px-2.5 py-1 rounded-lg text-xs font-medium flex items-center gap-1.5 shadow-md z-30 border border-white/10 cursor-pointer active:scale-95"
+                              >
+                                <ZoomIn className="h-3.5 w-3.5" />
+                                <span>تكبير</span>
+                              </button>
+                            </DialogTrigger>
+                          </div>
                           <DialogContent className="max-w-5xl h-[90vh] p-0 border-0">
                               <DialogHeader className="sr-only">
                                   <DialogTitle>{t.imageOf} {ad.title}</DialogTitle>
@@ -459,6 +523,18 @@ export default function AdDetailClient({ initialAd }: { initialAd: Ad }) {
 
                     {/* Ad Body */}
                     <div className="space-y-8">
+                        {/* مربع السعر على الهاتف — يظهر قبل الوصف مباشرة */}
+                        {!!ad.price && Number(ad.price) > 0 && (
+                            <div className="block lg:hidden p-4 sm:p-5 bg-primary/10 rounded-2xl text-center border border-primary/20 shadow-xs">
+                                <div className="flex items-center justify-center gap-2 text-primary">
+                                    <Tag className="w-6 h-6" />
+                                </div>
+                                <p className="text-3xl sm:text-4xl font-black text-primary mt-1">
+                                    {formatPrice(Number(ad.price))}
+                                </p>
+                            </div>
+                        )}
+
                         {ad.description && 
                           ad.description !== 'إعلان صوري' && 
                           ad.description !== 'إعلان فيديو' && 
@@ -474,22 +550,123 @@ export default function AdDetailClient({ initialAd }: { initialAd: Ad }) {
                                  </CardContent>
                              </Card>
                          )}
+
+                        {/* كارت المعلن وأزرار الاتصال والواتساب — يظهر هنا في الجوال قبل التعليقات */}
+                        <div className="block lg:hidden">
+                          {(() => {
+                            return (
+                              <div className="space-y-4 p-4 sm:p-6 bg-card border border-border rounded-2xl shadow-xs">
+                                {/* Seller Card on Mobile */}
+                                {seller && (
+                                    <div className="p-3.5 bg-secondary/30 border border-border/70 rounded-xl flex items-center gap-3">
+                                        <Avatar className="h-12 w-12 border border-border">
+                                            <AvatarImage src={seller.avatarUrl || undefined} alt={seller.name} />
+                                            <AvatarFallback className="bg-primary/10 text-primary font-bold">
+                                                {seller.name?.[0]?.toUpperCase() || '؟'}
+                                            </AvatarFallback>
+                                        </Avatar>
+                                        <div className="flex-1 min-w-0">
+                                            <div className="flex items-center gap-1.5">
+                                                <h3 className="font-bold text-sm text-foreground truncate">{seller.name}</h3>
+                                                {seller.verified && (
+                                                    <BadgeCheck className="w-4 h-4 text-blue-500 fill-blue-500/10 flex-shrink-0" />
+                                                )}
+                                            </div>
+                                            <p className="text-xs text-muted-foreground truncate">{seller.profession || 'عضو نشط'}</p>
+                                        </div>
+                                    </div>
+                                )}
+
+                                {/* Contact/Action Buttons on Mobile */}
+                                <div className="space-y-2.5 pt-1">
+                                    {isStoreProduct ? (
+                                        <Button 
+                                            className="w-full font-bold cursor-pointer" 
+                                            size="lg"
+                                            onClick={handleAddToCart}
+                                            disabled={isInCart}
+                                        >
+                                            {isInCart ? (
+                                                <>
+                                                    <ShoppingCart className="ml-2 h-5 w-5" />
+                                                    {t.addedToCart}
+                                                </>
+                                            ) : (
+                                                <>
+                                                    <PlusCircle className="ml-2 h-5 w-5" />
+                                                    {t.addToCart}
+                                                </>
+                                            )}
+                                        </Button>
+                                    ) : (
+                                        <>
+                                            <Button 
+                                                className="w-full font-bold shadow-md cursor-pointer" 
+                                                size="lg" 
+                                                disabled={!effectivePhone}
+                                                onClick={() => {
+                                                  if (!user) {
+                                                    setAuthModalMessage('يجب تسجيل الدخول حتى تتمكن من الاتصال بالبائع');
+                                                    setShowAuthModal(true);
+                                                    return;
+                                                  }
+                                                  if (ad?.id) logAdActivity(ad.id, 'call', { userId: user?.uid, sellerUserId: ad.userId || seller?.id });
+                                                  if (effectivePhone) {
+                                                    window.location.href = `tel:${effectivePhone}`;
+                                                  }
+                                                }}
+                                            >
+                                                <Phone className="mr-2 h-5 w-5" />
+                                                {effectivePhone ? t.callSeller : t.phoneNotAvailable}
+                                            </Button>
+                                            <Button 
+                                                variant="outline" 
+                                                className="w-full bg-green-500 text-white hover:bg-green-600 hover:text-white font-bold shadow-md cursor-pointer" 
+                                                size="lg" 
+                                                onClick={handleWhatsAppClick}
+                                                disabled={!effectivePhone}
+                                            >
+                                                <WhatsappIcon />
+                                                <span className="mx-2">
+                                                {effectivePhone ? t.messageOnWhatsapp : t.phoneNotAvailable}
+                                                </span>
+                                            </Button>
+                                        </>
+                                    )}
+                                </div>
+                              </div>
+                            );
+                          })()}
+                        </div>
+
                         {seller && (
-                            <div className="py-8">
+                            <div className="py-6">
                                 <Reviews seller={seller} adId={ad.id} ad={ad} />
                             </div>
                         )}
                         <div className="py-2">
                             <AdSlot slotKey="single_post_below_desc" />
                         </div>
+
+                        {/* عروض مشابهة — تظهر هنا في الجوال بعد التعليقات بنظام شبكة 3 أعمدة مثل حراج */}
+                        <div className="block lg:hidden mt-6">
+                            <RelatedAdsSidebar 
+                                category={ad.category} 
+                                subcategory={ad.subcategory}
+                                brand={ad.brand}
+                                city={ad.city}
+                                currentAdId={ad.id} 
+                                currentAdTitle={ad.title}
+                            />
+                        </div>
                     </div>
                 </div>
 
-                {/* Sidebar */}
+                {/* Sidebar (Desktop) */}
                 <div className="lg:col-span-4 space-y-6 lg:sticky top-28 h-fit">
-                    {/* Price — Only show if price was added during ad creation */}
+                    {/* Price — Desktop */}
                     {!!ad.price && Number(ad.price) > 0 && (
-                        <div className="p-6 bg-primary/10 rounded-lg text-center border border-primary/20">
+                        <div className="hidden lg:block p-6 bg-primary/10 rounded-2xl text-center border border-primary/20 shadow-xs">
                             <div className="flex items-center justify-center gap-2 text-primary">
                                 <Tag className="w-8 h-8" />
                             </div>
@@ -499,12 +676,10 @@ export default function AdDetailClient({ initialAd }: { initialAd: Ad }) {
                         </div>
                     )}
 
-
-
-                    {/* Seller Card */}
+                    {/* Seller Card — Desktop */}
                     {seller && (
-                        <div className="p-4 bg-card border rounded-2xl flex items-center gap-3">
-                            <Avatar className="h-12 w-12 border">
+                        <div className="hidden lg:flex p-4 bg-card border rounded-2xl items-center gap-3 shadow-xs">
+                            <Avatar className="h-12 w-12 border border-border">
                                 <AvatarImage src={seller.avatarUrl || undefined} alt={seller.name} />
                                 <AvatarFallback className="bg-primary/10 text-primary font-bold">
                                     {seller.name?.[0]?.toUpperCase() || '؟'}
@@ -522,11 +697,11 @@ export default function AdDetailClient({ initialAd }: { initialAd: Ad }) {
                         </div>
                     )}
 
-                    {/* Contact/Action Buttons */}
-                    <div className="space-y-3">
+                    {/* Contact/Action Buttons — Desktop */}
+                    <div className="hidden lg:block space-y-3">
                         {isStoreProduct ? (
                             <Button 
-                                className="w-full" 
+                                className="w-full font-bold cursor-pointer" 
                                 size="lg"
                                 onClick={handleAddToCart}
                                 disabled={isInCart}
@@ -546,7 +721,7 @@ export default function AdDetailClient({ initialAd }: { initialAd: Ad }) {
                         ) : (
                             <>
                                 <Button 
-                                    className="w-full" 
+                                    className="w-full font-bold shadow-md cursor-pointer" 
                                     size="lg" 
                                     disabled={!effectivePhone}
                                     onClick={() => {
@@ -566,7 +741,7 @@ export default function AdDetailClient({ initialAd }: { initialAd: Ad }) {
                                 </Button>
                                 <Button 
                                     variant="outline" 
-                                    className="w-full bg-green-500 text-white hover:bg-green-600 hover:text-white" 
+                                    className="w-full bg-green-500 text-white hover:bg-green-600 hover:text-white font-bold shadow-md cursor-pointer" 
                                     size="lg" 
                                     onClick={handleWhatsAppClick}
                                     disabled={!effectivePhone}
@@ -580,7 +755,16 @@ export default function AdDetailClient({ initialAd }: { initialAd: Ad }) {
                         )}
                     </div>
                     <AdSlot slotKey="single_post_sidebar" type="square" />
-                    <RelatedAdsSidebar category={ad.category} currentAdId={ad.id} />
+                    <div className="hidden lg:block">
+                        <RelatedAdsSidebar 
+                            category={ad.category} 
+                            subcategory={ad.subcategory}
+                            brand={ad.brand}
+                            city={ad.city}
+                            currentAdId={ad.id} 
+                            currentAdTitle={ad.title}
+                        />
+                    </div>
                 </div>
             </div>
         </div>

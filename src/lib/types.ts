@@ -56,6 +56,7 @@ export type Ad = {
   market: string; 
   status: AdStatus;
   condition?: AdCondition;
+  brand?: string; // ماركة السيارة أو المركبة
   store?: Store;
   // Android synchronization fields
   videoUrl?: string;

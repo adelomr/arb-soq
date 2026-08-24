@@ -150,12 +150,25 @@ export function matchAdToSubcategory(ad: Ad, subId: string, subName?: string): b
   const adSub = normalizeKey(ad.subcategory);
   const adSubId = normalizeKey((ad as any).subcategoryId);
   const adTitle = normalizeKey(ad.title);
+  const adCat = normalizeKey(ad.category);
 
   if (adSubId === targetSubId || adSub === targetSubId) return true;
 
   if (targetSubName) {
     if (adSub === targetSubName || adSub.includes(targetSubName) || targetSubName.includes(adSub)) return true;
     if (adTitle && adTitle.includes(targetSubName)) return true;
+  }
+
+  // دعم تصفية "سيارات للبيع"
+  const isCarsSaleTarget =
+    targetSubId.includes('sale') ||
+    targetSubId.includes('cars_sale') ||
+    (targetSubName && (targetSubName.includes('سيارات للبيع') || (targetSubName.includes('سيار') && targetSubName.includes('بيع'))));
+
+  if (isCarsSaleTarget) {
+    const isVehicle = adCat === 'vehicles' || adCat === 'cars' || Boolean(ad.brand);
+    const isForSale = (ad.adType as string) !== 'rent' && !adTitle.includes('ايجار') && !adTitle.includes('إيجار');
+    if (isVehicle && isForSale) return true;
   }
 
   return false;

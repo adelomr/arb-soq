@@ -22,7 +22,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 import { useToast } from '@/hooks/use-toast';
-import { DollarSign, FileUp, Sparkles, Send, MapPin, ShoppingBag, Wrench, Handshake, Loader2, CreditCard, Map, Store, PlusCircle, Trash2, X, Globe, Info, Hash, Package, Tv, ImageIcon, Phone, Tag, BadgeDollarSign, AlertCircle } from 'lucide-react';
+import { DollarSign, FileUp, Sparkles, Send, MapPin, ShoppingBag, Wrench, Handshake, Loader2, CreditCard, Map, Store, PlusCircle, Trash2, X, Globe, Info, Hash, Package, Tv, ImageIcon, Phone, Tag, BadgeDollarSign, AlertCircle, CarFront } from 'lucide-react';
 import { useState, useMemo, useEffect, Suspense } from 'react';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import type { AdType, AdCondition, Category } from '@/lib/types';
@@ -38,6 +38,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { Separator } from './ui/separator';
 import { markets } from '@/lib/markets';
 import { isPhysicalGoodsCategory } from '@/lib/category-utils';
+import { isVehicleCategory, POPULAR_CAR_BRANDS } from '@/lib/car-brands';
 import {
   AlertDialog,
   AlertDialogCancel,
@@ -206,6 +207,7 @@ const getAdFormSchema = (t: typeof translations.ar, isStoreProduct: boolean) => 
   longitude: z.number().optional(),
   images: z.array(z.object({ file: z.any().nullable(), url: z.string() })).min(0, t.imageRequired),
   condition: z.enum(['new', 'used']).optional(),
+  brand: z.string().optional(),
   videoSource: z.enum(['single', 'playlist']).default('single'),
   videoUrl: z.string().optional(),
   playlistUrl: z.string().optional(),
@@ -299,6 +301,7 @@ function AdFormContent({ adId, userId, isEditMode, onSuccess }: { adId?: string 
       location: '',
       category: isStoreProduct ? 'store-product' : undefined,
       condition: 'new',
+      brand: '',
       showCommIcon: true,
       videoSource: 'single',
       websiteUrl: '',
@@ -388,6 +391,7 @@ function AdFormContent({ adId, userId, isEditMode, onSuccess }: { adId?: string 
                     subcategory: ad.subcategory,
                     images: ad.imageUrls.map(url => ({ file: null, url })),
                     condition: ad.condition || 'new',
+                    brand: (ad as any).brand || '',
                     videoSource: ad.playlistUrl ? 'playlist' : 'single',
                     videoUrl: ad.videoUrl || '',
                     playlistUrl: ad.playlistUrl || '',
@@ -974,6 +978,89 @@ function AdFormContent({ adId, userId, isEditMode, onSuccess }: { adId?: string 
                         </FormItem>
                       </RadioGroup>
                     </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            )}
+
+            {/* حقل ماركة السيارة - يظهر تلقائياً عند اختيار فئة السيارات والمركبات */}
+            {isVehicleCategory(
+              form.watch('category') || selectedCategory?.id,
+              selectedCategory?.name?.ar
+            ) && (
+              <FormField
+                control={form.control}
+                name="brand"
+                render={({ field }) => (
+                  <FormItem className="space-y-3 p-4 rounded-xl border border-primary/20 bg-primary/5 animate-in fade-in">
+                    <div className="flex items-center justify-between">
+                      <FormLabel className="text-base font-bold flex items-center gap-2 text-foreground">
+                        <CarFront className="h-5 w-5 text-primary" />
+                        <span>ماركة السيارة / نوع المركبة</span>
+                      </FormLabel>
+                      {field.value && (
+                        <button
+                          type="button"
+                          onClick={() => field.onChange('')}
+                          className="text-xs text-muted-foreground hover:text-destructive flex items-center gap-1 transition-colors cursor-pointer"
+                        >
+                          <X className="h-3.5 w-3.5" />
+                          <span>إلغاء التحديد ({field.value})</span>
+                        </button>
+                      )}
+                    </div>
+
+                    {/* Quick popular brand pills */}
+                    <div className="space-y-1.5">
+                      <span className="text-2xs font-semibold text-muted-foreground">الماركات الشائعة:</span>
+                      <div className="flex flex-wrap gap-1.5 max-h-28 overflow-y-auto custom-scrollbar p-0.5">
+                        {POPULAR_CAR_BRANDS.filter(b => b.isPopular).map(brand => {
+                          const isSelected = field.value === brand.name || field.value === brand.id;
+                          return (
+                            <button
+                              key={brand.id}
+                              type="button"
+                              onClick={() => field.onChange(isSelected ? '' : brand.name)}
+                              className={cn(
+                                "px-2.5 py-1 rounded-lg text-xs font-bold transition-all border cursor-pointer",
+                                isSelected
+                                  ? "bg-primary text-primary-foreground border-primary shadow-xs scale-105"
+                                  : "bg-background text-foreground border-border/80 hover:border-primary/50 hover:bg-secondary/60"
+                              )}
+                            >
+                              {brand.name}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+
+                    {/* Select from full car brands list */}
+                    <div className="space-y-1 pt-1">
+                      <span className="text-2xs font-semibold text-muted-foreground">أو اختر من القائمة الكاملة لجميع الماركات:</span>
+                      <Select
+                        onValueChange={field.onChange}
+                        value={field.value || ''}
+                        dir={direction}
+                      >
+                        <FormControl>
+                          <SelectTrigger className="bg-background">
+                            <SelectValue placeholder="اختر ماركة السيارة من القائمة الكاملة..." />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent className="max-h-64">
+                          {POPULAR_CAR_BRANDS.map(brand => (
+                            <SelectItem key={brand.id} value={brand.name}>
+                              <div className="flex items-center justify-between w-full gap-4">
+                                <span className="font-medium">{brand.name}</span>
+                                <span className="text-2xs font-mono text-muted-foreground">{brand.nameEn}</span>
+                              </div>
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
                     <FormMessage />
                   </FormItem>
                 )}

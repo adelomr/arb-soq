@@ -9,117 +9,175 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import Link from 'next/link';
 import Image from 'next/image';
-import { Tag, Eye } from 'lucide-react';
-import { AdPlaceholder } from './Adsense';
-
-const t = {
-    mostViewed: 'الأكثر مشاهدة',
-    loading: 'جارٍ التحميل...',
-};
+import { Tag, Sparkles, Bell, Layers } from 'lucide-react';
+import { isVehicleCategory } from '@/lib/car-brands';
+import { useToast } from '@/hooks/use-toast';
 
 interface RelatedAdsSidebarProps {
   category?: string;
+  subcategory?: string;
+  brand?: string;
+  city?: string;
   currentAdId?: string;
+  currentAdTitle?: string;
 }
 
-export default function RelatedAdsSidebar({ category, currentAdId }: RelatedAdsSidebarProps) {
+export default function RelatedAdsSidebar({
+  category,
+  subcategory,
+  brand,
+  city,
+  currentAdId,
+  currentAdTitle,
+}: RelatedAdsSidebarProps) {
   const { getAds } = useAuth();
   const { market } = useMarket();
-  const [mostViewedAds, setMostViewedAds] = useState<Ad[]>([]);
+  const { toast } = useToast();
+  const [relatedAds, setRelatedAds] = useState<Ad[]>([]);
   const [loading, setLoading] = useState(true);
+  const [isFollowing, setIsFollowing] = useState(false);
 
   useEffect(() => {
     setLoading(true);
     const unsubscribe = getAds(
-      { status: 'active', market: market.id, limit: 10 },
+      { status: 'active', market: market.id, limit: 30 },
       (fetchedAds) => {
-        let filtered = fetchedAds.filter(ad => ad.id !== currentAdId && ad.imageUrls && ad.imageUrls.length > 0 && ad.imageUrls[0]);
-        
-        // ترتيب الإعلانات بحيث تظهر إعلانات نفس القسم أولاً ثم الأقسام الأخرى، وكلاهما مرتب بالأكثر مشاهدة
-        const sameCategory = filtered.filter(ad => ad.category === category);
-        const otherCategories = filtered.filter(ad => ad.category !== category);
-        
-        sameCategory.sort((a, b) => (b.views || 0) - (a.views || 0));
-        otherCategories.sort((a, b) => (b.views || 0) - (a.views || 0));
-        
-        const combined = [...sameCategory, ...otherCategories];
-        setMostViewedAds(combined.slice(0, 5));
+        // Filter out current ad and ads without valid images
+        let filtered = fetchedAds.filter(
+          (ad) => ad.id !== currentAdId && ad.imageUrls && ad.imageUrls.length > 0 && ad.imageUrls[0]
+        );
+
+        // Sorting & Matching hierarchy:
+        // 1. Same Brand (highest match)
+        // 2. Same Subcategory
+        // 3. Same Category
+        // 4. Other ads in same market
+        const sameBrand = brand ? filtered.filter((ad) => ad.brand === brand) : [];
+        const sameSub = subcategory
+          ? filtered.filter((ad) => ad.subcategory === subcategory && ad.brand !== brand)
+          : [];
+        const sameCat = category
+          ? filtered.filter(
+              (ad) =>
+                ad.category === category &&
+                ad.brand !== brand &&
+                ad.subcategory !== subcategory
+            )
+          : [];
+        const others = filtered.filter(
+          (ad) =>
+            ad.category !== category &&
+            ad.brand !== brand &&
+            ad.subcategory !== subcategory
+        );
+
+        const combined = [...sameBrand, ...sameSub, ...sameCat, ...others];
+        setRelatedAds(combined.slice(0, 9));
         setLoading(false);
       }
     );
 
     return () => unsubscribe();
-  }, [getAds, market.id, category, currentAdId]);
+  }, [getAds, market.id, category, subcategory, brand, currentAdId, currentAdTitle]);
+
+  const handleFollowOffers = () => {
+    setIsFollowing(!isFollowing);
+    toast({
+      title: !isFollowing ? '🔔 تم تفعيل التنبيهات!' : 'تم إلغاء المتابعة',
+      description: !isFollowing
+        ? 'ستصلك إشعارات فورية بأحدث العروض المشابهة فور نزولها.'
+        : 'تم إلغاء متابعة العروض المشابهة.',
+    });
+  };
 
   const currencyFormatter = new Intl.NumberFormat('ar-SA', {
     style: 'currency',
-    currency: market.currency,
+    currency: market?.currency || 'SAR',
     maximumFractionDigits: 0,
-    numberingSystem: 'latn'
+    numberingSystem: 'latn',
   });
 
+  const categoryHint = [brand || subcategory || category, city ? `في ${city}` : '']
+    .filter(Boolean)
+    .join(' ');
+
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-            <Eye className="h-6 w-6 text-primary" />
-            {t.mostViewed}
-        </CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-3 p-4">
-        {loading ? (
-          [...Array(5)].map((_, i) => (
-            <div key={i} className="flex items-center gap-4">
-              <Skeleton className="h-20 w-20 rounded-xl flex-shrink-0" />
-              <div className="space-y-2 flex-1">
-                <Skeleton className="h-4 w-full" />
-                <Skeleton className="h-3 w-2/3" />
-                <Skeleton className="h-3 w-1/2" />
-              </div>
+    <div className="w-full space-y-3">
+      {/* زر متابعة العروض المشابهة العريض على غرار تطبيق حراج */}
+      <button
+        type="button"
+        onClick={handleFollowOffers}
+        className="w-full py-2.5 px-4 rounded-xl bg-primary/10 hover:bg-primary/15 border border-primary/20 text-primary font-bold text-xs sm:text-sm flex items-center justify-center gap-2 transition-all cursor-pointer shadow-xs active:scale-98"
+      >
+        <Bell className={`h-4 w-4 ${isFollowing ? 'fill-primary text-primary' : ''}`} />
+        <span>{isFollowing ? 'أنت تتابع العروض المشابهة' : 'متابعة العروض المشابهة'}</span>
+      </button>
+
+      {/* بطاقة العروض المشابهة */}
+      <Card className="border border-border/80 shadow-xs overflow-hidden">
+        <CardHeader className="py-3 px-4 bg-muted/20 border-b border-border/50">
+          <div className="flex items-center justify-between gap-2">
+            <CardTitle className="text-base sm:text-lg font-extrabold flex items-center gap-2 text-foreground">
+              <Sparkles className="h-4 w-4 text-primary" />
+              <span>عروض مشابهة</span>
+            </CardTitle>
+
+            {categoryHint && (
+              <span className="text-xs font-semibold text-muted-foreground bg-secondary px-2.5 py-1 rounded-md truncate max-w-[160px]">
+                {categoryHint}
+              </span>
+            )}
+          </div>
+        </CardHeader>
+
+        <CardContent className="p-3 sm:p-4">
+          {loading ? (
+            <div className="grid grid-cols-2 gap-3 sm:gap-4">
+              {[...Array(4)].map((_, i) => (
+                <div key={i} className="space-y-2 p-2 border border-border/60 rounded-2xl">
+                  <Skeleton className="aspect-square w-full rounded-xl" />
+                  <Skeleton className="h-3.5 w-full" />
+                  <Skeleton className="h-3 w-2/3 mx-auto" />
+                </div>
+              ))}
             </div>
-          ))
-        ) : (
-          mostViewedAds.map((ad) => (
-            <Fragment key={ad.id}>
-                <Link href={`/ad/${ad.userId}/${ad.id}`} className="block group">
-                  <div className="flex flex-col sm:flex-row items-stretch sm:items-start gap-3 p-2 rounded-xl hover:bg-secondary border border-border/40 sm:border-transparent transition-all duration-200">
-                    {/* Image — full width on mobile, 112×112 on desktop */}
-                    <div className="relative w-full h-48 sm:w-28 sm:h-28 shrink-0 rounded-xl overflow-hidden bg-muted shadow-sm">
-                        <Image
-                            src={ad.imageUrls[0]}
-                            alt={ad.title}
-                            fill
-                            sizes="(max-width: 640px) 100vw, 112px"
-                            className="object-cover group-hover:scale-105 transition-transform duration-300"
-                        />
-                        {/* Mobile views badge */}
-                        <div className="absolute bottom-2 right-2 sm:hidden bg-black/70 backdrop-blur-sm text-white text-[11px] px-2 py-0.5 rounded-full flex items-center gap-1 font-medium">
-                          <Eye className="h-3 w-3 text-primary" />
-                          <span>{ad.views || 0} مشاهدة</span>
-                        </div>
+          ) : relatedAds.length === 0 ? (
+            <p className="text-xs text-muted-foreground text-center py-6">لا توجد عروض مشابهة حالياً</p>
+          ) : (
+            /* شبكة العمودين (2 Columns) لمساحة أكبر ووضوح كامل للصور والنصوص */
+            <div className="grid grid-cols-2 gap-3 sm:gap-4">
+              {relatedAds.map((ad) => {
+                const img = ad.imageUrls?.[0] || 'https://www.arb-soq.com/og-image.png';
+                return (
+                  <Link
+                    key={ad.id}
+                    href={`/ad/${ad.userId || 'seller'}/${ad.id}`}
+                    className="group flex flex-col justify-between bg-card hover:bg-muted/30 border border-border/90 hover:border-primary/80 rounded-2xl p-2 sm:p-3 transition-all duration-200 shadow-xs hover:shadow-md cursor-pointer"
+                  >
+                    {/* صورة المربع داخل التحديد */}
+                    <div className="relative aspect-square w-full rounded-xl overflow-hidden bg-muted border border-border/50 shadow-xs">
+                      <Image
+                        src={img}
+                        alt={ad.title}
+                        fill
+                        sizes="(max-width: 640px) 50vw, 240px"
+                        className="object-cover group-hover:scale-105 transition-transform duration-300"
+                      />
                     </div>
-                    {/* Text */}
-                    <div className="flex-1 min-w-0 flex flex-col justify-between py-0.5">
-                      <p className="text-sm font-bold line-clamp-2 leading-snug group-hover:text-primary transition-colors">{ad.title}</p>
-                      <div className="flex items-center justify-between gap-2 text-primary text-xs font-bold mt-2">
-                          {!!ad.price && Number(ad.price) > 0 && (
-                              <div className="flex items-center gap-1">
-                                  <Tag className="h-3.5 w-3.5" />
-                                  <span>{currencyFormatter.format(Number(ad.price))}</span>
-                              </div>
-                          )}
-                          <div className="flex items-center gap-1 text-muted-foreground text-xs">
-                              <Eye className="h-3 w-3" />
-                              <span>{ad.views || 0}</span>
-                          </div>
-                      </div>
+
+                    {/* عنوان الإعلان داخل نفس التحديد والمربع */}
+                    <div className="mt-2.5 min-h-[44px] sm:min-h-[48px] flex items-center justify-center px-1">
+                      <p className="text-xs sm:text-sm font-bold text-foreground text-center line-clamp-2 leading-snug group-hover:text-primary transition-colors">
+                        {ad.title}
+                      </p>
                     </div>
-                  </div>
-                </Link>
-            </Fragment>
-          ))
-        )}
-      </CardContent>
-    </Card>
+                  </Link>
+                );
+              })}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+    </div>
   );
 }

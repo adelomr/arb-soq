@@ -24,12 +24,14 @@ import {
   Layers,
   Search,
   AlertTriangle,
-  PlusCircle
+  PlusCircle,
+  CarFront
 } from 'lucide-react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import RequireAuthModal from '@/components/RequireAuthModal';
 import type { Ad, PageData, Category, AdpageStore, AdpageBrand, AdpageConditionFilter } from '@/lib/types';
 import { matchAdToCategory, matchAdToSubcategory, isAdInMarket, getParentCategoryId } from '@/lib/category-utils';
+import { matchAdToBrand, POPULAR_CAR_BRANDS, isVehicleCategory } from '@/lib/car-brands';
 
 const PHYSICAL_GOODS_CATEGORIES = ['vehicles', 'mobiles', 'electronics', 'furniture', 'fashion', 'baby', 'hobbies', 'trade'];
 
@@ -88,7 +90,6 @@ export default function AdPageClient({ page }: AdPageClientProps) {
   const query = page.adpageQuery;
 
   const stores: AdpageStore[] = page.adpageStores && page.adpageStores.length > 0 ? page.adpageStores : [];
-  const brands: AdpageBrand[] = page.adpageBrands && page.adpageBrands.length > 0 ? page.adpageBrands : [];
   const conditionFilters: AdpageConditionFilter[] = page.adpageConditionFilters && page.adpageConditionFilters.length > 0 ? page.adpageConditionFilters : [];
 
   // Load real categories to display category name
@@ -202,18 +203,50 @@ export default function AdPageClient({ page }: AdPageClientProps) {
     return false;
   };
 
+  const isVehiclePage = canonicalCategoryId === 'vehicles' || isVehicleCategory(categoryId, page.title || categoryName);
+
   // Filter ads — strictly by DB category fields with hierarchical fallback & active market
   const categoryMatchedAds = useMemo(() => {
     return ads.filter((ad) => {
       // Market filter: check if ad matches active header market
       if (!isAdInMarket(ad, market.id, market.name.ar)) return false;
 
+      if (isVehiclePage) {
+        if (
+          ad.category === 'vehicles' ||
+          ad.categoryId === 'vehicles' ||
+          ad.category === 'cars' ||
+          Boolean(ad.brand) ||
+          isVehicleCategory(ad.category, ad.title)
+        ) {
+          return true;
+        }
+      }
+
       if (currentCategory && matchAdToCategory(ad, currentCategory, categories)) return true;
       if (canonicalCategoryId && canonicalCategoryId !== 'unknown' && matchAdToCategory(ad, canonicalCategoryId, categories)) return true;
       if (categoryId && matchAdToCategory(ad, categoryId, categories)) return true;
       return false;
     });
-  }, [ads, market.id, market.name.ar, currentCategory, canonicalCategoryId, categoryId, categories]);
+  }, [ads, market.id, market.name.ar, isVehiclePage, currentCategory, canonicalCategoryId, categoryId, categories]);
+
+  const brands: AdpageBrand[] = useMemo(() => {
+    let list: AdpageBrand[] = [];
+    if (page.adpageBrands && page.adpageBrands.length > 0) {
+      list = [...page.adpageBrands];
+    } else if (isVehiclePage) {
+      list = POPULAR_CAR_BRANDS.map(b => ({
+        id: b.id,
+        name: b.name,
+      }));
+    }
+
+    if (list.length > 0) {
+      const nonAll = list.filter(b => (b.name || '').trim() !== 'الكل' && b.id !== 'b_all' && b.id !== 'all');
+      return [{ id: 'b_all', name: 'الكل' }, ...nonAll];
+    }
+    return [];
+  }, [page.adpageBrands, isVehiclePage]);
 
   // Sidebar Subcategories with live ad counts
   const sidebarSubcategories = useMemo(() => {
@@ -281,9 +314,7 @@ export default function AdPageClient({ page }: AdPageClientProps) {
       }
       // Brand filter
       if (selectedBrand && selectedBrand !== 'b_all' && selectedBrand !== 'الكل') {
-        const brandLower = selectedBrand.toLowerCase();
-        const match = ad.title.toLowerCase().includes(brandLower) || (ad.subcategory && ad.subcategory.toLowerCase().includes(brandLower));
-        if (!match) return false;
+        if (!matchAdToBrand(ad, selectedBrand)) return false;
       }
       // Condition / Status / Category-specific filter
       if (selectedConditionFilter && selectedConditionFilter !== 'all' && selectedConditionFilter !== 'c_all') {
@@ -624,14 +655,60 @@ export default function AdPageClient({ page }: AdPageClientProps) {
                 </section>
               )}
 
-              {/* Brands & Quick Filter Pills (Only if configured) */}
+              {/* Brands & Quick Filter Pills */}
               {brands.length > 0 && (
-                <div className="relative bg-background rounded-2xl p-3 border border-border shadow-xs">
-                  <div className="flex items-center gap-2">
+                <div className="bg-background rounded-2xl p-3 sm:p-4 border border-border shadow-xs space-y-2.5">
+                  {/* ترويسة الماركات مع زر الكل الثابت دائماً بجوار النص */}
+                  <div className="flex items-center justify-between gap-2 flex-wrap">
+                    <div className="flex items-center gap-2">
+                      <CarFront className="h-4 w-4 text-primary flex-shrink-0" />
+                      <h4 className="font-bold text-xs sm:text-sm font-headline text-foreground">
+                        {isVehiclePage ? 'ماركات السيارات والفلاتر السريعة' : 'الماركات والتصنيفات'}
+                      </h4>
+
+                      {/* زر الكل الثابت بجوار النص — لا يختفي أبداً عند تمرير الماركات */}
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setSelectedBrand('');
+                          setSelectedSub('');
+                        }}
+                        className={`px-3 py-1 rounded-lg text-xs font-bold transition-all border cursor-pointer ${
+                          (!selectedBrand || selectedBrand === 'الكل' || selectedBrand === 'b_all' || selectedBrand === 'all')
+                            ? 'bg-primary text-primary-foreground border-primary shadow-xs font-extrabold scale-[1.02]'
+                            : 'bg-secondary/70 text-foreground hover:bg-secondary border-border/80'
+                        }`}
+                      >
+                        الكل
+                      </button>
+
+                      {selectedBrand && selectedBrand !== 'b_all' && selectedBrand !== 'الكل' && (
+                        <Badge className="bg-primary text-primary-foreground text-2xs font-bold px-2 py-0.5">
+                          {selectedBrand}
+                        </Badge>
+                      )}
+                    </div>
+
+                    {selectedBrand && selectedBrand !== 'b_all' && selectedBrand !== 'الكل' && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setSelectedBrand('');
+                          setSelectedSub('');
+                        }}
+                        className="text-xs text-muted-foreground hover:text-primary font-medium hover:underline cursor-pointer flex items-center gap-1"
+                      >
+                        ✕ إعادة ضبط
+                      </button>
+                    )}
+                  </div>
+
+                  {/* شريط الماركات القابل للتمرير */}
+                  <div className="relative flex items-center gap-2">
                     <Button
                       size="icon"
                       variant="ghost"
-                      className="h-7 w-7 rounded-full flex-shrink-0"
+                      className="h-8 w-8 rounded-full flex-shrink-0"
                       onClick={() => scrollContainer(brandsScrollRef, 'right')}
                     >
                       <ChevronRight className="h-4 w-4" />
@@ -641,29 +718,36 @@ export default function AdPageClient({ page }: AdPageClientProps) {
                       ref={brandsScrollRef}
                       className="flex items-center gap-2 overflow-x-auto scrollbar-none py-1 flex-1 scroll-smooth"
                     >
-                      {brands.map((brand) => {
-                        const isSelected = selectedBrand === brand.name || (selectedBrand === '' && (brand.id === 'b_all' || brand.name === 'الكل'));
-                        return (
-                          <button
-                            key={brand.id}
-                            type="button"
-                            onClick={() => setSelectedBrand(brand.name === 'الكل' || brand.id === 'b_all' ? '' : brand.name)}
-                            className={`px-4 py-2 rounded-xl text-sm font-bold whitespace-nowrap transition-all border ${
-                              isSelected
-                                ? 'bg-primary text-primary-foreground border-primary shadow-xs'
-                                : 'bg-secondary/30 text-foreground border-border/70 hover:bg-secondary'
-                            }`}
-                          >
-                            {brand.name}
-                          </button>
-                        );
-                      })}
+                      {brands
+                        .filter((b) => (b.name || '').trim() !== 'الكل' && b.id !== 'b_all' && b.id !== 'all')
+                        .map((brand) => {
+                          const isSelected =
+                            Boolean(selectedBrand) &&
+                            selectedBrand.trim().toLowerCase() === (brand.name || '').trim().toLowerCase();
+
+                          return (
+                            <button
+                              key={brand.id}
+                              type="button"
+                              onClick={() => {
+                                setSelectedBrand(isSelected ? '' : (brand.name || '').trim());
+                              }}
+                              className={`px-4 py-2 rounded-xl text-xs sm:text-sm font-bold whitespace-nowrap transition-all border cursor-pointer ${
+                                isSelected
+                                  ? 'bg-primary text-primary-foreground border-primary shadow-xs scale-[1.02]'
+                                  : 'bg-secondary/30 text-foreground border-border/70 hover:bg-secondary hover:border-primary/40'
+                              }`}
+                            >
+                              {brand.name}
+                            </button>
+                          );
+                        })}
                     </div>
 
                     <Button
                       size="icon"
                       variant="ghost"
-                      className="h-7 w-7 rounded-full flex-shrink-0"
+                      className="h-8 w-8 rounded-full flex-shrink-0"
                       onClick={() => scrollContainer(brandsScrollRef, 'left')}
                     >
                       <ChevronLeft className="h-4 w-4" />
@@ -718,7 +802,11 @@ export default function AdPageClient({ page }: AdPageClientProps) {
                 const handleBtnClick = (btn: { id?: string; value: string; name: string }) => {
                   const key = btn.id || btn.value;
                   setSelectedConditionFilter(key);
-                  if (btn.value === 'recent' || btn.value === 'all') {
+                  if (btn.value === 'all') {
+                    setSelectedBrand('');
+                    setSelectedSub('');
+                    setSortOrder('recent');
+                  } else if (btn.value === 'recent') {
                     setSortOrder('recent');
                   } else if (btn.value === 'top_rated') {
                     setSortOrder('top_rated');

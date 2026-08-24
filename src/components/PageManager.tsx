@@ -54,10 +54,12 @@ import {
   Tag,
   SlidersHorizontal,
   ChevronUp,
-  ChevronDown
+  ChevronDown,
+  CarFront
 } from 'lucide-react';
 import RichTextEditor from './RichTextEditor';
 import Image from 'next/image';
+import { POPULAR_CAR_BRANDS } from '@/lib/car-brands';
 
 
 const SYSTEM_SLUGS = ['redirect'];
@@ -1612,16 +1614,28 @@ export default function PageManager({ initialFilter = 'all' }: PageManagerProps)
                       <SlidersHorizontal className="h-4 w-4 text-primary" />
                       ماركات السيارات وأزرار الفلترة السريعة (Brand Pills)
                     </Label>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setAdpageBrands(prev => [...prev, { id: `brand_${Date.now()}`, name: '' }])}
-                      className="flex items-center gap-1 text-xs"
-                    >
-                      <Plus className="h-3.5 w-3.5" />
-                      إضافة ماركة
-                    </Button>
+                    <div className="flex items-center gap-1.5">
+                      <Button
+                        type="button"
+                        variant="secondary"
+                        size="sm"
+                        onClick={() => setAdpageBrands(POPULAR_CAR_BRANDS.filter(b => b.isPopular).map(b => ({ id: b.id, name: b.name })))}
+                        className="flex items-center gap-1 text-2xs bg-primary/10 text-primary hover:bg-primary/20"
+                      >
+                        <CarFront className="h-3 w-3" />
+                        إدراج الماركات الشائعة
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setAdpageBrands(prev => [...prev, { id: `brand_${Date.now()}`, name: '' }])}
+                        className="flex items-center gap-1 text-xs"
+                      >
+                        <Plus className="h-3.5 w-3.5" />
+                        إضافة ماركة
+                      </Button>
+                    </div>
                   </div>
 
                   {adpageBrands.length === 0 ? (

@@ -90,8 +90,37 @@ export default async function CustomPageDetail({ params }: Props) {
       createdAt: page.createdAt?.seconds ?? null,
       updatedAt: page.updatedAt?.seconds ?? null,
     };
+
+    const adpageJsonLd = [
+      {
+        '@context': 'https://schema.org',
+        '@type': 'CollectionPage',
+        name: page.title,
+        description: (page.description || page.content || '').replace(/<[^>]+>/g, '').substring(0, 200),
+        url: `https://www.arb-soq.com/p/${page.slug}`,
+        inLanguage: 'ar-SA',
+        isPartOf: {
+          '@type': 'WebSite',
+          name: 'سوق العرب',
+          url: 'https://www.arb-soq.com',
+        },
+      },
+      {
+        '@context': 'https://schema.org',
+        '@type': 'BreadcrumbList',
+        itemListElement: [
+          { '@type': 'ListItem', position: 1, name: 'الرئيسية', item: 'https://www.arb-soq.com' },
+          { '@type': 'ListItem', position: 2, name: page.title, item: `https://www.arb-soq.com/p/${page.slug}` },
+        ],
+      },
+    ];
+
     return (
       <main className="min-h-screen bg-background">
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(adpageJsonLd) }}
+        />
         <AdPageClient page={serializedPage as any} />
         <PageViewIncrementer pageId={page.id} />
       </main>

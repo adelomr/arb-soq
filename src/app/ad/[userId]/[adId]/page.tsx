@@ -39,15 +39,6 @@ async function getAdData(userId: string, adId: string): Promise<Ad | null> {
   }
 
   if (!adSnap.exists()) {
-    // Fallback for demo store products
-    const { DEMO_GULF_PRODUCTS, DEMO_GULF_STORE } = await import('@/lib/demo-gulf-store');
-    const demoAd = DEMO_GULF_PRODUCTS.find(p => p.id === adId);
-    if (demoAd) {
-      return {
-        ...demoAd,
-        user: DEMO_GULF_STORE,
-      };
-    }
     return null;
   }
 
@@ -79,6 +70,14 @@ async function getRelatedAds(market: string, currentAdId: string): Promise<Ad[]>
         .filter(ad => ad.id !== currentAdId);
 }
 
+function cleanSeoDescription(text?: string): string {
+  if (!text) return '';
+  return text
+    .replace(/[_=\-#*`~]+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { userId, adId } = await params;
   const ad = await getAdData(userId, adId);
@@ -90,32 +89,43 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     };
   }
 
-  // Build a rich description combining all key ad fields
-  const rawDesc = [ad.description, ad.category, ad.location, ad.city, ad.country]
-    .filter(Boolean)
-    .join(' — ');
-  const description = rawDesc.length > 0
-    ? rawDesc.substring(0, 160)
-    : `${ad.title} — متاح على سوق العرب. اعثر على أفضل العروض في منطقتك.`;
+  // Clean description stripped of symbols, formatted for search snippets
+  const cleanBody = cleanSeoDescription(ad.description);
+  const locationText = [ad.city, ad.governorate, ad.country].filter(Boolean).join(' - ');
+  const priceText = ad.price ? `السعر: ${ad.price.toLocaleString('ar-SA')} ${ad.currency || 'ريال'}` : '';
+  
+  const rawDescParts = [
+    ad.title,
+    locationText ? `في ${locationText}` : '',
+    priceText,
+    cleanBody
+  ].filter(Boolean);
+
+  const description = rawDescParts.join(' — ').substring(0, 160);
 
   const imageUrl = ad.imageUrls && ad.imageUrls.length > 0 ? ad.imageUrls[0] : 'https://www.arb-soq.com/og-image.png';
   const canonicalUrl = `https://www.arb-soq.com/ad/${userId}/${adId}`;
 
-  // Rich keywords combining title tokens + category + location
+  // Rich keywords combining title tokens + brand + category + location
   const keywordParts = [
     ad.title,
+    ad.brand,
     ad.category,
     ad.subcategory,
     ad.location,
     ad.city,
     ad.governorate,
     ad.country,
+    'حراج السيارات',
+    'سيارات للبيع',
     'سوق العرب',
     'إعلانات مبوبة',
   ].filter(Boolean) as string[];
 
+  const isVehicle = (ad.category === 'vehicles' || ad.categoryId === 'vehicles' || Boolean(ad.brand));
+
   return {
-    title: `${ad.title} | سوق العرب`,
+    title: `${ad.title}${ad.city ? ` في ${ad.city}` : ''} | سوق العرب`,
     description,
     keywords: keywordParts,
     alternates: {
@@ -129,13 +139,18 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
         follow: true,
         'max-image-preview': 'large',
         'max-snippet': -1,
+        'max-video-preview': -1,
       },
     },
     openGraph: {
-      title: ad.title,
+      title: `${ad.title}${ad.city ? ` في ${ad.city}` : ''}`,
       description,
-      images: [{ url: imageUrl, width: 1200, height: 630, alt: ad.title }],
-      type: 'article',
+      images: [
+        ...(ad.imageUrls && ad.imageUrls.length > 0
+          ? ad.imageUrls.map((url) => ({ url, width: 1200, height: 630, alt: ad.title }))
+          : [{ url: imageUrl, width: 1200, height: 630, alt: ad.title }]),
+      ],
+      type: isVehicle ? 'article' : 'website',
       locale: 'ar_SA',
       siteName: 'سوق العرب',
       url: canonicalUrl,
@@ -162,46 +177,107 @@ export default async function AdPage({ params }: Props) {
 
   const canonicalUrl = `https://www.arb-soq.com/ad/${userId}/${adId}`;
   const currencyMap: Record<string, string> = { sa: 'SAR', eg: 'EGP', ae: 'AED', kw: 'KWD', qa: 'QAR', bh: 'BHD', om: 'OMR', jo: 'JOD' };
-  const currency = currencyMap[ad.market || ''] ?? 'USD';
+  const currency = ad.currency || currencyMap[ad.market || ''] || 'SAR';
+  const isVehicle = (ad.category === 'vehicles' || ad.categoryId === 'vehicles' || Boolean(ad.brand));
+  const cleanBody = cleanSeoDescription(ad.description);
+  const sellerPhone = ad.phoneNumber || (ad as any).phone || ad.user?.phone || ad.user?.phoneNumber;
 
-  // JSON-LD structured data for ALL ad types (Product + BreadcrumbList)
-  const jsonLd = [
-    {
-      "@context": "https://schema.org",
-      "@type": "Product",
-      "name": ad.title,
-      "description": ad.description || ad.title,
-      "url": canonicalUrl,
-      ...(ad.imageUrls?.length && { "image": ad.imageUrls }),
-      ...(ad.condition && {
+  // Rich Schema.org structured data (Car / Vehicle for cars, Product for other goods)
+  const mainSchema = isVehicle
+    ? {
+        "@context": "https://schema.org",
+        "@type": "Car",
+        "name": ad.title,
+        "description": cleanBody || ad.title,
+        "url": canonicalUrl,
+        ...(ad.imageUrls?.length && { "image": ad.imageUrls }),
+        ...(ad.brand && {
+          "brand": {
+            "@type": "Brand",
+            "name": ad.brand,
+          },
+        }),
+        "model": ad.title,
         "itemCondition": ad.condition === 'new'
           ? "https://schema.org/NewCondition"
           : "https://schema.org/UsedCondition",
-      }),
-      ...(ad.user && {
-        "seller": {
-          "@type": "Person",
-          "name": ad.user.name || ad.user.fullName || 'بائع',
-          "url": `https://www.arb-soq.com/worker/${userId}`,
+        ...(sellerPhone && { "telephone": sellerPhone }),
+        "offers": {
+          "@type": "Offer",
+          "price": ad.price ?? 0,
+          "priceCurrency": currency,
+          "availability": "https://schema.org/InStock",
+          "url": canonicalUrl,
+          ...(ad.location && { "availableAtOrFrom": { "@type": "Place", "name": ad.location } }),
+          "seller": {
+            "@type": "AutoDealer",
+            "name": ad.user?.name || ad.user?.fullName || 'معرض سيارات',
+            ...(sellerPhone && { "telephone": sellerPhone }),
+            ...(ad.city && {
+              "address": {
+                "@type": "PostalAddress",
+                "addressLocality": ad.city,
+                "addressCountry": ad.country || "SA",
+              },
+            }),
+          },
         },
-      }),
-      "offers": {
-        "@type": "Offer",
-        "price": ad.price ?? 0,
-        "priceCurrency": currency,
-        "availability": "https://schema.org/InStock",
+      }
+    : {
+        "@context": "https://schema.org",
+        "@type": "Product",
+        "name": ad.title,
+        "description": cleanBody || ad.title,
         "url": canonicalUrl,
-        ...(ad.location && { "availableAtOrFrom": { "@type": "Place", "name": ad.location } }),
-      },
-    },
+        ...(ad.imageUrls?.length && { "image": ad.imageUrls }),
+        ...(ad.brand && {
+          "brand": {
+            "@type": "Brand",
+            "name": ad.brand,
+          },
+        }),
+        ...(ad.condition && {
+          "itemCondition": ad.condition === 'new'
+            ? "https://schema.org/NewCondition"
+            : "https://schema.org/UsedCondition",
+        }),
+        ...(ad.user && {
+          "seller": {
+            "@type": "Person",
+            "name": ad.user.name || ad.user.fullName || 'بائع',
+            "url": `https://www.arb-soq.com/worker/${userId}`,
+          },
+        }),
+        "offers": {
+          "@type": "Offer",
+          "price": ad.price ?? 0,
+          "priceCurrency": currency,
+          "availability": "https://schema.org/InStock",
+          "url": canonicalUrl,
+          ...(ad.location && { "availableAtOrFrom": { "@type": "Place", "name": ad.location } }),
+        },
+      };
+
+  const breadcrumbsList = [
+    { "@type": "ListItem", "position": 1, "name": "الرئيسية", "item": "https://www.arb-soq.com" },
+    ...(isVehicle
+      ? [
+          { "@type": "ListItem", "position": 2, "name": "سيارات ومركبات", "item": "https://www.arb-soq.com/p/cars-auto" },
+          ...(ad.brand ? [{ "@type": "ListItem", "position": 3, "name": ad.brand, "item": `https://www.arb-soq.com/p/cars-auto?brand=${encodeURIComponent(ad.brand)}` }] : []),
+          { "@type": "ListItem", "position": ad.brand ? 4 : 3, "name": ad.title, "item": canonicalUrl },
+        ]
+      : [
+          ...(ad.category ? [{ "@type": "ListItem", "position": 2, "name": ad.category, "item": `https://www.arb-soq.com/?category=${encodeURIComponent(ad.category)}` }] : []),
+          { "@type": "ListItem", "position": ad.category ? 3 : 2, "name": ad.title, "item": canonicalUrl },
+        ]),
+  ];
+
+  const jsonLd = [
+    mainSchema,
     {
       "@context": "https://schema.org",
       "@type": "BreadcrumbList",
-      "itemListElement": [
-        { "@type": "ListItem", "position": 1, "name": "سوق العرب", "item": "https://www.arb-soq.com" },
-        ...(ad.category ? [{ "@type": "ListItem", "position": 2, "name": ad.category, "item": `https://www.arb-soq.com/?category=${encodeURIComponent(ad.category)}` }] : []),
-        { "@type": "ListItem", "position": ad.category ? 3 : 2, "name": ad.title, "item": canonicalUrl },
-      ],
+      "itemListElement": breadcrumbsList,
     },
   ];
 
