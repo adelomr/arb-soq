@@ -149,8 +149,8 @@ export default function VideoGrid({ shortsAds, regularAds, onVideoClick }: Video
                          <div className="flex flex-wrap items-center gap-1.5 mt-0.5">
                            <span className="flex items-center gap-0.5">
                                <MapPin className="w-3 h-3 text-primary" />
-                               {ad.city || ad.governorate || ad.country} 
-                           </span>
+                                {[ad.governorate || ad.province, ad.city || ad.village].filter(Boolean).join('، ') || ad.location || ad.city || ad.governorate || ''} 
+                            </span>
                            <span className="w-1 h-1 rounded-full bg-border" />
                            <span className="flex items-center gap-0.5">
                                <Calendar className="w-3 h-3" />

@@ -141,7 +141,7 @@ export default function FeaturedStoresSection() {
                         <div className="flex items-center gap-1">
                           <MapPin className="w-3.5 h-3.5 text-primary" />
                           <span className="truncate max-w-[120px]">
-                            {userWithStore.city || userWithStore.country || 'الرياض'}
+                            {[userWithStore.province || userWithStore.governorate, userWithStore.city].filter(Boolean).join('، ') || userWithStore.city || userWithStore.province || userWithStore.governorate || userWithStore.country || 'الرياض'}
                           </span>
                         </div>
 

@@ -160,6 +160,18 @@ function AdCard({ ad, priority = false }: AdCardProps) {
   const effectiveUserId = ad.userId || ad.user?.id || 'owner';
   const effectiveUser = (adUser || ad.user || { id: effectiveUserId, name: 'مستخدم سوق العرب' }) as UserProfile;
 
+  // صياغة الموقع المحلي (المحافظة، المدينة / الحي، أو القرية) بدون إظهار اسم الدولة لتوفير المساحة
+  const locationParts = [
+    ad.governorate || ad.province,
+    ad.city,
+    ad.village
+  ].filter((p): p is string => Boolean(p && typeof p === 'string' && p.trim().length > 0 && p !== ad.country));
+
+  const uniqueLocationParts = Array.from(new Set(locationParts));
+  const displayLocation = uniqueLocationParts.length > 0
+    ? uniqueLocationParts.join('، ')
+    : (ad.location && ad.location !== ad.country ? ad.location : (ad.governorate || ad.city || ''));
+
   return (
     <Link href={`/ad/${effectiveUserId}/${ad.id}`} className="block group h-full" onClick={() => incrementAdClick(ad)}>
         <Card className={`overflow-hidden h-full flex flex-col transition-all duration-300 group-hover:shadow-xl group-hover:-translate-y-1 ${isBoostActive && boostTier === 'gold' ? 'border-amber-500/60 shadow-md ring-1 ring-amber-500/30' : (isBoostActive ? 'border-primary/50' : '')}`}>
@@ -214,7 +226,7 @@ function AdCard({ ad, priority = false }: AdCardProps) {
                                     i <= Math.round(realRating)
                                         ? 'fill-amber-400 text-amber-400'
                                         : 'fill-muted text-muted-foreground/30'
-                                }`}
+                                    }`}
                             />
                         ))}
                         <span className="text-xs font-bold text-amber-500">{realRating.toFixed(1)}</span>
@@ -224,20 +236,15 @@ function AdCard({ ad, priority = false }: AdCardProps) {
                 <div className="flex-grow"></div>
                 <div className="flex items-center justify-between w-full text-xs mt-2 pt-2 border-t">
                     {!isStoreProduct && (
-                        <div className="flex flex-col gap-1 text-muted-foreground max-w-[60%]">
-                            <div className="flex items-center gap-1 flex-wrap">
-                                <MapPin className="w-3.5 h-3.5" />
-                                <span className="truncate max-w-[100px]">{ad.location}</span>
-                                {ad.country && (
-                                    <span className="text-2xs font-bold px-1.5 py-0.5 rounded bg-primary/10 text-primary mr-1">
-                                        {ad.country}
-                                    </span>
-                                )}
+                        <div className="flex flex-col gap-1 text-muted-foreground max-w-[65%] min-w-0">
+                            <div className="flex items-center gap-1 min-w-0" title={displayLocation || undefined}>
+                                <MapPin className="w-3.5 h-3.5 shrink-0 text-muted-foreground" />
+                                <span className="truncate">{displayLocation || 'غير محدد'}</span>
                             </div>
-                            <div className="flex items-center gap-1 text-2xs text-muted-foreground/80">
-                                <span className="truncate max-w-[120px]">{effectiveUser.name}</span>
+                            <div className="flex items-center gap-1 text-2xs text-muted-foreground/80 min-w-0">
+                                <span className="truncate">{effectiveUser.name}</span>
                                 {effectiveUser?.verified && (
-                                    <BadgeCheck className="w-3.5 h-3.5 text-blue-500 fill-blue-500/10" />
+                                    <BadgeCheck className="w-3.5 h-3.5 text-blue-500 fill-blue-500/10 shrink-0" />
                                 )}
                             </div>
                         </div>
