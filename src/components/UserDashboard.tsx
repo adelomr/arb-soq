@@ -110,38 +110,18 @@ type DialogState = {
 
 const checkNeedsCategoryUpdate = (ad: Ad, dynamicCategories: Category[] = []): boolean => {
   if (!ad) return false;
-  const catId = (ad.categoryId || ad.category || '').toString().toLowerCase().trim();
-  if (!catId) return true;
-  if (catId === 'store-product') return false;
-
-  // Check if matches any dynamic category or its subcategories
-  if (dynamicCategories && dynamicCategories.length > 0) {
-    const matched = dynamicCategories.some(c => 
-      c.id.toLowerCase() === catId || 
-      (c.name?.ar && c.name.ar.toLowerCase() === catId) ||
-      c.subcategories?.some((s: SubCategory) => s.id.toLowerCase() === catId || (s.name?.ar && s.name.ar.toLowerCase() === catId))
-    );
-    if (matched) return false;
+  const catId = (ad.categoryId || ad.category || (ad as any).categoryName || '').toString().toLowerCase().trim();
+  
+  // إذا كان الإعلان لا يحتوي على أي فئة إطلاقاً أو قيم غير معرّفة
+  if (!catId || catId === 'undefined' || catId === 'null' || catId === 'unknown' || catId === 'none') {
+    return true;
   }
   
-  const knownCategories = [
-    'vehicles', 'cars', 'عربيات', 'سيارات', 'مركبات',
-    'realestate', 'real-estate', 'عقارات',
-    'mobiles', 'phones', 'tablets', 'موبايلات', 'هواتف',
-    'jobs', 'وظائف',
-    'furniture', 'أثاث',
-    'electronics', 'appliances', 'إلكترونيات', 'أجهزة',
-    'fashion', 'موضة',
-    'pets', 'حيوانات',
-    'baby', 'kids', 'أطفال',
-    'hobbies', 'هوايات',
-    'trade', 'commercial', 'تجارة',
-    'services', 'خدمات',
-    'crafts', 'labor', 'cat_1786316040524', 'مهن', 'حرف',
-    'store-product'
-  ];
+  // منتجات المتاجر فئتها صحيحة دائماً
+  if (catId === 'store-product') return false;
 
-  return !knownCategories.some(k => catId === k || (k.length > 3 && catId.includes(k)));
+  // إذا تم تحديد أي فئة موجودة في النظام
+  return false;
 };
 
 const AdTable = ({ ads, isLoading, isAdmin, noItemsMessage, isStoreProduct = false }: { ads: Ad[]; isLoading: boolean; isAdmin: boolean; noItemsMessage: string; isStoreProduct?: boolean }) => {
@@ -266,7 +246,7 @@ const AdTable = ({ ads, isLoading, isAdmin, noItemsMessage, isStoreProduct = fal
             <TableBody>
                 {ads.map((ad) => {
                     const editLink = `/submit?id=${ad.id}&userId=${ad.userId}${isStoreProduct ? '&type=store-product' : ''}`;
-                    const needsCatUpdate = checkNeedsCategoryUpdate(ad);
+                    const needsCatUpdate = checkNeedsCategoryUpdate(ad, categories);
                     return (
                         <TableRow key={ad.id} className={needsCatUpdate ? 'bg-amber-500/5' : undefined}>
                             <TableCell>
