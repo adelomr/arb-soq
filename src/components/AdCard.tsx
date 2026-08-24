@@ -160,7 +160,8 @@ function AdCard({ ad, priority = false }: AdCardProps) {
   const effectiveUserId = ad.userId || ad.user?.id || 'owner';
   const effectiveUser = (adUser || ad.user || { id: effectiveUserId, name: 'مستخدم سوق العرب' }) as UserProfile;
 
-  // صياغة الموقع المحلي (المحافظة، المدينة / الحي، أو القرية) بدون إظهار اسم الدولة لتوفير المساحة
+  // صياغة الموقع المحلي (المحافظة، المدينة / الحي، أو القرية)
+  // استثناء: في حال لم يحدد المعلن محافظة أو مدينة (مثل إعلان على مستوى كامل الدولة)، يتم إظهار اسم الدولة بجانب أيقونة الموقع
   const locationParts = [
     ad.governorate || ad.province,
     ad.city,
@@ -170,7 +171,7 @@ function AdCard({ ad, priority = false }: AdCardProps) {
   const uniqueLocationParts = Array.from(new Set(locationParts));
   const displayLocation = uniqueLocationParts.length > 0
     ? uniqueLocationParts.join('، ')
-    : (ad.location && ad.location !== ad.country ? ad.location : (ad.governorate || ad.city || ''));
+    : (ad.country || ad.location || market?.name?.ar || '');
 
   return (
     <Link href={`/ad/${effectiveUserId}/${ad.id}`} className="block group h-full" onClick={() => incrementAdClick(ad)}>

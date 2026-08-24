@@ -394,7 +394,7 @@ export default function RegularVideoPlayer({ ad, onClose, relatedAds, onAdSelect
                         <div className="flex flex-wrap items-center gap-4 mb-4 text-sm font-bold text-foreground">
                             <span className="flex items-center gap-1.5"><Calendar className="w-4 h-4 text-muted-foreground" /> {getTimeAgo(ad)}</span>
                             {!!ad.price && Number(ad.price) > 0 ? <span className="flex items-center gap-1.5 text-primary"> السعر: {ad.price} {ad.market === 'egypt' ? 'ج.م' : ''}</span> : null}
-                            <span className="flex items-center gap-1.5"><MapPin className="w-4 h-4 text-muted-foreground" /> {[ad.governorate || ad.province, ad.city || ad.village].filter(Boolean).join('، ') || ad.location || ad.city || ad.governorate || ''} </span>
+                            <span className="flex items-center gap-1.5"><MapPin className="w-4 h-4 text-muted-foreground" /> {[ad.governorate || ad.province, ad.city || ad.village].filter(Boolean).join('، ') || ad.country || ad.location || ''} </span>
                             <Badge variant="outline" className="border-border shadow-sm bg-background/50">{ad.category}</Badge>
                         </div>
                         <p className="text-muted-foreground text-sm leading-relaxed whitespace-pre-wrap">
