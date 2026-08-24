@@ -342,7 +342,7 @@ export default function VideoCard({ ad, isActive, isMuted, onToggleMute }: Video
               className={cn(
                 "absolute inset-0 w-full h-full object-cover transition-opacity duration-1000",
                 idx === currentImageIndex ? "opacity-100" : "opacity-0",
-                images.length === 1 ? "animate-ken-burns" : (idx === currentImageIndex ? "scale-110 transition-transform duration-[4000ms]" : "scale-100")
+                images.length === 1 ? "animate-ken-burns" : (idx === currentImageIndex ? "scale-110 transition-transform [transition-duration:4000ms]" : "scale-100")
               )}
               alt={ad.title}
             />
