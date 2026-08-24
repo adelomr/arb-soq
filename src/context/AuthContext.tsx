@@ -1507,19 +1507,30 @@ const getAds = useCallback((
   }, [sendNotification, userProfile, refreshUserProfile, getAdRef]);
 
   const getReviews = useCallback((sellerId: string, callback: (reviews: Review[]) => void, adId?: string) => {
-    const reviewsQuery = query(collection(firestore, 'users', sellerId, 'reviews'), orderBy('createdAt', 'desc'));
-    
-    const unsubscribe = onSnapshot(reviewsQuery, (querySnapshot) => {
-        let reviews = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Review));
-        if (adId) {
-            reviews = reviews.filter(r => r.adId === adId);
-        }
-        callback(reviews);
-    }, (error) => {
-        console.error("خطأ في جلب المراجعات:", error);
-    });
+    if (!sellerId || typeof sellerId !== 'string' || sellerId.trim() === '') {
+      callback([]);
+      return () => {};
+    }
 
-    return unsubscribe;
+    try {
+      const reviewsQuery = query(collection(firestore, 'users', sellerId, 'reviews'), orderBy('createdAt', 'desc'));
+      
+      const unsubscribe = onSnapshot(reviewsQuery, (querySnapshot) => {
+          let reviews = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Review));
+          if (adId) {
+              reviews = reviews.filter(r => r.adId === adId);
+          }
+          callback(reviews);
+      }, (error) => {
+          console.error("خطأ في جلب المراجعات:", error);
+      });
+
+      return unsubscribe;
+    } catch (err) {
+      console.warn("Could not query reviews for seller:", sellerId, err);
+      callback([]);
+      return () => {};
+    }
   }, []);
 
   const incrementAdView = useCallback(async (ad: Ad) => {

@@ -993,74 +993,45 @@ function AdFormContent({ adId, userId, isEditMode, onSuccess }: { adId?: string 
                 control={form.control}
                 name="brand"
                 render={({ field }) => (
-                  <FormItem className="space-y-3 p-4 rounded-xl border border-primary/20 bg-primary/5 animate-in fade-in">
-                    <div className="flex items-center justify-between">
-                      <FormLabel className="text-base font-bold flex items-center gap-2 text-foreground">
-                        <CarFront className="h-5 w-5 text-primary" />
-                        <span>ماركة السيارة / نوع المركبة</span>
+                  <FormItem className="space-y-1.5 animate-in fade-in w-full sm:max-w-xs">
+                    <div className="flex items-center justify-between gap-2">
+                      <FormLabel className="text-sm font-semibold flex items-center gap-1.5">
+                        <CarFront className="h-4 w-4 text-primary" />
+                        <span>ماركة السيارة</span>
                       </FormLabel>
                       {field.value && (
                         <button
                           type="button"
                           onClick={() => field.onChange('')}
-                          className="text-xs text-muted-foreground hover:text-destructive flex items-center gap-1 transition-colors cursor-pointer"
+                          className="text-2xs text-muted-foreground hover:text-destructive flex items-center gap-1 transition-colors cursor-pointer"
                         >
-                          <X className="h-3.5 w-3.5" />
-                          <span>إلغاء التحديد ({field.value})</span>
+                          <X className="h-3 w-3" />
+                          <span>مسح ({field.value})</span>
                         </button>
                       )}
                     </div>
 
-                    {/* Quick popular brand pills */}
-                    <div className="space-y-1.5">
-                      <span className="text-2xs font-semibold text-muted-foreground">الماركات الشائعة:</span>
-                      <div className="flex flex-wrap gap-1.5 max-h-28 overflow-y-auto custom-scrollbar p-0.5">
-                        {POPULAR_CAR_BRANDS.filter(b => b.isPopular).map(brand => {
-                          const isSelected = field.value === brand.name || field.value === brand.id;
-                          return (
-                            <button
-                              key={brand.id}
-                              type="button"
-                              onClick={() => field.onChange(isSelected ? '' : brand.name)}
-                              className={cn(
-                                "px-2.5 py-1 rounded-lg text-xs font-bold transition-all border cursor-pointer",
-                                isSelected
-                                  ? "bg-primary text-primary-foreground border-primary shadow-xs scale-105"
-                                  : "bg-background text-foreground border-border/80 hover:border-primary/50 hover:bg-secondary/60"
-                              )}
-                            >
-                              {brand.name}
-                            </button>
-                          );
-                        })}
-                      </div>
-                    </div>
-
-                    {/* Select from full car brands list */}
-                    <div className="space-y-1 pt-1">
-                      <span className="text-2xs font-semibold text-muted-foreground">أو اختر من القائمة الكاملة لجميع الماركات:</span>
-                      <Select
-                        onValueChange={field.onChange}
-                        value={field.value || ''}
-                        dir={direction}
-                      >
-                        <FormControl>
-                          <SelectTrigger className="bg-background">
-                            <SelectValue placeholder="اختر ماركة السيارة من القائمة الكاملة..." />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent className="max-h-64">
-                          {POPULAR_CAR_BRANDS.map(brand => (
-                            <SelectItem key={brand.id} value={brand.name}>
-                              <div className="flex items-center justify-between w-full gap-4">
-                                <span className="font-medium">{brand.name}</span>
-                                <span className="text-2xs font-mono text-muted-foreground">{brand.nameEn}</span>
-                              </div>
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
+                    <Select
+                      onValueChange={(val) => field.onChange(val === '__none__' ? '' : val)}
+                      value={field.value || ''}
+                      dir={direction}
+                    >
+                      <FormControl>
+                        <SelectTrigger className="h-10 bg-background text-sm w-full">
+                          <SelectValue placeholder="اختر ماركة السيارة" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent className="max-h-60">
+                        <SelectItem value="__none__" className="text-muted-foreground text-xs italic">
+                          -- بدون تحديد ماركة --
+                        </SelectItem>
+                        {POPULAR_CAR_BRANDS.map(brand => (
+                          <SelectItem key={brand.id} value={brand.name} className="py-1.5 text-sm cursor-pointer">
+                            {brand.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                     <FormMessage />
                   </FormItem>
                 )}

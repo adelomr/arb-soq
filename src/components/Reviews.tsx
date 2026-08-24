@@ -98,17 +98,22 @@ export default function Reviews({ seller, adId, ad }: ReviewsProps) {
   const [isLoading, setIsLoading] = useState(false);
   const [showAll, setShowAll] = useState(false);
 
+  const sellerId = seller?.id || ad?.userId || '';
+
   useEffect(() => {
-    const unsubscribe = getReviews(seller.id, setReviews, adId);
-    return () => unsubscribe();
-  }, [seller.id, adId, getReviews]);
+    if (!sellerId) return;
+    const unsubscribe = getReviews(sellerId, setReviews, adId);
+    return () => {
+      if (unsubscribe) unsubscribe();
+    };
+  }, [sellerId, adId, getReviews]);
 
   const handleSubmitReview = async () => {
     if (!user || !userProfile) {
       toast({ title: t.loginToReview, variant: 'destructive' });
       return;
     }
-    if (user.uid === seller.id) {
+    if (sellerId && user.uid === sellerId) {
       toast({ title: t.cannotReviewSelf, variant: 'destructive' });
       return;
     }
@@ -120,10 +125,14 @@ export default function Reviews({ seller, adId, ad }: ReviewsProps) {
       toast({ title: t.reviewRequired, variant: 'destructive' });
       return;
     }
+    if (!sellerId) {
+      toast({ title: 'تعذر تحديد حساب البائع لإضافة التقييم', variant: 'destructive' });
+      return;
+    }
 
     setIsLoading(true);
     try {
-      await addReview(seller.id, {
+      await addReview(sellerId, {
         reviewerId: user.uid,
         reviewerName: userProfile.name,
         rating: newRating,

@@ -634,7 +634,7 @@ export default function AdPageClient({ page }: AdPageClientProps) {
 
                   <div
                     ref={storesScrollRef}
-                    className="flex items-center gap-3 overflow-x-auto scrollbar-none py-1 px-1 scroll-smooth"
+                    className="flex items-center gap-3 overflow-x-auto scrollbar-none py-1 px-1 scroll-smooth touch-pan-x overscroll-x-contain"
                   >
                     {stores.map((store) => (
                       <div
@@ -716,7 +716,7 @@ export default function AdPageClient({ page }: AdPageClientProps) {
 
                     <div
                       ref={brandsScrollRef}
-                      className="flex items-center gap-2 overflow-x-auto scrollbar-none py-1 flex-1 scroll-smooth"
+                      className="flex items-center gap-2 overflow-x-auto scrollbar-none py-1 flex-1 scroll-smooth touch-pan-x overscroll-x-contain"
                     >
                       {brands
                         .filter((b) => (b.name || '').trim() !== 'الكل' && b.id !== 'b_all' && b.id !== 'all')
