@@ -20,6 +20,13 @@ export const metadata: Metadata = {
   alternates: {
     canonical: BASE_URL,
   },
+  robots: {
+    index: true,
+    follow: true,
+    'max-snippet': -1,
+    'max-image-preview': 'large',
+    'max-video-preview': -1,
+  },
   openGraph: {
     type: 'website',
     locale: 'ar_SA',
