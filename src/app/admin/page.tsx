@@ -37,6 +37,8 @@ import GoogleAdsSettings from "@/components/GoogleAdsSettings";
 import AdPlacementManager from "@/components/AdPlacementManager";
 import PaymentGatewayManager from "@/components/PaymentGatewayManager";
 import VerificationRequestsManager from "@/components/VerificationRequestsManager";
+import VodafoneCashManager from "@/components/VodafoneCashManager";
+import { Smartphone } from "lucide-react";
 
 const t = {
     adminDashboard: "لوحة تحكم المسؤول",
@@ -44,6 +46,8 @@ const t = {
     accessDenied: "الوصول مرفوض",
     notAdmin: "ليس لديك الصلاحيات اللازمة للوصول إلى هذه الصفحة.",
     backToHome: "العودة إلى الرئيسية",
+    vodafoneCash: "طلبات دفع فودافون كاش 📱",
+    vodafoneCashDesc: "مراجعة إيصالات التحويل وتفعيل باقات المشتركين فورياً.",
     verificationRequests: "طلبات توثيق الحسابات (العلامة الزرقاء 🛡️)",
     verificationRequestsDesc: "مراجعة وتأكيد طلبات التوثيق الواردة من المستخدمين عبر واتساب.",
     userManagement: "إدارة المستخدمين",
@@ -75,7 +79,7 @@ const t = {
     googleAdsSettingsDesc: "التحكم في بنرات الموقع وإعلانات جوجل أدسنس والمساحات المخصصة وإحصائياتها.",
 };
 
-type AdminView = 'dashboard' | 'verification-requests' | 'users' | 'notifications' | 'settings' | 'announcement' | 'pricing' | 'categories' | 'messages' | 'pages' | 'topics' | 'create-topic' | 'ads-settings' | 'payment-gateway';
+type AdminView = 'dashboard' | 'vodafone-cash' | 'verification-requests' | 'users' | 'notifications' | 'settings' | 'announcement' | 'pricing' | 'categories' | 'messages' | 'pages' | 'topics' | 'create-topic' | 'ads-settings' | 'payment-gateway';
 
 export default function AdminPage() {
     const { userProfile, loading } = useAuth();
@@ -133,6 +137,8 @@ export default function AdminPage() {
 
     const renderView = () => {
         switch (view) {
+            case 'vodafone-cash':
+                return <VodafoneCashManager />;
             case 'verification-requests':
                 return <VerificationRequestsManager />;
             case 'users':
@@ -164,6 +170,15 @@ export default function AdminPage() {
             default:
                 return (
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                        <Card onClick={() => setView('vodafone-cash')} className="cursor-pointer hover:border-emerald-500 hover:shadow-lg transition-all bg-emerald-500/10 border-emerald-500/30 shadow-sm">
+                            <CardHeader>
+                                <CardTitle className="flex items-center gap-3 text-emerald-800 dark:text-emerald-300">
+                                    <Smartphone className="h-6 w-6 text-emerald-600 dark:text-emerald-400"/>
+                                    {t.vodafoneCash}
+                                </CardTitle>
+                                <CardDescription>{t.vodafoneCashDesc}</CardDescription>
+                            </CardHeader>
+                        </Card>
                         <Card onClick={() => setView('verification-requests')} className="cursor-pointer hover:border-blue-500 hover:shadow-lg transition-all bg-blue-500/10 border-blue-500/30 shadow-sm">
                             <CardHeader>
                                 <CardTitle className="flex items-center gap-3">

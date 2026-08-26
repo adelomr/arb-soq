@@ -28,7 +28,7 @@ import {
 } from "@/components/ui/alert-dialog"
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { MoreHorizontal, Pencil, Trash2, Loader2, LayoutDashboard, Store, PlusCircle, Building, Edit, Eye, MousePointerClick, RotateCcw, AlertTriangle, Activity, BarChart3, CarFront, Download, Sparkles } from 'lucide-react';
+import { MoreHorizontal, Pencil, Trash2, Loader2, LayoutDashboard, Store, PlusCircle, Building, Edit, Eye, MousePointerClick, RotateCcw, AlertTriangle, Activity, BarChart3, CarFront, Download, Sparkles, Smartphone } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -49,6 +49,9 @@ import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import StoreCard from './StoreCard';
 import { useSearchParams } from 'next/navigation';
+import dynamic from 'next/dynamic';
+
+const VodafoneCashManager = dynamic(() => import('@/components/VodafoneCashManager'), { ssr: false });
 
 const translations = {
     ar: {
@@ -500,15 +503,27 @@ export default function UserDashboard() {
   const t = translations.ar;
 
   const urlUserId = searchParams.get('userId');
+  const urlTab = searchParams.get('tab');
   const targetUserId = urlUserId || user?.uid;
 
   const [regularAds, setRegularAds] = useState<Ad[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [externalProfile, setExternalProfile] = useState<UserProfile | null>(null);
+  const [vodafonePendingCount, setVodafonePendingCount] = useState(0);
 
   const isAdmin = userProfile?.role === 'admin';
   const isSelf = user?.uid && targetUserId === user.uid;
   const hasStore = !!userProfile?.store || !!externalProfile?.store;
+
+  // جلب عدد طلبات فودافون المعلقة للأدمن
+  useEffect(() => {
+    if (isAdmin) {
+      import('@/lib/vodafone-cash-service')
+        .then(({ getPendingVodafoneCashCount }) => getPendingVodafoneCashCount())
+        .then(setVodafonePendingCount)
+        .catch(() => {});
+    }
+  }, [isAdmin]);
   
   useEffect(() => {
     if (urlUserId && !user) {
@@ -573,10 +588,24 @@ export default function UserDashboard() {
           )}
         </CardHeader>
         <CardContent>
-            <Tabs defaultValue="ads" className="w-full">
-                <TabsList className={cn("grid w-full", hasStore ? "grid-cols-2" : "grid-cols-1")}>
+            <Tabs defaultValue={urlTab === 'vodafone-cash' && isAdmin ? 'vodafone-cash' : 'ads'} className="w-full">
+                <TabsList className={cn("grid w-full", isAdmin && isSelf ? (hasStore ? 'grid-cols-3' : 'grid-cols-2') : (hasStore ? 'grid-cols-2' : 'grid-cols-1'))}>
                     <TabsTrigger value="ads" className="gap-2"><LayoutDashboard className="h-4 w-4" />{t.myAds}</TabsTrigger>
                     {hasStore && <TabsTrigger value="store" className="gap-2"><Store className="h-4 w-4" />{t.myStore}</TabsTrigger>}
+                    {isAdmin && isSelf && (
+                      <TabsTrigger value="vodafone-cash" className="gap-1.5 relative">
+                        <Smartphone className="h-4 w-4" />
+                        <span>فودافون كاش</span>
+                        {vodafonePendingCount > 0 && (
+                          <span
+                            className="absolute -top-1 -right-1 w-4 h-4 rounded-full text-white text-[10px] font-black flex items-center justify-center"
+                            style={{ background: '#e60000' }}
+                          >
+                            {vodafonePendingCount}
+                          </span>
+                        )}
+                      </TabsTrigger>
+                    )}
                 </TabsList>
                 <TabsContent value="ads" className="mt-6">
                     <AdTable ads={regularAds} isLoading={isLoading} isAdmin={isAdmin} noItemsMessage={t.noAds} />
@@ -584,6 +613,11 @@ export default function UserDashboard() {
                 {hasStore && (
                   <TabsContent value="store" className="mt-6">
                       <StoreTab user={user} userProfile={userProfile} targetUserId={targetUserId} effectiveProfile={effectiveProfile} />
+                  </TabsContent>
+                )}
+                {isAdmin && isSelf && (
+                  <TabsContent value="vodafone-cash" className="mt-6">
+                    <VodafoneCashManager />
                   </TabsContent>
                 )}
             </Tabs>

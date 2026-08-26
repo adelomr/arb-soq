@@ -22,7 +22,8 @@ import {
   Image as ImageIcon,
   Clock,
   Search,
-  BadgeCheck
+  BadgeCheck,
+  Smartphone
 } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { useMarket } from "@/context/MarketContext";
@@ -32,6 +33,7 @@ import { createPaymobPayment } from '@/app/actions';
 import dynamic from 'next/dynamic';
 import { cn } from '@/lib/utils';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
+import VodafoneCashDialog from '@/components/VodafoneCashDialog';
 
 const Header = dynamic(() => import('@/components/Header'), { ssr: false });
 
@@ -201,20 +203,55 @@ function PricingContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
 
-  // تحديد الدولة والعملة الافتراضية مع التزامن التلقائي مع سوق المستخدم
-  const [selectedCountry, setSelectedCountry] = useState<string>('sa');
+  // تحديد الدولة والعملة الافتراضية
+  const [selectedCountry, setSelectedCountry] = useState<string>('eg');
+  const [userSelectedCountryManually, setUserSelectedCountryManually] = useState(false);
   const [loadingPlan, setLoadingPlan] = useState<PlanId | null>(null);
   const [isClient, setIsClient] = useState(false);
 
+  // حالة حوار فودافون كاش
+  const [vodafoneCashDialog, setVodafoneCashDialog] = useState<{
+    open: boolean;
+    planId: 'premium' | 'gold';
+    planName: string;
+    amount: number;
+    currency: string;
+  }>({ open: false, planId: 'premium', planName: '', amount: 0, currency: 'EGP' });
+
+  const openVodafoneCash = (planId: 'premium' | 'gold') => {
+    if (!user || !userProfile) {
+      toast({
+        title: 'تسجيل الدخول مطلوب',
+        description: 'يرجى تسجيل الدخول أو إنشاء حساب لاختيار باقة مميزة.',
+        variant: 'destructive',
+      });
+      router.push('/login?redirect=/pricing');
+      return;
+    }
+    // في فودافون كاش: الباقة الفضية 250 ج.م والذهبية 750 ج.م
+    const egpAmount = planId === 'gold' ? 750 : 250;
+    const planName = planId === 'gold' ? 'الباقة الذهبية VIP 👑' : 'الباقة الفضية المميزة ⭐';
+    setVodafoneCashDialog({
+      open: true,
+      planId,
+      planName,
+      amount: egpAmount,
+      currency: 'ج.م',
+    });
+  };
+
+  // فودافون كاش متاح دائماً كطريقة دفع أساسية ومباشرة
+  const showVodafoneCash = true;
+
   useEffect(() => {
     setIsClient(true);
-    const countryKey = (market?.id || userProfile?.country || 'sa').toLowerCase();
-    if (PRICING_DATA[countryKey]) {
-      setSelectedCountry(countryKey);
-    } else {
-      setSelectedCountry('sa');
+    if (!userSelectedCountryManually) {
+      const countryKey = (market?.id || userProfile?.country || 'eg').toLowerCase();
+      if (PRICING_DATA[countryKey]) {
+        setSelectedCountry(countryKey);
+      }
     }
-  }, [market?.id, userProfile?.country]);
+  }, [market?.id, userProfile?.country, userSelectedCountryManually]);
 
   const paymentStatus = searchParams?.get('payment');
   const activatedPlan = searchParams?.get('plan');
@@ -320,7 +357,10 @@ function PricingContent() {
               {Object.entries(PRICING_DATA).map(([code, data]) => (
                 <button
                   key={code}
-                  onClick={() => setSelectedCountry(code)}
+                  onClick={() => {
+                    setSelectedCountry(code);
+                    setUserSelectedCountryManually(true);
+                  }}
                   className={cn(
                     "px-3.5 py-1.5 rounded-xl text-xs sm:text-sm font-bold transition-all flex items-center gap-1.5",
                     selectedCountry === code
@@ -456,24 +496,41 @@ function PricingContent() {
                   </li>
                 </ul>
 
-                <Button
-                  onClick={() => handleSubscribe('premium')}
-                  disabled={loadingPlan === 'premium'}
-                  size="lg"
-                  className="w-full py-6 text-sm sm:text-base font-bold bg-primary hover:bg-primary/90 text-primary-foreground rounded-2xl shadow-md gap-2"
-                >
-                  {loadingPlan === 'premium' ? (
-                    <>
-                      <Loader2 className="w-4 h-4 animate-spin" />
-                      <span>جارٍ التجهيز...</span>
-                    </>
-                  ) : (
-                    <>
-                      <span>اشترك الآن ({currentPricing.premium.price} {currentPricing.currency})</span>
-                      <ArrowRight className="w-4 h-4 rotate-180" />
-                    </>
+                <div className="space-y-2">
+                  <Button
+                    onClick={() => handleSubscribe('premium')}
+                    disabled={loadingPlan === 'premium'}
+                    size="lg"
+                    className="w-full py-6 text-sm sm:text-base font-bold bg-primary hover:bg-primary/90 text-primary-foreground rounded-2xl shadow-md gap-2"
+                  >
+                    {loadingPlan === 'premium' ? (
+                      <>
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                        <span>جارٍ التجهيز...</span>
+                      </>
+                    ) : (
+                      <>
+                        <span>اشترك بالبطاقة ({currentPricing.premium.price} {currentPricing.currency})</span>
+                        <ArrowRight className="w-4 h-4 rotate-180" />
+                      </>
+                    )}
+                  </Button>
+                  {showVodafoneCash && (
+                    <Button
+                      onClick={() => openVodafoneCash('premium')}
+                      size="lg"
+                      variant="outline"
+                      className="w-full py-5 text-sm sm:text-base font-bold rounded-2xl gap-2 border bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border-emerald-500/30 hover:bg-emerald-600 hover:text-white hover:border-emerald-600 transition-all shadow-xs"
+                    >
+                      <Smartphone className="w-4 h-4" />
+                      <span>
+                        {selectedCountry === 'eg'
+                          ? `ادفع بفودافون كاش (${currentPricing.premium.price} ج.م)`
+                          : `ادفع بفودافون كاش (250 ج.م)`}
+                      </span>
+                    </Button>
                   )}
-                </Button>
+                </div>
               </CardContent>
             </Card>
 
@@ -537,24 +594,41 @@ function PricingContent() {
                   </li>
                 </ul>
 
-                <Button
-                  onClick={() => handleSubscribe('gold')}
-                  disabled={loadingPlan === 'gold'}
-                  size="lg"
-                  className="w-full py-6 text-sm sm:text-base font-bold bg-gradient-to-r from-amber-500 to-yellow-500 hover:from-amber-600 hover:to-yellow-600 text-black rounded-2xl shadow-lg gap-2"
-                >
-                  {loadingPlan === 'gold' ? (
-                    <>
-                      <Loader2 className="w-4 h-4 animate-spin text-black" />
-                      <span>جارٍ التجهيز...</span>
-                    </>
-                  ) : (
-                    <>
-                      <span>اشتراك VIP الذهبي ({currentPricing.gold.price} {currentPricing.currency})</span>
-                      <ArrowRight className="w-4 h-4 rotate-180 text-black" />
-                    </>
+                <div className="space-y-2">
+                  <Button
+                    onClick={() => handleSubscribe('gold')}
+                    disabled={loadingPlan === 'gold'}
+                    size="lg"
+                    className="w-full py-6 text-sm sm:text-base font-bold bg-gradient-to-r from-amber-500 to-yellow-500 hover:from-amber-600 hover:to-yellow-600 text-black rounded-2xl shadow-lg gap-2"
+                  >
+                    {loadingPlan === 'gold' ? (
+                      <>
+                        <Loader2 className="w-4 h-4 animate-spin text-black" />
+                        <span>جارٍ التجهيز...</span>
+                      </>
+                    ) : (
+                      <>
+                        <span>اشتراك VIP بالبطاقة ({currentPricing.gold.price} {currentPricing.currency})</span>
+                        <ArrowRight className="w-4 h-4 rotate-180 text-black" />
+                      </>
+                    )}
+                  </Button>
+                  {showVodafoneCash && (
+                    <Button
+                      onClick={() => openVodafoneCash('gold')}
+                      size="lg"
+                      variant="outline"
+                      className="w-full py-5 text-sm sm:text-base font-bold rounded-2xl gap-2 border bg-amber-500/10 text-amber-800 dark:text-amber-300 border-amber-500/30 hover:bg-amber-500 hover:text-black hover:border-amber-500 transition-all shadow-xs"
+                    >
+                      <Smartphone className="w-4 h-4" />
+                      <span>
+                        {selectedCountry === 'eg'
+                          ? `ادفع بفودافون كاش (${currentPricing.gold.price} ج.م)`
+                          : `ادفع بفودافون كاش (750 ج.م)`}
+                      </span>
+                    </Button>
                   )}
-                </Button>
+                </div>
               </CardContent>
             </Card>
 
@@ -706,6 +780,16 @@ function PricingContent() {
       </main>
 
       <Footer />
+
+      {/* ── حوار الدفع بفودافون كاش ── */}
+      <VodafoneCashDialog
+        isOpen={vodafoneCashDialog.open}
+        onOpenChange={(open) => setVodafoneCashDialog((s) => ({ ...s, open }))}
+        planId={vodafoneCashDialog.planId}
+        planName={vodafoneCashDialog.planName}
+        amount={vodafoneCashDialog.amount}
+        currency={vodafoneCashDialog.currency}
+      />
     </div>
   );
 }

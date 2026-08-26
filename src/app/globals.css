@@ -52,6 +52,11 @@
   }
 }
 
+.grecaptcha-badge {
+  visibility: hidden !important;
+  pointer-events: none !important;
+}
+
 @layer base {
   html, body {
     max-width: 100vw;

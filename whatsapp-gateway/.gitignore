@@ -1,0 +1,10 @@
+# Dependencies
+node_modules/
+
+# WhatsApp Auth Session (contains login private keys - KEEP SECRET)
+auth_session/
+
+# Env & Logs
+.env
+*.log
+npm-debug.log*

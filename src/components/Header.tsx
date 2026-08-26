@@ -475,9 +475,14 @@ export default function Header() {
                     </DropdownMenuLabel>
                     <DropdownMenuSeparator />
                     {isAdmin && (
-                      <DropdownMenuItem asChild>
-                        <Link href="/admin"><Shield className={direction === 'rtl' ? 'ml-2 h-4 w-4' : 'mr-2 h-4 w-4'} />{currentLabels.adminDashboard}</Link>
-                      </DropdownMenuItem>
+                      <>
+                        <DropdownMenuItem asChild>
+                          <Link href="/admin"><Shield className={direction === 'rtl' ? 'ml-2 h-4 w-4' : 'mr-2 h-4 w-4'} />{currentLabels.adminDashboard}</Link>
+                        </DropdownMenuItem>
+                        <DropdownMenuItem asChild>
+                          <Link href="/dashboard?tab=vodafone-cash"><Smartphone className={direction === 'rtl' ? 'ml-2 h-4 w-4 text-emerald-600' : 'mr-2 h-4 w-4 text-emerald-600'} />طلبات فودافون كاش</Link>
+                        </DropdownMenuItem>
+                      </>
                     )}
                     <DropdownMenuItem asChild>
                       <Link href="/dashboard"><LayoutDashboard className={direction === 'rtl' ? 'ml-2 h-4 w-4' : 'mr-2 h-4 w-4'} />{currentLabels.dashboard}</Link>
