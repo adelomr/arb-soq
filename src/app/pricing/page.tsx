@@ -23,7 +23,8 @@ import {
   Clock,
   Search,
   BadgeCheck,
-  Smartphone
+  Smartphone,
+  CreditCard
 } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { useMarket } from "@/context/MarketContext";
@@ -496,40 +497,33 @@ function PricingContent() {
                   </li>
                 </ul>
 
-                <div className="space-y-2">
-                  <Button
-                    onClick={() => handleSubscribe('premium')}
-                    disabled={loadingPlan === 'premium'}
-                    size="lg"
-                    className="w-full py-6 text-sm sm:text-base font-bold bg-primary hover:bg-primary/90 text-primary-foreground rounded-2xl shadow-md gap-2"
-                  >
-                    {loadingPlan === 'premium' ? (
-                      <>
-                        <Loader2 className="w-4 h-4 animate-spin" />
-                        <span>جارٍ التجهيز...</span>
-                      </>
-                    ) : (
-                      <>
-                        <span>اشترك بالبطاقة ({currentPricing.premium.price} {currentPricing.currency})</span>
-                        <ArrowRight className="w-4 h-4 rotate-180" />
-                      </>
-                    )}
-                  </Button>
+                <div className="space-y-2.5">
+                  {/* زر فودافون كاش هو الزر الأساسي الفعّال */}
                   {showVodafoneCash && (
                     <Button
                       onClick={() => openVodafoneCash('premium')}
                       size="lg"
-                      variant="outline"
-                      className="w-full py-5 text-sm sm:text-base font-bold rounded-2xl gap-2 border bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border-emerald-500/30 hover:bg-emerald-600 hover:text-white hover:border-emerald-600 transition-all shadow-xs"
+                      className="w-full py-6 text-sm sm:text-base font-bold rounded-2xl gap-2 bg-emerald-600 hover:bg-emerald-700 text-white shadow-md transition-all"
                     >
                       <Smartphone className="w-4 h-4" />
                       <span>
                         {selectedCountry === 'eg'
                           ? `ادفع بفودافون كاش (${currentPricing.premium.price} ج.م)`
-                          : `ادفع بفودافون كاش (250 ج.م)`}
+                          : `ادفع بفودافون كاش والمحافظ (250 ج.م)`}
                       </span>
                     </Button>
                   )}
+
+                  {/* زر البطاقة البنكية معطّل مؤقتاً لحين تفعيل بوابة الدفع */}
+                  <Button
+                    disabled={true}
+                    size="lg"
+                    variant="outline"
+                    className="w-full py-5 text-xs sm:text-sm font-semibold rounded-2xl gap-2 border-border/80 text-muted-foreground bg-muted/30 cursor-not-allowed opacity-70"
+                  >
+                    <CreditCard className="w-4 h-4" />
+                    <span>الدفع بالبطاقة البنكية (قيد التفعيل قريباً)</span>
+                  </Button>
                 </div>
               </CardContent>
             </Card>
@@ -594,40 +588,33 @@ function PricingContent() {
                   </li>
                 </ul>
 
-                <div className="space-y-2">
-                  <Button
-                    onClick={() => handleSubscribe('gold')}
-                    disabled={loadingPlan === 'gold'}
-                    size="lg"
-                    className="w-full py-6 text-sm sm:text-base font-bold bg-gradient-to-r from-amber-500 to-yellow-500 hover:from-amber-600 hover:to-yellow-600 text-black rounded-2xl shadow-lg gap-2"
-                  >
-                    {loadingPlan === 'gold' ? (
-                      <>
-                        <Loader2 className="w-4 h-4 animate-spin text-black" />
-                        <span>جارٍ التجهيز...</span>
-                      </>
-                    ) : (
-                      <>
-                        <span>اشتراك VIP بالبطاقة ({currentPricing.gold.price} {currentPricing.currency})</span>
-                        <ArrowRight className="w-4 h-4 rotate-180 text-black" />
-                      </>
-                    )}
-                  </Button>
+                <div className="space-y-2.5">
+                  {/* زر فودافون كاش هو الزر الأساسي الفعّال */}
                   {showVodafoneCash && (
                     <Button
                       onClick={() => openVodafoneCash('gold')}
                       size="lg"
-                      variant="outline"
-                      className="w-full py-5 text-sm sm:text-base font-bold rounded-2xl gap-2 border bg-amber-500/10 text-amber-800 dark:text-amber-300 border-amber-500/30 hover:bg-amber-500 hover:text-black hover:border-amber-500 transition-all shadow-xs"
+                      className="w-full py-6 text-sm sm:text-base font-extrabold rounded-2xl gap-2 bg-gradient-to-r from-amber-500 to-yellow-500 hover:from-amber-600 hover:to-yellow-600 text-black shadow-lg transition-all"
                     >
-                      <Smartphone className="w-4 h-4" />
+                      <Smartphone className="w-4 h-4 text-black" />
                       <span>
                         {selectedCountry === 'eg'
                           ? `ادفع بفودافون كاش (${currentPricing.gold.price} ج.م)`
-                          : `ادفع بفودافون كاش (750 ج.م)`}
+                          : `ادفع بفودافون كاش والمحافظ (750 ج.م)`}
                       </span>
                     </Button>
                   )}
+
+                  {/* زر البطاقة البنكية معطّل مؤقتاً لحين تفعيل بوابة الدفع */}
+                  <Button
+                    disabled={true}
+                    size="lg"
+                    variant="outline"
+                    className="w-full py-5 text-xs sm:text-sm font-semibold rounded-2xl gap-2 border-border/80 text-muted-foreground bg-muted/30 cursor-not-allowed opacity-70"
+                  >
+                    <CreditCard className="w-4 h-4" />
+                    <span>الدفع بالبطاقة البنكية (قيد التفعيل قريباً)</span>
+                  </Button>
                 </div>
               </CardContent>
             </Card>
