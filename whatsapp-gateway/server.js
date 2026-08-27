@@ -53,11 +53,82 @@ function formatPhoneToJid(phone) {
   return cleaned + '@s.whatsapp.net';
 }
 
+const { Firestore } = require('@google-cloud/firestore');
+
+// Initialize Firestore for permanent session persistence across restarts and redeploys
+let firestore = null;
+try {
+  firestore = new Firestore({ projectId: process.env.GOOGLE_CLOUD_PROJECT || 'arb-soq' });
+} catch (e) {
+  console.log('[Firestore Session] Init info:', e.message);
+}
+
+const FIRESTORE_COLLECTION = 'whatsapp_gateway_session';
+
+async function restoreSessionFromFirestore() {
+  if (!firestore) return;
+  try {
+    const snapshot = await firestore.collection(FIRESTORE_COLLECTION).get();
+    if (snapshot.empty) {
+      console.log('[Firestore Session] No existing session found in Firestore.');
+      return;
+    }
+    if (!fs.existsSync(AUTH_DIR)) fs.mkdirSync(AUTH_DIR, { recursive: true });
+    for (const doc of snapshot.docs) {
+      const data = doc.data();
+      if (data && data.content) {
+        fs.writeFileSync(path.join(AUTH_DIR, doc.id), data.content, 'utf8');
+      }
+    }
+    console.log(`[Firestore Session] Restored ${snapshot.size} session files from Firestore successfully.`);
+  } catch (err) {
+    console.warn('[Firestore Session] Restore warning:', err.message);
+  }
+}
+
+async function saveSessionToFirestore() {
+  if (!firestore || !fs.existsSync(AUTH_DIR)) return;
+  try {
+    const files = fs.readdirSync(AUTH_DIR);
+    if (files.length === 0) return;
+    const batch = firestore.batch();
+    for (const file of files) {
+      const filePath = path.join(AUTH_DIR, file);
+      if (fs.statSync(filePath).isFile()) {
+        const content = fs.readFileSync(filePath, 'utf8');
+        const docRef = firestore.collection(FIRESTORE_COLLECTION).doc(file);
+        batch.set(docRef, { content, updatedAt: new Date() });
+      }
+    }
+    await batch.commit();
+    console.log(`[Firestore Session] Saved ${files.length} session files to Firestore.`);
+  } catch (err) {
+    console.warn('[Firestore Session] Save warning:', err.message);
+  }
+}
+
+async function clearSessionFromFirestore() {
+  if (!firestore) return;
+  try {
+    const snapshot = await firestore.collection(FIRESTORE_COLLECTION).get();
+    if (snapshot.empty) return;
+    const batch = firestore.batch();
+    snapshot.docs.forEach((doc) => batch.delete(doc.ref));
+    await batch.commit();
+    console.log('[Firestore Session] Cleared session from Firestore.');
+  } catch (err) {
+    console.warn('[Firestore Session] Clear warning:', err.message);
+  }
+}
+
 // ── بدء وتشغيل اتصال واتساب ──
 async function connectToWhatsApp() {
   if (!fs.existsSync(AUTH_DIR)) {
     fs.mkdirSync(AUTH_DIR, { recursive: true });
   }
+
+  // استعادة الجلسة الدائمة من Firestore إن وجدت
+  await restoreSessionFromFirestore();
 
   const { state, saveCreds } = await useMultiFileAuthState(AUTH_DIR);
   const { version, isLatest } = await fetchLatestBaileysVersion().catch(() => ({ version: [2, 3000, 1015901307], isLatest: true }));
@@ -75,7 +146,10 @@ async function connectToWhatsApp() {
     keepAliveIntervalMs: 10000,
   });
 
-  sock.ev.on('creds.update', saveCreds);
+  sock.ev.on('creds.update', async () => {
+    await saveCreds();
+    await saveSessionToFirestore();
+  });
 
   sock.ev.on('connection.update', async (update) => {
     const { connection, lastDisconnect, qr } = update;
@@ -107,6 +181,7 @@ async function connectToWhatsApp() {
         try {
           fs.rmSync(AUTH_DIR, { recursive: true, force: true });
         } catch (e) {}
+        await clearSessionFromFirestore();
         setTimeout(connectToWhatsApp, 2000);
       }
     } else if (connection === 'open') {
@@ -118,6 +193,8 @@ async function connectToWhatsApp() {
       console.log(`📱 Logged in as: +${connectedNumber}`);
       console.log(`🚀 Gateway API ready on http://localhost:${PORT}`);
       console.log('========================================\n');
+      // حفظ الجلسة فوراً في Firestore
+      await saveSessionToFirestore();
     }
   });
 }
