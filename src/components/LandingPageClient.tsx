@@ -213,7 +213,7 @@ export default function LandingPageClient({ page }: Props) {
         />
       )}
       {/* ========== HERO ========== */}
-      <section className={`relative min-h-[70vh] flex items-end bg-gradient-to-br ${theme.heroBg} overflow-hidden`}>
+      <section className={`relative ${page.coverImageUrl ? 'min-h-[50vh] sm:min-h-[60vh] lg:min-h-[70vh]' : 'min-h-[60vh]'} flex items-end bg-gradient-to-br ${theme.heroBg} overflow-hidden`}>
         {/* Cover image */}
         {page.coverImageUrl && (
           <Image
@@ -221,16 +221,26 @@ export default function LandingPageClient({ page }: Props) {
             alt={page.title}
             fill
             priority
-            className={`object-cover object-center ${page.theme === 'clear-cover' ? 'opacity-100' : 'opacity-40 mix-blend-luminosity'}`}
+            className="object-cover object-center opacity-100"
             sizes="100vw"
           />
         )}
-        {/* Overlay */}
-        <div className={`absolute inset-0 bg-gradient-to-t ${theme.heroOverlay}`} />
+        {/* Overlay: خفيف جداً في الأسفل فقط لتوضيح أزرار الاتصال إذا وجد غلاف */}
+        <div
+          className={`absolute inset-0 ${
+            page.coverImageUrl
+              ? 'bg-gradient-to-t from-black/70 via-black/10 to-transparent'
+              : `bg-gradient-to-t ${theme.heroOverlay}`
+          }`}
+        />
 
-        {/* Decorative blobs */}
-        <div className="absolute top-0 left-0 w-[500px] h-[500px] rounded-full bg-white/5 -translate-x-1/2 -translate-y-1/2 blur-3xl pointer-events-none" />
-        <div className="absolute bottom-0 right-0 w-[400px] h-[400px] rounded-full bg-white/5 translate-x-1/3 translate-y-1/3 blur-3xl pointer-events-none" />
+        {/* Decorative blobs (فقط إذا لم يكن هناك غلاف) */}
+        {!page.coverImageUrl && (
+          <>
+            <div className="absolute top-0 left-0 w-[500px] h-[500px] rounded-full bg-white/5 -translate-x-1/2 -translate-y-1/2 blur-3xl pointer-events-none" />
+            <div className="absolute bottom-0 right-0 w-[400px] h-[400px] rounded-full bg-white/5 translate-x-1/3 translate-y-1/3 blur-3xl pointer-events-none" />
+          </>
+        )}
 
         {/* Top-right Logo */}
         {page.logoUrl && (
@@ -239,25 +249,31 @@ export default function LandingPageClient({ page }: Props) {
           </div>
         )}
 
-        <div className="relative z-10 container mx-auto px-4 pb-16 pt-24 flex flex-col gap-6 items-center text-center">
-          {/* Title */}
-          <h1
-            className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-extrabold text-white drop-shadow-2xl max-w-6xl tracking-tight mx-auto text-center"
-            style={{ lineHeight: '2' }}
-          >
-            {page.title}
-          </h1>
+        <div className="relative z-10 container mx-auto px-4 pb-8 sm:pb-12 pt-20 flex flex-col gap-4 items-center text-center">
+          {/* عنوان الـ H1 لمحركات البحث والـ SEO دائماً */}
+          {page.coverImageUrl ? (
+            <h1 className="sr-only">{page.title}</h1>
+          ) : (
+            <>
+              <h1
+                className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-extrabold text-white drop-shadow-2xl max-w-6xl tracking-tight mx-auto text-center"
+                style={{ lineHeight: '1.8' }}
+              >
+                {page.title}
+              </h1>
 
-          {/* Subtitle */}
-          {page.subtitle && (
-            <p className="text-lg md:text-xl text-white/80 max-w-2xl leading-relaxed mx-auto text-center">
-              {page.subtitle}
-            </p>
+              {/* Subtitle */}
+              {page.subtitle && (
+                <p className="text-lg md:text-xl text-white/85 max-w-2xl leading-relaxed mx-auto text-center drop-shadow-md">
+                  {page.subtitle}
+                </p>
+              )}
+            </>
           )}
 
           {/* CTA Buttons */}
           {hasCta && (
-            <div className="flex flex-wrap gap-3 mt-2 justify-center">
+            <div className="flex flex-wrap gap-3 mt-1 justify-center">
               {waLink && (
                 <a href={waLink} target="_blank" rel="noopener noreferrer"
                   className={`flex items-center gap-2 px-6 py-3 rounded-2xl text-white font-bold shadow-xl text-base transition-all hover:scale-105 active:scale-95 ${theme.waBtn}`}>
