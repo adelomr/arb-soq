@@ -57,7 +57,13 @@ export async function sendWhatsAppMessage(
     return data;
   } catch (error: any) {
     console.warn('[WhatsApp Gateway Client] Send error:', error?.message);
-    return { success: false, error: error?.message || 'Gateway connection failed' };
+    const isConnError = error?.message?.includes('fetch failed') || error?.code === 'ECONNREFUSED';
+    return {
+      success: false,
+      error: isConnError
+        ? 'تعذر الاتصال بسيرفر بوابة واتساب (تأكد من تشغيل خادم البوابة على المنفذ 5005 ومسح رمز الـ QR).'
+        : (error?.message || 'Gateway connection failed')
+    };
   }
 }
 
@@ -81,6 +87,12 @@ export async function sendWhatsAppOTP(
     return data;
   } catch (error: any) {
     console.warn('[WhatsApp Gateway Client] Send OTP error:', error?.message);
-    return { success: false, error: error?.message || 'Gateway connection failed' };
+    const isConnError = error?.message?.includes('fetch failed') || error?.code === 'ECONNREFUSED';
+    return {
+      success: false,
+      error: isConnError
+        ? 'تعذر الاتصال بسيرفر بوابة واتساب (تأكد من تشغيل خادم البوابة على المنفذ 5005 ومسح رمز الـ QR).'
+        : (error?.message || 'Gateway connection failed')
+    };
   }
 }
