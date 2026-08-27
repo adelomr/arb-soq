@@ -325,9 +325,22 @@ export default function ProfileForm() {
           }
       } catch (error: any) {
           console.error("Error sending verification code: ", error);
+          let errorMsg = error.message || 'حدث خطأ أثناء إرسال كود التحقق.';
+          if (error.code === 'auth/invalid-app-credential') {
+              errorMsg = 'تعذر إتمام التحقق من أمان التطبيق (reCAPTCHA). يرجى التأكد من تفعيل موفر الهاتف (Phone) وإضافة النطاق إلى Authorized Domains في لوحة تحكم Firebase.';
+          } else if (error.code === 'auth/unauthorized-domain') {
+              errorMsg = 'هذا النطاق غير مضاف إلى قائمة النطاقات المصرح بها (Authorized Domains) في Firebase Console.';
+          } else if (error.code === 'auth/quota-exceeded') {
+              errorMsg = 'تم استنفاد الحصة اليومية لرسائل SMS في مشروع فايربيس.';
+          } else if (error.code === 'auth/too-many-requests') {
+              errorMsg = 'تم إرسال طلبات كثيرة في وقت قصير. يرجى الانتظار بضع دقائق ثم المحاولة مجدداً.';
+          } else if (error.code === 'auth/invalid-phone-number') {
+              errorMsg = 'رقم الهاتف غير صالح أو غير مكتوب بالصيغة الدولية الكاملة.';
+          }
+
           toast({ 
               title: 'خطأ في إرسال الرمز', 
-              description: error.message || 'حدث خطأ أثناء إرسال كود التحقق. يرجى التأكد من صحة رقم الهاتف واكتمال reCAPTCHA.', 
+              description: errorMsg, 
               variant: 'destructive' 
           });
           setConfirmationResult(null);
@@ -774,6 +787,9 @@ export default function ProfileForm() {
                   )}
                 </div>
             </div>
+            
+            {/* حاوية reCAPTCHA المباشرة */}
+            <div id="recaptcha-container" className="my-1.5 flex justify-center"></div>
             
             {/* نص توضيحي لطريقة الاستلام */}
             {(!userProfile?.phoneVerified || isEditingPhone) && !codeSent && (

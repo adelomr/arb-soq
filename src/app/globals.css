@@ -53,8 +53,7 @@
 }
 
 .grecaptcha-badge {
-  visibility: hidden !important;
-  pointer-events: none !important;
+  z-index: 9999;
 }
 
 @layer base {

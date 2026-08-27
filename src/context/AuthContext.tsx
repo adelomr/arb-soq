@@ -462,6 +462,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [refreshUserProfile]);
 
   const sendVerificationCode = useCallback(async (phoneNumber: string): Promise<ConfirmationResult> => {
+    if (typeof window === 'undefined') {
+      throw new Error("Cannot send verification code on server");
+    }
+
+    try {
+      auth.useDeviceLanguage();
+    } catch (e) {}
+
+    let container = document.getElementById('recaptcha-container');
+    if (!container) {
+      container = document.createElement('div');
+      container.id = 'recaptcha-container';
+      document.body.appendChild(container);
+    } else {
+      container.innerHTML = '';
+    }
+
     if (recaptchaVerifierRef.current) {
       try {
         recaptchaVerifierRef.current.clear();
@@ -471,10 +488,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       recaptchaVerifierRef.current = null;
     }
 
-    const verifier = new RecaptchaVerifier(auth, 'recaptcha-container', {
+    const verifier = new RecaptchaVerifier(auth, container, {
       size: 'invisible',
       callback: () => {
-        // reCAPTCHA resolved
+        // reCAPTCHA solved
       },
       'expired-callback': () => {
         console.warn("reCAPTCHA expired");
