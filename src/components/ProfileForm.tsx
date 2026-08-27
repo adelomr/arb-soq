@@ -282,39 +282,52 @@ export default function ProfileForm() {
   
       setIsSendingCode(true);
       try {
-          // ── 1. الإرسال الفوري والمجاني عبر بوابة واتساب ──
-          const waRes = await fetch('/api/auth/whatsapp-otp/send', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ phone: fullPhoneNumber, userId: user?.uid }),
-          });
+          if (channel === 'whatsapp') {
+              // ── الإرسال عبر بوابة واتساب ──
+              const waRes = await fetch('/api/auth/whatsapp-otp/send', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ phone: fullPhoneNumber, userId: user?.uid }),
+              });
 
-          const waData = await waRes.json();
+              const waData = await waRes.json();
 
-          if (waData.success) {
+              if (waData.success) {
+                  setCodeSent(true);
+                  setConfirmationResult({ isWhatsApp: true } as any);
+                  const cooldownEndTime = Date.now() + COOLDOWN_SECONDS * 1000;
+                  localStorage.setItem(COOLDOWN_STORAGE_KEY, cooldownEndTime.toString());
+                  setCooldown(COOLDOWN_SECONDS);
+                  toast({ 
+                      title: '✅ تم إرسال كود التفعيل عبر واتساب!', 
+                      description: `تم إرسال رمز مكون من 6 أرقام إلى واتساب رقم (${fullPhoneNumber}).` 
+                  });
+                  return;
+              }
+
+              toast({
+                  title: 'تعذر إرسال الرمز عبر واتساب',
+                  description: waData.error || 'يرجى تجربة الإرسال عبر رسالة SMS الأساسية من فايربيس.',
+                  variant: 'destructive',
+              });
+          } else {
+              // ── 1. الإرسال الأساسي عبر رسائل فايربيس (Firebase SMS OTP) ──
+              const confirmation = await sendVerificationCode(fullPhoneNumber);
+              setConfirmationResult(confirmation);
               setCodeSent(true);
-              setConfirmationResult({ isWhatsApp: true } as any);
               const cooldownEndTime = Date.now() + COOLDOWN_SECONDS * 1000;
               localStorage.setItem(COOLDOWN_STORAGE_KEY, cooldownEndTime.toString());
               setCooldown(COOLDOWN_SECONDS);
               toast({ 
-                  title: '✅ تم إرسال كود التفعيل عبر واتساب!', 
-                  description: `تم إرسال رمز مكون من 6 أرقام إلى واتساب رقم (${fullPhoneNumber}).` 
+                  title: '✅ تم إرسال كود التحقق عبر SMS!', 
+                  description: `تم إرسال رمز التحقق إلى هاتفك (${fullPhoneNumber}) عبر رسالة نصية قصيرة SMS (Firebase).` 
               });
-              return;
           }
-
-          // في حال حدوث خطأ في الإرسال
-          toast({
-              title: 'تعذر إرسال الرمز',
-              description: waData.error || 'يرجى التأكد من اتصال بوابة واتساب وصحة رقم الهاتف.',
-              variant: 'destructive',
-          });
       } catch (error: any) {
           console.error("Error sending verification code: ", error);
           toast({ 
-              title: 'خطأ في الإرسال', 
-              description: error.message || 'حدث خطأ أثناء إرسال كود التفعيل عبر واتساب.', 
+              title: 'خطأ في إرسال الرمز', 
+              description: error.message || 'حدث خطأ أثناء إرسال كود التحقق. يرجى التأكد من صحة رقم الهاتف واكتمال reCAPTCHA.', 
               variant: 'destructive' 
           });
           setConfirmationResult(null);
@@ -323,14 +336,14 @@ export default function ProfileForm() {
       }
   };
 
-  const handleSendCode = async () => {
+  const handleSendCode = async (channel: 'sms' | 'whatsapp' = 'sms') => {
     const phoneNumber = form.getValues('phoneNumber');
     setSendCodeAttempts(prev => prev + 1);
 
     if (phoneNumber?.startsWith('+2011') && sendCodeAttempts < 1) {
         setShowEgyptPhoneWarning(true);
     } else {
-        proceedWithSendCode();
+        proceedWithSendCode(channel);
     }
   };
 
@@ -362,7 +375,8 @@ export default function ProfileForm() {
                 return;
             }
         } else if (confirmationResult) {
-            await confirmVerificationCode(confirmationResult, code);
+            // التحقق الأساسي عبر Firebase Phone Auth
+            await confirmVerificationCode(confirmationResult, code.trim());
         }
 
         await updateUserProfile(user!.uid, { phoneNumber: fullPhoneNumber, phoneVerified: true });
@@ -728,32 +742,44 @@ export default function ProfileForm() {
                           تعديل الرقم
                       </Button>
                   ) : (
-                      <Button
-                          type="button"
-                          onClick={handleSendCode}
-                          disabled={isSendingCode || isPhoneEmpty || cooldown > 0}
-                          className="relative min-w-32 bg-emerald-600 hover:bg-emerald-700 text-white font-bold gap-1.5 shadow-xs"
-                      >
-                          {isSendingCode ? (
-                            <Loader2 className="animate-spin h-4 w-4" />
-                          ) : cooldown > 0 ? (
-                            `إعادة الإرسال (${cooldown})`
-                          ) : (
-                            <>
-                              <Smartphone className="h-4 w-4" />
-                              <span>تأكيد بواتساب</span>
-                            </>
-                          )}
-                      </Button>
+                      <div className="flex flex-wrap gap-2">
+                        <Button
+                            type="button"
+                            onClick={() => handleSendCode('sms')}
+                            disabled={isSendingCode || isPhoneEmpty || cooldown > 0}
+                            className="relative min-w-32 bg-primary hover:bg-primary/90 text-primary-foreground font-bold gap-1.5 shadow-xs"
+                        >
+                            {isSendingCode ? (
+                              <Loader2 className="animate-spin h-4 w-4" />
+                            ) : cooldown > 0 ? (
+                              `إعادة الإرسال (${cooldown})`
+                            ) : (
+                              <>
+                                <Smartphone className="h-4 w-4" />
+                                <span>تأكيد برمز SMS</span>
+                              </>
+                            )}
+                        </Button>
+                        <Button
+                            type="button"
+                            onClick={() => handleSendCode('whatsapp')}
+                            disabled={isSendingCode || isPhoneEmpty || cooldown > 0}
+                            variant="outline"
+                            className="relative min-w-28 border-emerald-600/40 text-emerald-600 hover:bg-emerald-500/10 dark:text-emerald-400 font-bold gap-1.5"
+                        >
+                            <MessageSquare className="h-4 w-4 text-emerald-500" />
+                            <span>عبر واتساب</span>
+                        </Button>
+                      </div>
                   )}
                 </div>
             </div>
             
-            {/* نص توضيحي للواتساب */}
+            {/* نص توضيحي لطريقة الاستلام */}
             {(!userProfile?.phoneVerified || isEditingPhone) && !codeSent && (
-              <p className="text-2xs text-muted-foreground flex items-center gap-1 mt-1 text-emerald-700 dark:text-emerald-400">
-                <span>💬</span>
-                <span>سيصلك رمز التفعيل المكون من 6 أرقام في رسالة واتساب فورية ومجانية.</span>
+              <p className="text-2xs text-muted-foreground flex items-center gap-1.5 mt-1 text-primary/90 dark:text-primary/80">
+                <span>📩</span>
+                <span>سيصلك رمز التحقق المكون من 6 أرقام في رسالة نصية قصيرة SMS (أو عبر واتساب) لتأكيد ملكية الرقم.</span>
               </p>
             )}
             
@@ -766,13 +792,17 @@ export default function ProfileForm() {
             control={form.control}
             name="verificationCode"
             render={({ field }) => (
-                <FormItem className="p-4 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 space-y-3">
-                <FormLabel className="flex items-center justify-between text-xs font-bold text-emerald-800 dark:text-emerald-300">
+                <FormItem className="p-4 rounded-2xl bg-primary/5 border border-primary/20 space-y-3">
+                <FormLabel className="flex items-center justify-between text-xs font-bold text-foreground">
                     <div className="flex items-center gap-1.5">
-                      <MessageSquare className="h-4 w-4 text-emerald-600 dark:text-emerald-400"/>
-                      <span>أدخل رمز التفعيل المستلم على واتساب:</span>
+                      <MessageSquare className="h-4 w-4 text-primary"/>
+                      <span>
+                        {(confirmationResult as any)?.isWhatsApp 
+                          ? 'أدخل رمز التفعيل المستلم على واتساب:' 
+                          : 'أدخل رمز التحقق المستلم في رسالة SMS (Firebase):'}
+                      </span>
                     </div>
-                    <span className="text-2xs bg-emerald-500/20 px-2 py-0.5 rounded-full">صالح لـ 5 دقائق</span>
+                    <span className="text-2xs bg-primary/10 text-primary px-2 py-0.5 rounded-full font-mono">صالح لـ 5 دقائق</span>
                 </FormLabel>
                  <div className="flex gap-2">
                     <FormControl>
@@ -789,7 +819,7 @@ export default function ProfileForm() {
                         type="button" 
                         onClick={handleVerifyCode} 
                         disabled={isVerifying || !form.watch('verificationCode')}
-                        className="relative min-w-28 font-bold bg-emerald-600 hover:bg-emerald-700 text-white h-11"
+                        className="relative min-w-28 font-bold bg-primary hover:bg-primary/90 text-primary-foreground h-11"
                     >
                         {isVerifying ? <Loader2 className="animate-spin h-4 w-4" /> : 'تأكيد الرمز'}
                      </Button>
