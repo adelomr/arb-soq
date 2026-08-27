@@ -2,6 +2,19 @@
 
 هذا السجل يوثق التعديلات والتحسينات المعمارية والبرمجية المنجزة لتكون مرجعاً دائمًا لفريق التطوير.
 
+## [ربط وتفعيل بوابة رسائل الـ SMS عبر تطبيق الأندرويد My-otp] - 2026-08-28
+
+### 1. تكامل مباشر مع تطبيق بوابة الرسائل SMSGatewayApp (My-otp)
+- **المهمة المنجزة:** تمكين الموقع من إرسال رسائل التحقق النصية القصيرة (SMS OTP) الحقيقية والمجانية مباشرة من شريحة هاتف الأندرويد (SIM Card) عبر تطبيق `My-otp`.
+- **التفاصيل:**
+  - إنشاء وحدة الربط [sms-gateway-client.ts](file:///d:/mashro3/mashroh/arb-soq/arb_soq.wap/arb_soq.wap/src/lib/sms-gateway-client.ts) للاتصال مع خادم التطبيق على المنفذ `8080` مع دعم التوكن الأمني وتشفير `HMAC-SHA256`.
+  - إنشاء مسارات الـ API:
+    - `/api/auth/sms-gateway/send`: توليد وحفظ كود التحقق وإرساله إلى الهاتف.
+    - `/api/auth/sms-gateway/verify`: التحقق السريع من كود الـ OTP وتوثيق رقم الهاتف.
+  - تحديث [ProfileForm.tsx](file:///d:/mashro3/mashroh/arb-soq/arb_soq.wap/arb_soq.wap/src/components/ProfileForm.tsx) ليكون الإرسال الافتراضي عبر بوابة رسائل الأندرويد SMS مع دعم تلقائي للبدائل (واتساب و Firebase).
+
+---
+
 ## [تفعيل رسائل كود التحقق OTP الأساسية عبر Firebase SMS] - 2026-08-27
 
 ### 1. تفعيل إرسال كود التحقق عبر رسائل SMS من Firebase (Firebase Phone Auth)

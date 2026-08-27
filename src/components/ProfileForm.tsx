@@ -262,7 +262,7 @@ export default function ProfileForm() {
     }
   };
   
-  const proceedWithSendCode = async (channel: 'sms' | 'whatsapp' = 'sms') => {
+  const proceedWithSendCode = async (channel: 'sms-gateway' | 'whatsapp' | 'firebase-sms' = 'sms-gateway') => {
       if (!user) return;
       const phoneNumberInput = form.getValues('phoneNumber');
       const phoneCountry = markets.find(m => m.id === form.getValues('phoneCountryCode')) || market || markets[0];
@@ -283,7 +283,7 @@ export default function ProfileForm() {
       setIsSendingCode(true);
       try {
           if (channel === 'whatsapp') {
-              // ── الإرسال عبر بوابة واتساب ──
+              // ── 1. الإرسال عبر بوابة واتساب ──
               const waRes = await fetch('/api/auth/whatsapp-otp/send', {
                   method: 'POST',
                   headers: { 'Content-Type': 'application/json' },
@@ -307,11 +307,55 @@ export default function ProfileForm() {
 
               toast({
                   title: 'تعذر إرسال الرمز عبر واتساب',
-                  description: waData.error || 'يرجى تجربة الإرسال عبر رسالة SMS الأساسية من فايربيس.',
+                  description: waData.error || 'يرجى تجربة الإرسال عبر رسالة SMS.',
                   variant: 'destructive',
               });
+          } else if (channel === 'sms-gateway') {
+              // ── 2. الإرسال الفوري والمباشر عبر بوابة رسائل الأندرويد (My-otp) ──
+              const smsRes = await fetch('/api/auth/sms-gateway/send', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ phone: fullPhoneNumber, userId: user?.uid }),
+              });
+
+              const smsData = await smsRes.json();
+
+              if (smsData.success) {
+                  setCodeSent(true);
+                  setConfirmationResult({ isSmsGateway: true } as any);
+                  const cooldownEndTime = Date.now() + COOLDOWN_SECONDS * 1000;
+                  localStorage.setItem(COOLDOWN_STORAGE_KEY, cooldownEndTime.toString());
+                  setCooldown(COOLDOWN_SECONDS);
+                  toast({ 
+                      title: '✅ تم إرسال كود التحقق عبر SMS!', 
+                      description: `تم إرسال رسالة نصية قصيرة SMS تحتوي على رمز التحقق إلى (${fullPhoneNumber}).` 
+                  });
+                  return;
+              }
+
+              // إذا كانت بوابة الأندرويد مغلقة، نحاول الإرسال الاحتياطي عبر Firebase
+              console.warn('[ProfileForm] SMS Gateway returned:', smsData.error, 'Falling back to Firebase Phone Auth...');
+              try {
+                  const confirmation = await sendVerificationCode(fullPhoneNumber);
+                  setConfirmationResult(confirmation);
+                  setCodeSent(true);
+                  const cooldownEndTime = Date.now() + COOLDOWN_SECONDS * 1000;
+                  localStorage.setItem(COOLDOWN_STORAGE_KEY, cooldownEndTime.toString());
+                  setCooldown(COOLDOWN_SECONDS);
+                  toast({ 
+                      title: '✅ تم إرسال كود التحقق عبر SMS!', 
+                      description: `تم إرسال رمز التحقق إلى هاتفك (${fullPhoneNumber}) عبر رسالة نصية قصيرة SMS.` 
+                  });
+                  return;
+              } catch (fbErr: any) {
+                  toast({
+                      title: 'تعذر إرسال رسالة الـ SMS',
+                      description: smsData.error || fbErr.message || 'يرجى تشغيل تطبيق بوابة الرسائل على الهاتف أو المحاولة عبر واتساب.',
+                      variant: 'destructive',
+                  });
+              }
           } else {
-              // ── 1. الإرسال الأساسي عبر رسائل فايربيس (Firebase SMS OTP) ──
+              // ── 3. الإرسال عبر Firebase Phone Auth ──
               const confirmation = await sendVerificationCode(fullPhoneNumber);
               setConfirmationResult(confirmation);
               setCodeSent(true);
@@ -327,9 +371,9 @@ export default function ProfileForm() {
           console.error("Error sending verification code: ", error);
           let errorMsg = error.message || 'حدث خطأ أثناء إرسال كود التحقق.';
           if (error.code === 'auth/invalid-app-credential') {
-              errorMsg = 'تعذر إتمام التحقق من أمان التطبيق (reCAPTCHA). يرجى التأكد من تفعيل موفر الهاتف (Phone) وإضافة النطاق إلى Authorized Domains في لوحة تحكم Firebase.';
+              errorMsg = 'تعذر إتمام التحقق من أمان التطبيق (reCAPTCHA). يرجى التأكد من تشغيل تطبيق بوابة الرسائل أو المحاولة عبر واتساب.';
           } else if (error.code === 'auth/unauthorized-domain') {
-              errorMsg = 'هذا النطاق غير مضاف إلى قائمة النطاقات المصرح بها (Authorized Domains) في Firebase Console.';
+              errorMsg = 'هذا النطاق غير مضاف إلى قائمة النطاقات المصرح بها في Firebase Console.';
           } else if (error.code === 'auth/quota-exceeded') {
               errorMsg = 'تم استنفاد الحصة اليومية لرسائل SMS في مشروع فايربيس.';
           } else if (error.code === 'auth/too-many-requests') {
@@ -349,7 +393,7 @@ export default function ProfileForm() {
       }
   };
 
-  const handleSendCode = async (channel: 'sms' | 'whatsapp' = 'sms') => {
+  const handleSendCode = async (channel: 'sms-gateway' | 'whatsapp' | 'firebase-sms' = 'sms-gateway') => {
     const phoneNumber = form.getValues('phoneNumber');
     setSendCodeAttempts(prev => prev + 1);
 
@@ -373,8 +417,23 @@ export default function ProfileForm() {
         const phoneCountry = markets.find(m => m.id === form.getValues('phoneCountryCode')) || market || markets[0];
         const fullPhoneNumber = phoneCountry ? `${phoneCountry.phoneCode}${phoneNumberInput?.replace(/^0+/, '')}` : '';
 
-        // إذا كان الإرسال تم عبر بوابة واتساب
-        if ((confirmationResult as any)?.isWhatsApp) {
+        // 1. إذا كان الإرسال تم عبر بوابة رسائل الأندرويد SMS
+        if ((confirmationResult as any)?.isSmsGateway) {
+            const verifyRes = await fetch('/api/auth/sms-gateway/verify', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ phone: fullPhoneNumber, code: code.trim(), userId: user?.uid }),
+            });
+
+            const verifyData = await verifyRes.json();
+
+            if (!verifyData.success) {
+                toast({ title: "فشل التحقق", description: verifyData.error || "رمز التحقق غير صحيح.", variant: 'destructive' });
+                return;
+            }
+        } 
+        // 2. إذا كان الإرسال تم عبر بوابة واتساب
+        else if ((confirmationResult as any)?.isWhatsApp) {
             const verifyRes = await fetch('/api/auth/whatsapp-otp/verify', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -387,8 +446,9 @@ export default function ProfileForm() {
                 toast({ title: "فشل التحقق", description: verifyData.error || "رمز التحقق غير صحيح.", variant: 'destructive' });
                 return;
             }
-        } else if (confirmationResult) {
-            // التحقق الأساسي عبر Firebase Phone Auth
+        } 
+        // 3. التحقق عبر Firebase Phone Auth
+        else if (confirmationResult) {
             await confirmVerificationCode(confirmationResult, code.trim());
         }
 
@@ -758,7 +818,7 @@ export default function ProfileForm() {
                       <div className="flex flex-wrap gap-2">
                         <Button
                             type="button"
-                            onClick={() => handleSendCode('sms')}
+                            onClick={() => handleSendCode('sms-gateway')}
                             disabled={isSendingCode || isPhoneEmpty || cooldown > 0}
                             className="relative min-w-32 bg-primary hover:bg-primary/90 text-primary-foreground font-bold gap-1.5 shadow-xs"
                         >
