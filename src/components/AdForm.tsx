@@ -196,7 +196,7 @@ const getAdFormSchema = (t: typeof translations.ar, isStoreProduct: boolean) => 
   title: z.string().min(5, t.titleMin).max(50, t.titleMax),
   category: z.string().optional(),
   subcategory: z.string().optional(),
-  description: z.string().min(10, 'يرجى كتابة وصف مناسب للإعلان').max(1000),
+  description: z.string().min(10, 'يرجى كتابة وصف مناسب للإعلان').max(2000, 'الحد الأقصى للوصف هو 2000 حرف'),
   price: z.coerce.number().optional(),
   currency: z.string().optional(),
   productCode: z.string().optional(),
@@ -717,12 +717,12 @@ function AdFormContent({ adId, userId, isEditMode, onSuccess }: { adId?: string 
             city: calculatedCity,
             village: calculatedVillage,
             location: pureLocationName,
-            videoUrl: data.videoUrl || '',
+            videoUrl: (data.adType === 'video' || userProfile?.role === 'admin' || userProfile?.plan === 'gold') ? (data.videoUrl || '') : '',
             adType: data.adType,
             // حقل التوافق مع التطبيق: نوع الإعلان بالعربي
             adTypeAr: adTypeArMap[data.adType] || data.adType,
             showCommIcon: data.showCommIcon,
-            websiteUrl: !data.showCommIcon ? data.websiteUrl : '',
+            websiteUrl: (!data.showCommIcon && (userProfile?.role === 'admin' || userProfile?.plan === 'gold')) ? (data.websiteUrl || '') : '',
             currency: data.currency || 'EGP',
             phoneNumber: data.phoneNumber || '',
             // تمرير ترتيب الصور الجديد عند التعديل حتى تحترم صورة الغلاف الجديدة
@@ -1077,9 +1077,26 @@ function AdFormContent({ adId, userId, isEditMode, onSuccess }: { adId?: string 
               name="description" 
               render={({ field }) => ( 
                 <FormItem>
-                  <FormLabel className="text-lg">{t.description}</FormLabel>
+                  <div className="flex items-center justify-between">
+                    <FormLabel className="text-lg">{t.description}</FormLabel>
+                    <span className={cn(
+                      "text-xs font-mono px-2 py-0.5 rounded-full font-bold transition-colors",
+                      (field.value?.length || 0) >= 2000
+                        ? "bg-destructive/15 text-destructive"
+                        : (field.value?.length || 0) >= 1800
+                        ? "bg-amber-500/15 text-amber-600 dark:text-amber-400"
+                        : "bg-secondary text-muted-foreground"
+                    )}>
+                      {field.value?.length || 0} / 2000
+                    </span>
+                  </div>
                   <FormControl>
-                    <Textarea placeholder={t.descriptionPlaceholder} className="resize-y min-h-[120px] custom-scrollbar" {...field} />
+                    <Textarea 
+                      placeholder={t.descriptionPlaceholder} 
+                      className="resize-y min-h-[140px] custom-scrollbar" 
+                      maxLength={2000}
+                      {...field} 
+                    />
                   </FormControl>
                   <FormMessage />
                 </FormItem> 
@@ -1245,11 +1262,11 @@ function AdFormContent({ adId, userId, isEditMode, onSuccess }: { adId?: string 
                 />
             </div>
 
-            {/* Box: Optional Features (ميزات اختيارية - خاصة بالباقات المدفوعة) */}
+            {/* Box: Optional Features (ميزات اختيارية - خاصة بالباقة الذهبية) */}
             {(() => {
-                const isPaidUser = userProfile?.role === 'admin' || userProfile?.plan === 'gold' || userProfile?.plan === 'premium';
+                const isGoldUser = userProfile?.role === 'admin' || userProfile?.plan === 'gold';
                 
-                if (!isPaidUser) {
+                if (!isGoldUser) {
                     return (
                         <div className="p-5 rounded-2xl border border-amber-500/30 bg-gradient-to-r from-amber-500/5 via-primary/5 to-transparent space-y-3 text-right">
                             <div className="flex items-center justify-between">
@@ -1262,11 +1279,11 @@ function AdFormContent({ adId, userId, isEditMode, onSuccess }: { adId?: string 
                                     </h4>
                                 </div>
                                 <Badge variant="outline" className="text-2xs bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/30 font-bold">
-                                    باقة مميزة / ذهبية
+                                    الباقة الذهبية 👑
                                 </Badge>
                             </div>
                             <p className="text-xs text-muted-foreground leading-relaxed">
-                                ميزة إرفاق روابط المواقع الإلكترونية وفيديوهات اليوتيوب التوضيحية داخل الإعلان متاحة حصرياً للمشتركين في الباقات المدفوعة لزيادة ثقة المشترين ومضاعفة المبيعات.
+                                ميزة إرفاق روابط المواقع الإلكترونية وفيديوهات اليوتيوب التوضيحية داخل الإعلان متاحة حصرياً للمشتركين في الباقة الذهبية لزيادة ثقة المشترين ومضاعفة المبيعات.
                             </p>
                             <div className="pt-1">
                                 <Button
@@ -1276,7 +1293,7 @@ function AdFormContent({ adId, userId, isEditMode, onSuccess }: { adId?: string 
                                     variant="outline"
                                     className="border-amber-500/40 bg-amber-500/10 hover:bg-amber-500/20 text-amber-700 dark:text-amber-300 font-bold text-xs gap-1.5"
                                 >
-                                    <span>ترقية الباقة الآن 🚀</span>
+                                    <span>الترقية للباقة الذهبية الآن 🚀</span>
                                 </Button>
                             </div>
                         </div>
@@ -1288,10 +1305,10 @@ function AdFormContent({ adId, userId, isEditMode, onSuccess }: { adId?: string 
                         <div className="flex items-center justify-between pb-3 border-b border-border/60">
                             <div className="flex items-center gap-2">
                                 <Sparkles className="h-5 w-5 text-amber-500" />
-                                <h3 className="text-base font-bold text-foreground font-headline">ميزات المشتركين (فيديو وموقع خارجي)</h3>
+                                <h3 className="text-base font-bold text-foreground font-headline">ميزات الباقة الذهبية (فيديو وموقع خارجي)</h3>
                             </div>
                             <Badge className="bg-gradient-to-r from-amber-500 to-yellow-400 text-black text-2xs font-extrabold border-none">
-                                مفعّلة لحسابك ✨
+                                مفعّلة للباقة الذهبية ✨
                             </Badge>
                         </div>
 
