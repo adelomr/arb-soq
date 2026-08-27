@@ -2,7 +2,23 @@
 
 سجل جميع التعديلات المهمة والميزات المضافة للإبقاء على ذاكرة المشروع محدثة.
 
-## [2026-08-14] - تبسيط تسجيل الدخول بجوجل ونظام توثيق الحساب وإصلاح الصور بعد النشر
+## [2026-08-27] - نشر بوابة واتساب السحابية على Google Cloud Run وحل خطأ إرسال كود التفعيل (Fetch Failed)
+
+### 1. نشر بوابة واتساب على Google Cloud Run كخدمة سحابية دائمة (24/7)
+- **التعديل:**
+  - إنشاء ملف `whatsapp-gateway/Dockerfile` و `.dockerignore` لتشغيل خادم Node.js وبوابة Baileys على بيئة حاويات سحابية.
+  - إطلاق الخدمة السحابية على Google Cloud Run في منطقة `europe-west1` وضبط `Min instances = 1` و `Max instances = 1` لضمان استمرار اتصال WebSocket وجلسة واتساب بدون انقطاع.
+  - ربط حساب واتساب المعتمد (`+201003975823`) بمسح الـ QR السحابي.
+- **السبب:** حل مشكلة فشل إرسال أكواد التفعيل والرسائل (`fetch failed`) بعد نشر الموقع، حيث كان الموقع يحاول الاتصال بـ `localhost:5005` غير المتوفر في بيئة السحابة.
+- **الملفات المتأثرة:** `whatsapp-gateway/Dockerfile`, `whatsapp-gateway/.dockerignore`, `src/lib/whatsapp-gateway-client.ts`, `.env.production`, `.env.local`, `PROJECT_MEMORY/bug-history/BUG-005-whatsapp-gateway-cloud-run.md`.
+
+### 2. تحسين معالجة أخطاء اتصال بوابة واتساب ورسائل التنبيه
+- **التعديل:** تحديث دوال العميل في `src/lib/whatsapp-gateway-client.ts` لتعيين رابط Cloud Run السحابي كافتراضي، وتحويل رسائل الأخطاء التقنية الجافة إلى رسائل عربية واضحة ومباشرة.
+- **السبب:** تحسين تجربة المستخدم والإدارة لتوضيح حالة الاتصال بدقة في حال انقطاع البوابة أو الحاجة لربط الجهاز.
+- **الملفات المتأثرة:** `src/lib/whatsapp-gateway-client.ts`.
+
+---
+
 
 ### 1. حل مشكلة اختفاء الصور بعد النشر (Image Optimization on Firebase Hosting)
 - **التعديل:** إعادة تمكين خاصية `unoptimized: true` في قسم `images` بداخل ملف `next.config.ts`.

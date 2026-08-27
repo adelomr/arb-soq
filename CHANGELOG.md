@@ -2,6 +2,23 @@
 
 هذا السجل يوثق التعديلات والتحسينات المعمارية والبرمجية المنجزة لتكون مرجعاً دائمًا لفريق التطوير.
 
+## [نشر بوابة واتساب السحابية على Google Cloud Run وحل خطأ إرسال كود التفعيل] - 2026-08-27
+
+### 1. إطلاق خادم بوابة واتساب السحابية على Google Cloud Run (24/7)
+- **المهمة المنجزة:** تشغيل خادم بوابة واتساب المعتمد على مكتبة Baileys على بيئة Google Cloud Run السحابية بدلاً من الخادم المحلي.
+- **التفاصيل:**
+  - إنشاء ملف تجهيز الحاوية [Dockerfile](file:///d:/mashro3/mashroh/arb-soq/arb_soq.wap/arb_soq.wap/whatsapp-gateway/Dockerfile) و [dockerignore](file:///d:/mashro3/mashroh/arb-soq/arb_soq.wap/arb_soq.wap/whatsapp-gateway/.dockerignore) داخل مجلد `whatsapp-gateway`.
+  - نشر الخدمة على Google Cloud Run برابط عام مشفر وآمن، وتثبيت النسخة على `Min instances = 1` لضمان بقاء جلسة واتساب تعمل دائماً بدون انقطاع.
+  - ربط حساب الواتساب الخاص بالمنصة (`+201003975823`) بمسح رمز الـ QR من الرابط السحابي.
+
+### 2. تحديث الربط المباشر وتحسين معالجة الأخطاء
+- **المهمة المنجزة:** ربط تطبيق Next.js بالخادم السحابي الجديد وتحسين التنبيهات.
+- **التفاصيل:**
+  - تحديث [whatsapp-gateway-client.ts](file:///d:/mashro3/mashroh/arb-soq/arb_soq.wap/arb_soq.wap/src/lib/whatsapp-gateway-client.ts) لتعيين الرابط السحابي الافتراضي وعرض رسائل خطأ عربية واضحة بدلاً من أخطاء `fetch failed` الغامضة.
+  - تهيئة المتغير `WHATSAPP_GATEWAY_URL` في ملفات البيئة.
+
+---
+
 ## [تبسيط الدخول عبر Google One Tap ونظام توثيق الحساب الاختياري والمرتبط بالترقية] - 2026-08-14
 
 ### 1. تبسيط تسجيل الدخول بجوجل (Google One Tap Login)
