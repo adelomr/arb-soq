@@ -901,22 +901,60 @@ const addAd = useCallback(async (adData: any, imageFiles: File[], user: User, pr
         oldAdData = oldDocSnap.data() as Ad;
     }
     
-    if (newImageFiles && newImageFiles.length > 0) {
-        progressCallback(`جارٍ رفع ${newImageFiles.length} صورة جديدة...`);
-        
-        if (oldAdData?.imageMeta && oldAdData.imageMeta.length > 0) {
-            progressCallback("جارٍ حذف الصور القديمة...");
-            await deleteMultipleEntries(oldAdData.imageMeta, storage);
+    // إذا كان لدينا قائمة الصور الكاملة من النموذج (تحتوي على الصور القديمة المحتفظ بها والملفات الجديدة)
+    const rawImages = (adData as any).images as Array<{ file: File | null; url: string }> | undefined;
+    if (rawImages && rawImages.length > 0) {
+        const hasNewFiles = rawImages.some(img => img.file instanceof File);
+        if (hasNewFiles) {
+            const newFilesCount = rawImages.filter(img => img.file instanceof File).length;
+            progressCallback(`جارٍ رفع ${newFilesCount} صورة جديدة...`);
         }
 
+        // 1. معالجة كل صورة بحسب ترتيبها: رفع الملف الجديد أو الاحتفاظ بالصورة القديمة
+        const finalImageMeta: AdImageMeta[] = [];
+        for (const item of rawImages) {
+            if (item.file instanceof File) {
+                const uploaded = await uploadFileAndReturnInfo(item.file, `ads/${userId}`, storage);
+                finalImageMeta.push(uploaded);
+            } else if (item.url) {
+                const existingMeta = oldAdData?.imageMeta?.find((m: any) => m.url === item.url);
+                if (existingMeta) {
+                    finalImageMeta.push(existingMeta);
+                } else {
+                    finalImageMeta.push({ url: item.url, fullPath: '', name: '', size: 0 });
+                }
+            }
+        }
+
+        // 2. حذف فقط الصور القديمة التي أزالها المستخدم من الإعلان
+        if (oldAdData?.imageMeta && oldAdData.imageMeta.length > 0) {
+            const retainedUrls = new Set(finalImageMeta.map(m => m.url));
+            const imagesToDelete = oldAdData.imageMeta.filter((m: any) => !retainedUrls.has(m.url));
+            if (imagesToDelete.length > 0) {
+                await deleteMultipleEntries(imagesToDelete, storage);
+            }
+        }
+
+        if (hasNewFiles) {
+            progressCallback("اكتمل رفع الصور بنجاح!");
+        }
+
+        dataForUpdate.imageUrls = finalImageMeta.map(m => m.url);
+        dataForUpdate.imageUrl = finalImageMeta[0]?.url || ''; // Android compatibility
+        dataForUpdate.imageMeta = finalImageMeta;
+    } else if (newImageFiles && newImageFiles.length > 0) {
+        // Fallback في حال تمرير newImageFiles فقط
+        progressCallback(`جارٍ رفع ${newImageFiles.length} صورة جديدة...`);
         const newImageMeta = await Promise.all(
             newImageFiles.map(file => uploadFileAndReturnInfo(file, `ads/${userId}`, storage))
         );
+        progressCallback("اكتمل رفع الصور بنجاح!");
         
-        progressCallback("اكتمل رفع الصور الجديدة!");
-        dataForUpdate.imageUrls = newImageMeta.map((meta: any) => meta.url);
-        dataForUpdate.imageUrl = newImageMeta[0]?.url || ''; // Android compatibility
-        dataForUpdate.imageMeta = newImageMeta;
+        const existingMeta = oldAdData?.imageMeta || [];
+        const combinedMeta = [...existingMeta, ...newImageMeta];
+        dataForUpdate.imageUrls = combinedMeta.map(meta => meta.url);
+        dataForUpdate.imageUrl = combinedMeta[0]?.url || '';
+        dataForUpdate.imageMeta = combinedMeta;
     } else if (oldAdData) {
         // إذا لم تكن هناك ملفات جديدة، تحقق إذا كان المستخدم قد أعاد ترتيب الصور
         if (dataForUpdate.imageUrls && dataForUpdate.imageUrls.length > 0) {
@@ -930,9 +968,9 @@ const addAd = useCallback(async (adData: any, imageFiles: File[], user: User, pr
             }
         } else {
             // لا يوجد ترتيب جديد، احتفظ بالصور القديمة كما هي
-            dataForUpdate.imageUrls = oldAdData.imageUrls;
+            dataForUpdate.imageUrls = oldAdData.imageUrls || [];
             dataForUpdate.imageUrl = oldAdData.imageUrl || oldAdData.imageUrls?.[0] || ''; // Android compatibility
-            dataForUpdate.imageMeta = oldAdData.imageMeta;
+            dataForUpdate.imageMeta = oldAdData.imageMeta || [];
         }
     }
 
