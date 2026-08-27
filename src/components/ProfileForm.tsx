@@ -262,7 +262,7 @@ export default function ProfileForm() {
     }
   };
   
-  const proceedWithSendCode = async () => {
+  const proceedWithSendCode = async (channel: 'sms' | 'whatsapp' = 'sms') => {
       if (!user) return;
       const phoneNumberInput = form.getValues('phoneNumber');
       const phoneCountry = markets.find(m => m.id === form.getValues('phoneCountryCode')) || market || markets[0];
