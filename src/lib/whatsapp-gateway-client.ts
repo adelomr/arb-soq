@@ -3,7 +3,9 @@
  * يوفر دوال مساعدة للاتصال بسيرفر بوابة واتساب المحلي أو السحابي
  */
 
-const GATEWAY_URL = process.env.WHATSAPP_GATEWAY_URL || 'http://localhost:5005';
+const GATEWAY_URL =
+  process.env.WHATSAPP_GATEWAY_URL ||
+  'https://whatsapp-gateway-264703833176.europe-west1.run.app';
 
 export interface WhatsAppSendResult {
   success: boolean;
