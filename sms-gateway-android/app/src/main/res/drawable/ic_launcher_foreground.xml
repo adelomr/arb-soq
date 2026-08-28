@@ -1,0 +1,68 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:aapt="http://schemas.android.com/aapt"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+
+    <!-- Soft drop shadow under the bubble -->
+    <path
+        android:pathData="M32,32 h44 c5.5,0 10,4.5 10,10 v22 c0,5.5 -4.5,10 -10,10 h-22 l-12,9 v-9 h-10 c-5.5,0 -10,-4.5 -10,-10 v-22 c0,-5.5 4.5,-10 10,-10 z"
+        android:fillColor="#33000000" />
+
+    <!-- Main Message Bubble -->
+    <path
+        android:pathData="M30,30 h44 c5.5,0 10,4.5 10,10 v22 c0,5.5 -4.5,10 -10,10 h-22 l-12,9 v-9 h-10 c-5.5,0 -10,-4.5 -10,-10 v-22 c0,-5.5 4.5,-10 10,-10 z"
+        android:fillColor="#FFFFFFFF" />
+
+    <!-- Inner Subtle Gradient Accent -->
+    <path
+        android:pathData="M30,30 h44 c5.5,0 10,4.5 10,10 v22 c0,5.5 -4.5,10 -10,10 h-22 l-12,9 v-9 h-10 c-5.5,0 -10,-4.5 -10,-10 v-22 c0,-5.5 4.5,-10 10,-10 z">
+        <aapt:attr name="android:fillColor">
+            <gradient
+                android:startX="30"
+                android:startY="30"
+                android:endX="84"
+                android:endY="81"
+                android:type="linear">
+                <item android:offset="0.0" android:color="#FFFFFFFF" />
+                <item android:offset="1.0" android:color="#FFF1F5F9" />
+            </gradient>
+        </aapt:attr>
+    </path>
+
+    <!-- Center Security Shield (Emblem of Secure OTP) -->
+    <path
+        android:pathData="M52,38 L66,43 v10 c0,8.5 -6,16.5 -14,18.5 c-8,-2 -14,-10 -14,-18.5 v-10 z">
+        <aapt:attr name="android:fillColor">
+            <gradient
+                android:startX="38"
+                android:startY="38"
+                android:endX="66"
+                android:endY="71.5"
+                android:type="linear">
+                <item android:offset="0.0" android:color="#FF6366F1" />
+                <item android:offset="1.0" android:color="#FF4F46E5" />
+            </gradient>
+        </aapt:attr>
+    </path>
+
+    <!-- Verification Checkmark / Lightning in the Shield -->
+    <path
+        android:pathData="M46.5,52.5 L50.5,56.5 L58,47.5"
+        android:strokeWidth="2.8"
+        android:strokeColor="#FFFFFFFF"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"
+        android:fillColor="#00000000" />
+
+    <!-- Fast Signal Wave Dots (Sending OTP Indicator) -->
+    <path
+        android:pathData="M70,44 a2.5,2.5 0,1 1,-5 0 a2.5,2.5 0,1 1,5 0"
+        android:fillColor="#FF10B981" />
+    <path
+        android:pathData="M73,52 a2,2 0,1 1,-4 0 a2,2 0,1 1,4 0"
+        android:fillColor="#FF06B6D4" />
+
+</vector>

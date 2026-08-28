@@ -1,0 +1,25 @@
+<resources>
+    <string name="app_name">SMSGateway Pro</string>
+    <string name="server_control">Server Control</string>
+    <string name="testing_integration">Testing &amp; Integration</string>
+    <string name="configuration">Configuration</string>
+    <string name="system_info">System Info</string>
+    <string name="logs_management">Logs Management</string>
+    <string name="logs_list">Messages Log</string>
+    <string name="toggle_server">Toggle Server</string>
+    <string name="health_check">Health Check</string>
+    <string name="test_send">Test Send</string>
+    <string name="integration_code">Integration Code</string>
+    <string name="copy_examples">Copy Examples</string>
+    <string name="edit_template">Edit Template</string>
+    <string name="security_settings">Security Settings</string>
+    <string name="set_default_sim">Set Default SIM</string>
+    <string name="sim_status">SIM Status</string>
+    <string name="copy_endpoint">Copy Endpoint</string>
+    <string name="usage_stats">Usage Statistics</string>
+    <string name="clear_logs">Clear Logs</string>
+    <string name="change_language">Change Language</string>
+    <string name="share_app">Share App</string>
+    <string name="about_app">About App</string>
+    <string name="terms_of_use">Terms of Use</string>
+</resources>

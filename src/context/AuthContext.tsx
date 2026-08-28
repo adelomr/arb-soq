@@ -457,7 +457,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
     const userDocRef = doc(firestore, 'users', uid);
   
-    await updateDoc(userDocRef, data);
+    await setDoc(userDocRef, data, { merge: true });
     await refreshUserProfile();
   }, [refreshUserProfile]);
 
@@ -500,28 +500,57 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     recaptchaVerifierRef.current = verifier;
     
-    return signInWithPhoneNumber(auth, phoneNumber, verifier);
+    const timeoutPromise = new Promise<never>((_, reject) => {
+      setTimeout(() => {
+        reject(new Error("استغرق التحقق عبر فايربيس وقتاً طويلاً دون استجابة. يرجى تجربة الإرسال عبر واتساب."));
+      }, 15000);
+    });
+
+    try {
+      const result = await Promise.race([
+        signInWithPhoneNumber(auth, phoneNumber, verifier),
+        timeoutPromise
+      ]);
+      return result;
+    } catch (err: any) {
+      try {
+        verifier.clear();
+      } catch (e) {}
+      recaptchaVerifierRef.current = null;
+      throw err;
+    }
   }, []);
   
   const confirmVerificationCode = useCallback(async (confirmationResult: ConfirmationResult, code: string): Promise<void> => {
     if (!user) {
       throw new Error("لم يتم العثور على المستخدم لربط رقم الهاتف.");
     }
-    const credential = PhoneAuthProvider.credential(confirmationResult.verificationId!, code);
-    try {
-      await linkWithCredential(user, credential);
-    } catch (linkError: any) {
-      if (linkError.code === 'auth/provider-already-linked' || linkError.code === 'auth/credential-already-in-use') {
-        try {
-          await updatePhoneNumber(user, credential);
-        } catch (updateError) {
-          console.warn("Could not update phone credential in Auth:", updateError);
+
+    const timeoutPromise = new Promise<never>((_, reject) => {
+      setTimeout(() => {
+        reject(new Error("استغرقت عملية تأكيد الرمز وقتاً طويلاً دون استجابة. يرجى إعادة المحاولة."));
+      }, 15000);
+    });
+
+    const verifyExecution = async () => {
+      const credential = PhoneAuthProvider.credential(confirmationResult.verificationId!, code);
+      try {
+        await linkWithCredential(user, credential);
+      } catch (linkError: any) {
+        if (linkError.code === 'auth/provider-already-linked' || linkError.code === 'auth/credential-already-in-use') {
+          try {
+            await updatePhoneNumber(user, credential);
+          } catch (updateError) {
+            console.warn("Could not update phone credential in Auth:", updateError);
+          }
+        } else {
+          throw linkError;
         }
-      } else {
-        throw linkError;
       }
-    }
-    await updateUserProfile(user.uid, { phoneVerified: true });
+      await updateUserProfile(user.uid, { phoneVerified: true });
+    };
+
+    await Promise.race([verifyExecution(), timeoutPromise]);
   }, [user, updateUserProfile]);
 
   const signIn = useCallback(async (email:string,password:string) => {
