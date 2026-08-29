@@ -363,7 +363,7 @@ app.post('/send-otp', async (req, res) => {
     }
 
     const jid = formatPhoneToJid(phone);
-    const otpMessage = `*${appName}* 🛒\n\nرمز تفعيل حسابك هو:\n\n*${code}*\n\nيرجى إدخال هذا الرمز في الموقع لتأكيد رقم هاتفك. الرمز صالح لمدة 5 دقائق.\n\n_لا تشارك هذا الرمز مع أي شخص._`;
+    const otpMessage = `رمز تفعيل ${appName} الخاص بك هو: \`\`\`${code}\`\`\``;
 
     const sent = await sock.sendMessage(jid, { text: otpMessage });
 

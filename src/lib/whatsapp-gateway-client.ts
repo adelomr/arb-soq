@@ -1,7 +1,7 @@
 /**
  * WhatsApp Gateway Client
- * يدعم الربط المباشر مع تطبيق بوابة الهاتف للأندرويد (My-otp على المنفذ 8088)
- * بالإضافة إلى خادم بوابة واتساب المستقل (المنفذ 5005)
+ * يدعم الربط المباشر مع سيرفر واتساب السحابي الدائم على Google Cloud Run
+ * بالإضافة إلى بوابة هاتف الأندرويد المحلية كـ Fallback
  */
 
 export interface WhatsAppSendResult {
@@ -9,7 +9,10 @@ export interface WhatsAppSendResult {
   messageId?: string;
   error?: string;
   status?: string;
+  provider?: 'cloud_run' | 'android_gateway' | 'meta_api';
 }
+
+export const CLOUD_RUN_GATEWAY_URL = 'https://whatsapp-gateway-264703833176.europe-west1.run.app';
 
 function getWhatsAppGatewayCandidates(): string[] {
   const customUrl =
@@ -18,9 +21,10 @@ function getWhatsAppGatewayCandidates(): string[] {
     process.env.SMS_GATEWAY_URL;
 
   const list = [
+    CLOUD_RUN_GATEWAY_URL,
     customUrl,
-    'https://pipes-cloth-salary-remember.trycloudflare.com',
     'http://192.168.1.4:8088',
+    'https://bailey-population-cattle-median.trycloudflare.com',
     'http://127.0.0.1:8088',
     'http://localhost:8088',
     'http://127.0.0.1:5005',
@@ -41,6 +45,7 @@ export async function checkWhatsAppGatewayStatus(): Promise<{
   connected: boolean;
   phone?: string;
   status: string;
+  serverUrl?: string;
   error?: string;
 }> {
   const candidateUrls = getWhatsAppGatewayCandidates();
@@ -48,9 +53,8 @@ export async function checkWhatsAppGatewayStatus(): Promise<{
   for (const baseUrl of candidateUrls) {
     try {
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 3000);
+      const timeoutId = setTimeout(() => controller.abort(), 4000);
 
-      // فحص /status أو /health
       const res = await fetch(`${baseUrl}/status`, {
         method: 'GET',
         cache: 'no-store',
@@ -60,11 +64,12 @@ export async function checkWhatsAppGatewayStatus(): Promise<{
 
       if (res.ok) {
         const data = await res.json().catch(() => ({}));
-        if (data.connected || data.status === 'ok' || data.status === 'up') {
+        if (data.connected || data.status === 'connected' || data.status === 'ok' || data.status === 'up') {
           return {
             connected: true,
-            status: 'connected',
+            status: data.status || 'connected',
             phone: data.phone,
+            serverUrl: baseUrl,
           };
         }
       }
@@ -75,13 +80,60 @@ export async function checkWhatsAppGatewayStatus(): Promise<{
 
   return {
     connected: false,
-    status: 'offline',
-    error: 'تعذر الاتصال بتطبيق بوابة واتساب على الهاتف (192.168.1.4:8088). يرجى التأكد من تشغيل البوابة على الهاتف.',
+    status: 'disconnected',
+    error: 'سيرفر واتساب غير متصل حالياً. يرجى مسح رمز QR لربط واتساب.',
   };
 }
 
 /**
- * إرسال كود التحقق (OTP) حصرياً عبر بوابة واتساب
+ * نبضة تنشيط سحابية دورية لإبقاء سيرفر جوجل كلاود مستيقظاً 24/7 دون خمول
+ */
+export async function pingWhatsAppGatewayKeepAlive(): Promise<{
+  success: boolean;
+  latencyMs: number;
+  status: string;
+  url: string;
+}> {
+  const start = Date.now();
+  try {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 4000);
+
+    const res = await fetch(`${CLOUD_RUN_GATEWAY_URL}/status`, {
+      method: 'GET',
+      cache: 'no-store',
+      signal: controller.signal,
+    });
+    clearTimeout(timeoutId);
+
+    const elapsed = Date.now() - start;
+    if (res.ok) {
+      const data = await res.json().catch(() => ({}));
+      return {
+        success: true,
+        latencyMs: elapsed,
+        status: data.status || 'ok',
+        url: CLOUD_RUN_GATEWAY_URL,
+      };
+    }
+    return {
+      success: false,
+      latencyMs: elapsed,
+      status: `HTTP_${res.status}`,
+      url: CLOUD_RUN_GATEWAY_URL,
+    };
+  } catch (err: any) {
+    return {
+      success: false,
+      latencyMs: Date.now() - start,
+      status: err?.message || 'timeout',
+      url: CLOUD_RUN_GATEWAY_URL,
+    };
+  }
+}
+
+/**
+ * إرسال كود التحقق (OTP) عبر بوابة واتساب
  */
 export async function sendWhatsAppOTP(
   phone: string,
@@ -91,21 +143,58 @@ export async function sendWhatsAppOTP(
   const cleanPhone = phone.replace(/[^\d+]/g, '');
   const candidateUrls = getWhatsAppGatewayCandidates();
 
-  let lastError = 'تعذر الاتصال بتطبيق بوابة واتساب على الهاتف. تأكد من تشغيل التطبيق على الهاتف.';
+  let lastError = 'تعذر الاتصال ببوابة واتساب. يرجى التأكد من تشغيل السيرفر أو مسح رمز QR.';
 
   for (const baseUrl of candidateUrls) {
     try {
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 7000);
+      const timeoutId = setTimeout(() => controller.abort(), 8000);
 
-      // 1. تجربة تطبيق الأندرويد (My-otp) عبر مسار /send-whatsapp أو /send
+      // 1. أولاً: تجربة سيرفر Google Cloud Run / Node.js عبر مسار /send-otp
+      const isCloudOrNode = baseUrl.includes('run.app') || baseUrl.includes('5005');
+      if (isCloudOrNode) {
+        try {
+          const cloudRes = await fetch(`${baseUrl}/send-otp`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json; charset=utf-8',
+              Accept: 'application/json',
+            },
+            body: JSON.stringify({
+              phone: cleanPhone,
+              code: String(code).trim(),
+              appName: appName,
+            }),
+            cache: 'no-store',
+            signal: controller.signal,
+          });
+
+          const cloudData = await cloudRes.json().catch(() => ({}));
+          if (cloudRes.ok && cloudData.success) {
+            console.log(`[WhatsApp Client] OTP sent successfully to ${cleanPhone} via Cloud Run at ${baseUrl}`);
+            return {
+              success: true,
+              messageId: cloudData.messageId || 'cloud_sent',
+              status: 'sent',
+              provider: 'cloud_run',
+            };
+          }
+          if (cloudData.error) {
+            lastError = cloudData.error;
+          }
+        } catch (e: any) {
+          console.warn(`[WhatsApp Client] Cloud Run send error at ${baseUrl}:`, e?.message);
+        }
+      }
+
+      // 2. ثانياً: تجربة تطبيق الأندرويد (My-otp) عبر مسار /send-whatsapp
       const androidPayload = {
         phone: cleanPhone,
         code: String(code).trim(),
-        message: `رمز تفعيل ${appName} الخاص بك هو: ${code}`,
+        message: `رمز تفعيل ${appName} الخاص بك هو: \`\`\`${code}\`\`\``,
         token: AUTH_TOKEN,
         channel: 'whatsapp',
-        idempotencyKey: `wa_${cleanPhone.replace(/[^\d]/g, '')}_${Date.now()}`,
+        idempotencyKey: `wa_${cleanPhone.replace(/[^\d]/g, '')}_${code}_${Math.floor(Date.now() / 60000)}`,
       };
 
       const res = await fetch(`${baseUrl}/send-whatsapp`, {
@@ -128,38 +217,8 @@ export async function sendWhatsAppOTP(
           success: true,
           messageId: data.messageId || 'android_sent',
           status: 'sent',
+          provider: 'android_gateway',
         };
-      }
-
-      // 2. إذا لم يكن مسار /send-whatsapp، تجربة مسار /send-otp الخاص بخادم Node.js
-      if (res.status === 404) {
-        const nodeController = new AbortController();
-        const nodeTimeout = setTimeout(() => nodeController.abort(), 5000);
-
-        const nodeRes = await fetch(`${baseUrl}/send-otp`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json; charset=utf-8',
-            Accept: 'application/json',
-          },
-          body: JSON.stringify({
-            phone: cleanPhone,
-            code: String(code).trim(),
-            appName: appName,
-          }),
-          cache: 'no-store',
-          signal: nodeController.signal,
-        });
-        clearTimeout(nodeTimeout);
-
-        const nodeData = await nodeRes.json().catch(() => ({}));
-        if (nodeRes.ok && nodeData.success) {
-          return {
-            success: true,
-            messageId: nodeData.messageId,
-            status: 'sent',
-          };
-        }
       }
 
       if (data.message || data.error) {
