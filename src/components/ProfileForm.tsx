@@ -386,6 +386,21 @@ export default function ProfileForm() {
 
   async function onSubmit(data: ProfileFormValues) {
     if (!user || !userProfile) return;
+
+    // إذا كان هناك رمز تحقق تم إرساله ولم يتم تأكيده بعد
+    if (codeSent) {
+      if (data.verificationCode && data.verificationCode.trim()) {
+        await handleVerifyCode();
+        return;
+      } else {
+        toast({
+          title: "يرجى تأكيد رقم الهاتف",
+          description: "تم إرسال رمز التحقق إلى واتساب. يرجى إدخال الرمز والضغط على 'تأكيد الرمز'.",
+          variant: "destructive",
+        });
+        return;
+      }
+    }
     
     const phoneCountry = markets.find(m => m.id === (data.phoneCountryCode || market?.id)) || market || markets[0];
     const fullPhoneNumber = data.phoneNumber
@@ -786,6 +801,13 @@ export default function ProfileForm() {
                             maxLength={6}
                             dir="ltr"
                             className="tracking-[0.5em] md:tracking-[0.8rem] text-center font-mono font-black text-lg h-11 bg-background focus-visible:ring-emerald-500"
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter') {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                handleVerifyCode();
+                              }
+                            }}
                         />
                     </FormControl>
                      <Button 
