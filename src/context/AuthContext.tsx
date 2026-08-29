@@ -967,7 +967,7 @@ const addAd = useCallback(async (adData: any, imageFiles: File[], user: User, pr
                 if (existingMeta) {
                     finalImageMeta.push(existingMeta);
                 } else {
-                    finalImageMeta.push({ url: item.url, fullPath: '', name: '', size: 0 });
+                    finalImageMeta.push({ url: item.url, path: '', name: '', size: 0 });
                 }
             }
         }

@@ -102,23 +102,6 @@ export async function sendSmsGatewayOTP(
     error: lastErrorMsg,
     gatewayOffline: true,
   };
-  } catch (error: any) {
-    console.error('[sms-gateway-client] Error connecting to Android gateway:', error);
-
-    const isOffline =
-      error.name === 'AbortError' ||
-      error.code === 'ECONNREFUSED' ||
-      error.code === 'ETIMEDOUT' ||
-      error.message?.includes('fetch failed');
-
-    return {
-      success: false,
-      error: isOffline
-        ? 'بوابة رسائل الأندرويد غير متصلة حالياً. يرجى التأكد من تشغيل تطبيق بوابة الرسائل على الهاتف والاتصال بنفس الشبكة.'
-        : error.message || 'حدث خطأ أثناء الاتصال ببوابة الرسائل.',
-      gatewayOffline: isOffline,
-    };
-  }
 }
 
 /**

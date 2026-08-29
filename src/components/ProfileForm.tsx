@@ -26,13 +26,12 @@ import {
 } from "@/components/ui/alert-dialog"
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
-import { User, Save, FileUp, Loader2, Phone, MessageSquare, BadgeCheck, MapPin, Store, Trash2, Briefcase, Eye, EyeOff, Pencil, Smartphone } from 'lucide-react';
+import { User, Save, FileUp, Loader2, Phone, MessageSquare, BadgeCheck, MapPin, Store, Trash2, Briefcase, Eye, EyeOff, Pencil } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from './ui/avatar';
 import { useEffect, useState, useRef } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import type { UserProfile } from '@/lib/types';
 import { Skeleton } from './ui/skeleton';
-import type { ConfirmationResult } from 'firebase/auth';
 import { Badge } from './ui/badge';
 import { useLanguage } from '@/context/LanguageContext';
 import { Separator } from './ui/separator';
@@ -149,7 +148,6 @@ export default function ProfileForm() {
   const [imageFile, setImageFile] = useState<File | null>(null);
   
   const [isSaving, setIsSaving] = useState(false);
-  const [confirmationResult, setConfirmationResult] = useState<ConfirmationResult | null>(null);
   const [codeSent, setCodeSent] = useState(false);
   const [isVerifying, setIsVerifying] = useState(false);
   const [isSendingCode, setIsSendingCode] = useState(false);
@@ -158,8 +156,6 @@ export default function ProfileForm() {
   const [isEditingPhone, setIsEditingPhone] = useState(false);
   const [cooldown, setCooldown] = useState(0);
   const cooldownTimer = useRef<NodeJS.Timeout | null>(null);
-  const [showEgyptPhoneWarning, setShowEgyptPhoneWarning] = useState(false);
-  const [sendCodeAttempts, setSendCodeAttempts] = useState(0);
   const [isClient, setIsClient] = useState(false);
   const [showVerificationSentDialog, setShowVerificationSentDialog] = useState(false);
   
@@ -262,7 +258,8 @@ export default function ProfileForm() {
     }
   };
   
-  const proceedWithSendCode = async (channel: 'sms-gateway' | 'whatsapp' | 'firebase-sms' = 'sms-gateway') => {
+  // ── إرسال كود التحقق حصرياً عبر بوابة واتساب ──
+  const handleSendWhatsAppOTP = async () => {
       if (!user) return;
       const phoneNumberInput = form.getValues('phoneNumber');
       const phoneCountry = markets.find(m => m.id === form.getValues('phoneCountryCode')) || market || markets[0];
@@ -282,192 +279,53 @@ export default function ProfileForm() {
   
       setIsSendingCode(true);
       try {
-          if (channel === 'whatsapp') {
-              // ── 1. المحاولة الأولى: الإرسال عبر واتساب للأعمال (الأولوية لواتساب) ──
-              let waSuccess = false;
-              try {
-                  const controller = new AbortController();
-                  const timeoutId = setTimeout(() => controller.abort(), 8000);
+          const controller = new AbortController();
+          const timeoutId = setTimeout(() => controller.abort(), 10000);
 
-                  const waRes = await fetch('/api/auth/whatsapp-otp/send', {
-                      method: 'POST',
-                      headers: { 'Content-Type': 'application/json' },
-                      body: JSON.stringify({ phone: fullPhoneNumber, userId: user?.uid }),
-                      signal: controller.signal,
-                  });
-                  clearTimeout(timeoutId);
+          const res = await fetch('/api/auth/whatsapp-otp/send', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ phone: fullPhoneNumber, userId: user?.uid }),
+              signal: controller.signal,
+          });
+          clearTimeout(timeoutId);
 
-                  const waData = await waRes.json().catch(() => ({ success: false }));
+          const data = await res.json().catch(() => ({ success: false, error: 'استجابة غير صالحة من الخادم.' }));
 
-                  if (waData.success) {
-                      waSuccess = true;
-                      setCodeSent(true);
-                      setConfirmationResult({ isWhatsApp: true } as any);
-                      const cooldownEndTime = Date.now() + COOLDOWN_SECONDS * 1000;
-                      localStorage.setItem(COOLDOWN_STORAGE_KEY, cooldownEndTime.toString());
-                      setCooldown(COOLDOWN_SECONDS);
-                      toast({ 
-                          title: '✅ تم إرسال كود التفعيل عبر واتساب!', 
-                          description: `تم إرسال رمز التحقق إلى واتساب رقم (${fullPhoneNumber}) بنجاح.` 
-                      });
-                      return;
-                  }
-              } catch (waErr: any) {
-                  console.warn('[ProfileForm] WhatsApp send failed, falling back to SMS Gateway...', waErr?.message);
-              }
-
-              // ── 2. التحويل التلقائي الفوري لرسائل SMS عند تعذر واتساب ──
-              if (!waSuccess) {
-                  try {
-                      const controller = new AbortController();
-                      const timeoutId = setTimeout(() => controller.abort(), 6000);
-
-                      const smsRes = await fetch('/api/auth/sms-gateway/send', {
-                          method: 'POST',
-                          headers: { 'Content-Type': 'application/json' },
-                          body: JSON.stringify({ phone: fullPhoneNumber, userId: user?.uid }),
-                          signal: controller.signal,
-                      });
-                      clearTimeout(timeoutId);
-
-                      const smsData = await smsRes.json().catch(() => ({ success: false }));
-
-                      if (smsData.success) {
-                          setCodeSent(true);
-                          setConfirmationResult({ isSmsGateway: true } as any);
-                          const cooldownEndTime = Date.now() + COOLDOWN_SECONDS * 1000;
-                          localStorage.setItem(COOLDOWN_STORAGE_KEY, cooldownEndTime.toString());
-                          setCooldown(COOLDOWN_SECONDS);
-                          toast({ 
-                              title: '💬 تم إرسال كود التحقق عبر SMS', 
-                              description: `تعذر الإرسال عبر واتساب، وتم إرسال كود التحقق في رسالة نصية SMS إلى (${fullPhoneNumber}).` 
-                          });
-                          return;
-                      }
-                  } catch (smsErr: any) {
-                      console.warn('[ProfileForm] SMS fallback failed, trying Firebase fallback...', smsErr?.message);
-                  }
-              }
-
-              toast({
-                  title: 'تعذر إرسال الرمز',
-                  description: 'تعذر إرسال كود التفعيل عبر واتساب أو SMS. يرجى التأكد من تشغيل البوابة على الهاتف.',
-                  variant: 'destructive',
-              });
-          } else if (channel === 'sms-gateway') {
-              // ── 2. الإرسال الفوري والمباشر عبر بوابة رسائل الأندرويد (My-otp) ──
-              let smsSuccess = false;
-              let smsErrorMsg = '';
-
-              try {
-                  const controller = new AbortController();
-                  const timeoutId = setTimeout(() => controller.abort(), 6000);
-
-                  const smsRes = await fetch('/api/auth/sms-gateway/send', {
-                      method: 'POST',
-                      headers: { 'Content-Type': 'application/json' },
-                      body: JSON.stringify({ phone: fullPhoneNumber, userId: user?.uid }),
-                      signal: controller.signal,
-                  });
-                  clearTimeout(timeoutId);
-
-                  const smsData = await smsRes.json().catch(() => ({ success: false }));
-
-                  if (smsData.success) {
-                      smsSuccess = true;
-                      setCodeSent(true);
-                      setConfirmationResult({ isSmsGateway: true } as any);
-                      const cooldownEndTime = Date.now() + COOLDOWN_SECONDS * 1000;
-                      localStorage.setItem(COOLDOWN_STORAGE_KEY, cooldownEndTime.toString());
-                      setCooldown(COOLDOWN_SECONDS);
-                      toast({ 
-                          title: '✅ تم إرسال كود التحقق عبر SMS!', 
-                          description: `تم إرسال رسالة نصية قصيرة SMS تحتوي على رمز التحقق إلى (${fullPhoneNumber}).` 
-                      });
-                      return;
-                  }
-                  smsErrorMsg = smsData.error || '';
-              } catch (smsFetchErr: any) {
-                  console.warn('[ProfileForm] SMS Gateway fetch failed:', smsFetchErr?.message);
-                  smsErrorMsg = smsFetchErr?.message || '';
-              }
-
-              // إذا لم تنجح بوابة الأندرويد، نحاول الإرسال الاحتياطي عبر Firebase
-              if (!smsSuccess) {
-                  console.warn('[ProfileForm] SMS Gateway failed, trying Firebase Phone Auth fallback...');
-                  try {
-                      const confirmation = await sendVerificationCode(fullPhoneNumber);
-                      setConfirmationResult(confirmation);
-                      setCodeSent(true);
-                      const cooldownEndTime = Date.now() + COOLDOWN_SECONDS * 1000;
-                      localStorage.setItem(COOLDOWN_STORAGE_KEY, cooldownEndTime.toString());
-                      setCooldown(COOLDOWN_SECONDS);
-                      toast({ 
-                          title: '✅ تم إرسال كود التحقق عبر SMS!', 
-                          description: `تم إرسال رمز التحقق إلى هاتفك (${fullPhoneNumber}) عبر رسالة نصية قصيرة SMS.` 
-                      });
-                      return;
-                  } catch (fbErr: any) {
-                      console.error('[ProfileForm] Both SMS Gateway and Firebase failed:', fbErr);
-                      toast({
-                          title: 'تعذر إرسال رسالة SMS',
-                          description: smsErrorMsg || 'تعذر إرسال رسالة SMS حالياً. يرجى التأكد من تشغيل تطبيق بوابة الرسائل على الهاتف أو استخدام "عبر واتساب".',
-                          variant: 'destructive',
-                      });
-                  }
-              }
-          } else {
-              // ── 3. الإرسال المباشر عبر Firebase Phone Auth ──
-              const confirmation = await sendVerificationCode(fullPhoneNumber);
-              setConfirmationResult(confirmation);
+          if (data.success) {
               setCodeSent(true);
               const cooldownEndTime = Date.now() + COOLDOWN_SECONDS * 1000;
               localStorage.setItem(COOLDOWN_STORAGE_KEY, cooldownEndTime.toString());
               setCooldown(COOLDOWN_SECONDS);
               toast({ 
-                  title: '✅ تم إرسال كود التحقق عبر SMS!', 
-                  description: `تم إرسال رمز التحقق إلى هاتفك (${fullPhoneNumber}) عبر رسالة نصية قصيرة SMS (Firebase).` 
+                  title: '✅ تم إرسال رمز التحقق عبر واتساب!', 
+                  description: `تم إرسال رمز التحقق المكون من 6 أرقام إلى واتساب رقم (${fullPhoneNumber}).` 
               });
-          }
-      } catch (error: any) {
-          console.error("Error sending verification code: ", error);
-          let errorMsg = error.message || 'حدث خطأ أثناء إرسال كود التحقق.';
-          if (error.name === 'AbortError') {
-              errorMsg = 'استغرقت عملية الإرسال وقتاً طويلاً. يرجى التحقق من اتصال الإنترنت أو التجربة عبر واتساب.';
-          } else if (error.code === 'auth/invalid-app-credential') {
-              errorMsg = 'تعذر إتمام التحقق من أمان التطبيق (reCAPTCHA). يرجى المحاولة عبر واتساب.';
-          } else if (error.code === 'auth/unauthorized-domain') {
-              errorMsg = 'هذا النطاق غير مضاف إلى قائمة النطاقات المصرح بها في Firebase Console. يمكنك استخدام زر "عبر واتساب".';
-          } else if (error.code === 'auth/quota-exceeded') {
-              errorMsg = 'تم استنفاد الحصة اليومية لرسائل SMS في فايربيس. يرجى استخدام زر "عبر واتساب".';
-          } else if (error.code === 'auth/too-many-requests') {
-              errorMsg = 'تم إرسال طلبات كثيرة في وقت قصير. يرجى الانتظار بضع دقائق ثم المحاولة مجدداً.';
-          } else if (error.code === 'auth/invalid-phone-number') {
-              errorMsg = 'رقم الهاتف غير صالح أو غير مكتوب بالصيغة الدولية الكاملة.';
+              return;
           }
 
+          toast({
+              title: 'تعذر إرسال الرمز عبر واتساب',
+              description: data.error || 'يرجى التأكد من تشغيل خادم بوابة واتساب والاتصال بالحساب.',
+              variant: 'destructive',
+          });
+      } catch (error: any) {
+          console.error("Error sending WhatsApp OTP: ", error);
+          let errorMsg = error.message || 'حدث خطأ أثناء إرسال كود التحقق عبر واتساب.';
+          if (error.name === 'AbortError') {
+              errorMsg = 'استغرقت عملية الإرسال وقتاً طويلاً. يرجى التأكد من تشغيل بوابة واتساب والاتصال بالإنترنت.';
+          }
           toast({ 
               title: 'خطأ في إرسال الرمز', 
               description: errorMsg, 
               variant: 'destructive' 
           });
-          setConfirmationResult(null);
       } finally {
           setIsSendingCode(false);
       }
   };
 
-  const handleSendCode = async (channel: 'sms-gateway' | 'whatsapp' | 'firebase-sms' = 'sms-gateway') => {
-    const phoneNumber = form.getValues('phoneNumber');
-    setSendCodeAttempts(prev => prev + 1);
-
-    if (phoneNumber?.startsWith('+2011') && sendCodeAttempts < 1) {
-        setShowEgyptPhoneWarning(true);
-    } else {
-        proceedWithSendCode(channel);
-    }
-  };
-
+  // ── التحقق من كود الـ OTP عبر بوابة واتساب ──
   const handleVerifyCode = async () => {
     const code = form.getValues('verificationCode');
     if (!code || !code.trim()) {
@@ -481,61 +339,26 @@ export default function ProfileForm() {
         const phoneCountry = markets.find(m => m.id === form.getValues('phoneCountryCode')) || market || markets[0];
         const fullPhoneNumber = phoneCountry ? `${phoneCountry.phoneCode}${phoneNumberInput?.replace(/^0+/, '')}` : '';
 
-        // 1. إذا كان الإرسال تم عبر بوابة رسائل الأندرويد SMS
-        if ((confirmationResult as any)?.isSmsGateway) {
-            const controller = new AbortController();
-            const timeoutId = setTimeout(() => controller.abort(), 8000);
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 8000);
 
-            const verifyRes = await fetch('/api/auth/sms-gateway/verify', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ phone: fullPhoneNumber, code: code.trim(), userId: user?.uid }),
-                signal: controller.signal,
+        const verifyRes = await fetch('/api/auth/whatsapp-otp/verify', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ phone: fullPhoneNumber, code: code.trim(), userId: user?.uid }),
+            signal: controller.signal,
+        });
+        clearTimeout(timeoutId);
+
+        const verifyData = await verifyRes.json().catch(() => ({ success: false, error: 'استجابة غير صالحة من السيرفر.' }));
+
+        if (!verifyData.success) {
+            toast({ 
+                title: "فشل التحقق", 
+                description: verifyData.error || "رمز التحقق غير صحيح أو منتهي الصلاحية.", 
+                variant: 'destructive' 
             });
-            clearTimeout(timeoutId);
-
-            const verifyData = await verifyRes.json().catch(() => ({ success: false, error: 'استجابة غير صالحة من السيرفر.' }));
-
-            if (!verifyData.success) {
-                toast({ title: "فشل التحقق", description: verifyData.error || "رمز التحقق غير صحيح أو منتهي الصلاحية.", variant: 'destructive' });
-                return;
-            }
-        } 
-        // 2. إذا كان الإرسال تم عبر بوابة واتساب
-        else if ((confirmationResult as any)?.isWhatsApp) {
-            const controller = new AbortController();
-            const timeoutId = setTimeout(() => controller.abort(), 8000);
-
-            const verifyRes = await fetch('/api/auth/whatsapp-otp/verify', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ phone: fullPhoneNumber, code: code.trim(), userId: user?.uid }),
-                signal: controller.signal,
-            });
-            clearTimeout(timeoutId);
-
-            const verifyData = await verifyRes.json().catch(() => ({ success: false, error: 'استجابة غير صالحة من السيرفر.' }));
-
-            if (!verifyData.success) {
-                toast({ title: "فشل التحقق", description: verifyData.error || "رمز التحقق غير صحيح أو منتهي الصلاحية.", variant: 'destructive' });
-                return;
-            }
-        } 
-        // 3. التحقق عبر Firebase Phone Auth
-        else if (confirmationResult) {
-            await confirmVerificationCode(confirmationResult, code.trim());
-        } else {
-            // كود مرسل بدون كائن مخصص: تحقق عبر السيرفر كخيار احتياطي
-            const verifyRes = await fetch('/api/auth/whatsapp-otp/verify', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ phone: fullPhoneNumber, code: code.trim(), userId: user?.uid }),
-            });
-            const verifyData = await verifyRes.json().catch(() => ({ success: false }));
-            if (!verifyData.success) {
-                toast({ title: "فشل التحقق", description: "رمز التحقق غير صحيح أو انتهت صلاحيته.", variant: 'destructive' });
-                return;
-            }
+            return;
         }
 
         if (user?.uid) {
@@ -546,14 +369,13 @@ export default function ProfileForm() {
 
         setCodeSent(false);
         setIsEditingPhone(false);
-        setConfirmationResult(null);
         await refreshUserProfile();
 
     } catch (error: any) {
-        console.error("Error verifying code: ", error);
+        console.error("Error verifying WhatsApp OTP: ", error);
         let errorDesc = error.message || "رمز التحقق غير صالح أو انتهت صلاحيته. الرجاء المحاولة مرة أخرى.";
         if (error.name === 'AbortError') {
-            errorDesc = "استغرقت عملية التحقق وقتاً طويلاً. يرجى التحقق من اتصال الإنترنت والمحاولة ثانية.";
+            errorDesc = "استغرقت عملية التحقق وقتاً طويلاً. يرجى المحاولة ثانية.";
         }
         toast({ title: "فشل التحقق", description: errorDesc, variant: 'destructive' });
     } finally {
@@ -910,9 +732,9 @@ export default function ProfileForm() {
                       <div className="flex flex-wrap gap-2">
                         <Button
                             type="button"
-                            onClick={() => handleSendCode('sms-gateway')}
+                            onClick={handleSendWhatsAppOTP}
                             disabled={isSendingCode || isPhoneEmpty || cooldown > 0}
-                            className="relative min-w-32 bg-primary hover:bg-primary/90 text-primary-foreground font-bold gap-1.5 shadow-xs"
+                            className="relative min-w-36 bg-emerald-600 hover:bg-emerald-700 text-white font-bold gap-1.5 shadow-sm transition-all"
                         >
                             {isSendingCode ? (
                               <Loader2 className="animate-spin h-4 w-4" />
@@ -920,34 +742,21 @@ export default function ProfileForm() {
                               `إعادة الإرسال (${cooldown})`
                             ) : (
                               <>
-                                <Smartphone className="h-4 w-4" />
-                                <span>تأكيد برمز SMS</span>
+                                <MessageSquare className="h-4 w-4" />
+                                <span>تأكيد عبر واتساب</span>
                               </>
                             )}
-                        </Button>
-                        <Button
-                            type="button"
-                            onClick={() => handleSendCode('whatsapp')}
-                            disabled={isSendingCode || isPhoneEmpty || cooldown > 0}
-                            variant="outline"
-                            className="relative min-w-28 border-emerald-600/40 text-emerald-600 hover:bg-emerald-500/10 dark:text-emerald-400 font-bold gap-1.5"
-                        >
-                            <MessageSquare className="h-4 w-4 text-emerald-500" />
-                            <span>عبر واتساب</span>
                         </Button>
                       </div>
                   )}
                 </div>
             </div>
             
-            {/* حاوية reCAPTCHA المباشرة */}
-            <div id="recaptcha-container" className="my-1.5 flex justify-center"></div>
-            
-            {/* نص توضيحي لطريقة الاستلام */}
+            {/* نص توضيحي لطريقة الاستلام عبر واتساب */}
             {(!userProfile?.phoneVerified || isEditingPhone) && !codeSent && (
-              <p className="text-2xs text-muted-foreground flex items-center gap-1.5 mt-1 text-primary/90 dark:text-primary/80">
-                <span>📩</span>
-                <span>سيصلك رمز التحقق المكون من 6 أرقام في رسالة نصية قصيرة SMS (أو عبر واتساب) لتأكيد ملكية الرقم.</span>
+              <p className="text-2xs text-muted-foreground flex items-center gap-1.5 mt-1 text-emerald-600 dark:text-emerald-400">
+                <MessageSquare className="h-3 w-3" />
+                <span>سيصلك رمز التحقق المكون من 6 أرقام في رسالة عبر واتساب لتأكيد رقم هاتفك.</span>
               </p>
             )}
             
@@ -960,17 +769,13 @@ export default function ProfileForm() {
             control={form.control}
             name="verificationCode"
             render={({ field }) => (
-                <FormItem className="p-4 rounded-2xl bg-primary/5 border border-primary/20 space-y-3">
+                <FormItem className="p-4 rounded-2xl bg-emerald-500/5 border border-emerald-500/20 space-y-3">
                 <FormLabel className="flex items-center justify-between text-xs font-bold text-foreground">
-                    <div className="flex items-center gap-1.5">
-                      <MessageSquare className="h-4 w-4 text-primary"/>
-                      <span>
-                        {(confirmationResult as any)?.isWhatsApp 
-                          ? 'أدخل رمز التفعيل المستلم على واتساب:' 
-                          : 'أدخل رمز التحقق المستلم في رسالة SMS (Firebase):'}
-                      </span>
+                    <div className="flex items-center gap-1.5 text-emerald-600 dark:text-emerald-400">
+                      <MessageSquare className="h-4 w-4"/>
+                      <span>أدخل رمز التفعيل المستلم على واتساب:</span>
                     </div>
-                    <span className="text-2xs bg-primary/10 text-primary px-2 py-0.5 rounded-full font-mono">صالح لـ 5 دقائق</span>
+                    <span className="text-2xs bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 px-2 py-0.5 rounded-full font-mono">صالح لـ 5 دقائق</span>
                 </FormLabel>
                  <div className="flex gap-2">
                     <FormControl>
@@ -980,14 +785,14 @@ export default function ProfileForm() {
                             {...field} 
                             maxLength={6}
                             dir="ltr"
-                            className="tracking-[0.5em] md:tracking-[0.8rem] text-center font-mono font-black text-lg h-11 bg-background"
+                            className="tracking-[0.5em] md:tracking-[0.8rem] text-center font-mono font-black text-lg h-11 bg-background focus-visible:ring-emerald-500"
                         />
                     </FormControl>
                      <Button 
                         type="button" 
                         onClick={handleVerifyCode} 
                         disabled={isVerifying || !form.watch('verificationCode')}
-                        className="relative min-w-28 font-bold bg-primary hover:bg-primary/90 text-primary-foreground h-11"
+                        className="relative min-w-28 font-bold bg-emerald-600 hover:bg-emerald-700 text-white h-11"
                     >
                         {isVerifying ? <Loader2 className="animate-spin h-4 w-4" /> : 'تأكيد الرمز'}
                      </Button>
@@ -1094,26 +899,6 @@ export default function ProfileForm() {
                 t.confirmDelete
               )}
             </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-
-      <AlertDialog open={showEgyptPhoneWarning} onOpenChange={setShowEgyptPhoneWarning}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>{'مشكلة في رقم الهاتف المصري'}</AlertDialogTitle>
-            <AlertDialogDescription>{'هناك مشكلة معروفة مع بعض شركات الاتصالات في مصر قد تمنعك من استلام الرمز. هل ترغب في المتابعة والمحاولة على أي حال؟'}</AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogAction asChild>
-                <Link href="/contact">{t.contactSupport}</Link>
-            </AlertDialogAction>
-            <AlertDialogCancel onClick={() => {
-                setShowEgyptPhoneWarning(false);
-                proceedWithSendCode();
-            }}>
-              {t.continueAttempt}
-            </AlertDialogCancel>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>

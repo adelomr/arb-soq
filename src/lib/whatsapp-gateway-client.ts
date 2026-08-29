@@ -1,11 +1,8 @@
 /**
  * WhatsApp Gateway Client
- * يوفر دوال مساعدة للاتصال بسيرفر بوابة واتساب المحلي أو السحابي
+ * يدعم الربط المباشر مع تطبيق بوابة الهاتف للأندرويد (My-otp على المنفذ 8088)
+ * بالإضافة إلى خادم بوابة واتساب المستقل (المنفذ 5005)
  */
-
-const GATEWAY_URL =
-  process.env.WHATSAPP_GATEWAY_URL ||
-  'https://whatsapp-gateway-264703833176.europe-west1.run.app';
 
 export interface WhatsAppSendResult {
   success: boolean;
@@ -14,73 +11,76 @@ export interface WhatsAppSendResult {
   status?: string;
 }
 
+function getWhatsAppGatewayCandidates(): string[] {
+  const customUrl =
+    process.env.WHATSAPP_GATEWAY_URL ||
+    process.env.NEXT_PUBLIC_WHATSAPP_GATEWAY_URL ||
+    process.env.SMS_GATEWAY_URL;
+
+  const list = [
+    customUrl,
+    'http://192.168.1.4:8088',
+    'http://127.0.0.1:8088',
+    'http://localhost:8088',
+    'http://127.0.0.1:5005',
+    'http://localhost:5005',
+  ]
+    .filter(Boolean)
+    .map((u) => (u as string).replace(/\/+$/, ''));
+
+  return Array.from(new Set(list));
+}
+
+const AUTH_TOKEN = process.env.SMS_GATEWAY_TOKEN || 'SECRET123';
+
 /**
- * فحص هل بوابة واتساب متصلة وجاهزة
+ * فحص هل خدمة بوابة واتساب متصلة وجاهزة للإرسال
  */
 export async function checkWhatsAppGatewayStatus(): Promise<{
   connected: boolean;
   phone?: string;
   status: string;
+  error?: string;
 }> {
-  try {
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 6000);
+  const candidateUrls = getWhatsAppGatewayCandidates();
 
-    const res = await fetch(`${GATEWAY_URL}/status`, {
-      method: 'GET',
-      headers: { 'Content-Type': 'application/json' },
-      cache: 'no-store',
-      signal: controller.signal,
-    });
-    clearTimeout(timeoutId);
-    if (!res.ok) return { connected: false, status: 'offline' };
-    const data = await res.json();
-    return {
-      connected: !!data.connected,
-      phone: data.phone,
-      status: data.status || 'unknown',
-    };
-  } catch {
-    return { connected: false, status: 'offline' };
+  for (const baseUrl of candidateUrls) {
+    try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 3000);
+
+      // فحص /status أو /health
+      const res = await fetch(`${baseUrl}/status`, {
+        method: 'GET',
+        cache: 'no-store',
+        signal: controller.signal,
+      });
+      clearTimeout(timeoutId);
+
+      if (res.ok) {
+        const data = await res.json().catch(() => ({}));
+        if (data.connected || data.status === 'ok' || data.status === 'up') {
+          return {
+            connected: true,
+            status: 'connected',
+            phone: data.phone,
+          };
+        }
+      }
+    } catch {
+      // تجربة العنوان التالي
+    }
   }
+
+  return {
+    connected: false,
+    status: 'offline',
+    error: 'تعذر الاتصال بتطبيق بوابة واتساب على الهاتف (192.168.1.4:8088). يرجى التأكد من تشغيل البوابة على الهاتف.',
+  };
 }
 
 /**
- * إرسال رسالة نصية عامة عبر واتساب
- */
-export async function sendWhatsAppMessage(
-  phone: string,
-  message: string
-): Promise<WhatsAppSendResult> {
-  try {
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 10000);
-
-    const res = await fetch(`${GATEWAY_URL}/send-message`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ phone, message }),
-      cache: 'no-store',
-      signal: controller.signal,
-    });
-    clearTimeout(timeoutId);
-
-    const data = await res.json();
-    return data;
-  } catch (error: any) {
-    console.warn('[WhatsApp Gateway Client] Send error:', error?.message);
-    const isConnError = error?.name === 'AbortError' || error?.message?.includes('fetch failed') || error?.code === 'ECONNREFUSED';
-    return {
-      success: false,
-      error: isConnError
-        ? 'تعذر الاتصال بسيرفر بوابة واتساب (يرجى التأكد من تشغيل خادم البوابة ومسح رمز الـ QR أو المحاولة لاحقاً).'
-        : (error?.message || 'Gateway connection failed')
-    };
-  }
-}
-
-/**
- * إرسال رمز تفعيل (OTP) منسق باحترافية
+ * إرسال كود التحقق (OTP) حصرياً عبر بوابة واتساب
  */
 export async function sendWhatsAppOTP(
   phone: string,
@@ -88,71 +88,99 @@ export async function sendWhatsAppOTP(
   appName = 'سوق العرب'
 ): Promise<WhatsAppSendResult> {
   const cleanPhone = phone.replace(/[^\d+]/g, '');
+  const candidateUrls = getWhatsAppGatewayCandidates();
 
-  // 1. Try Primary Cloud/Local Baileys Gateway if reachable
-  try {
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 6000);
+  let lastError = 'تعذر الاتصال بتطبيق بوابة واتساب على الهاتف. تأكد من تشغيل التطبيق على الهاتف.';
 
-    const res = await fetch(`${GATEWAY_URL}/send-otp`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ phone: cleanPhone, code, appName }),
-      cache: 'no-store',
-      signal: controller.signal,
-    });
-    clearTimeout(timeoutId);
-
-    if (res.ok) {
-      const data = await res.json();
-      if (data && data.success) return data;
-    }
-  } catch (cloudErr: any) {
-    console.warn('[WhatsApp Client] Cloud/Local gateway unreachable, attempting Android Phone Gateway...');
-  }
-
-  // 2. Fallback to Android Phone WhatsApp Business Gateway
-  const phoneCandidates = [
-    process.env.SMS_GATEWAY_URL || 'http://192.168.1.4:8088',
-    'http://192.168.1.4:8765',
-    'http://192.168.1.4:8080',
-    'http://127.0.0.1:8088',
-  ];
-
-  for (const baseUrl of phoneCandidates) {
+  for (const baseUrl of candidateUrls) {
     try {
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 6000);
+      const timeoutId = setTimeout(() => controller.abort(), 7000);
 
-      const targetUrl = `${baseUrl.replace(/\/$/, '')}/send-whatsapp`;
-      const res = await fetch(targetUrl, {
+      // 1. تجربة تطبيق الأندرويد (My-otp) عبر مسار /send-whatsapp أو /send
+      const androidPayload = {
+        phone: cleanPhone,
+        code: String(code).trim(),
+        message: `رمز تفعيل ${appName} الخاص بك هو: ${code}`,
+        token: AUTH_TOKEN,
+        channel: 'whatsapp',
+        idempotencyKey: `wa_${cleanPhone.replace(/[^\d]/g, '')}_${Date.now()}`,
+      };
+
+      const res = await fetch(`${baseUrl}/send-whatsapp`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          phone: cleanPhone,
-          code,
-          token: process.env.SMS_GATEWAY_TOKEN || 'SECRET123',
-          channel: 'whatsapp',
-        }),
+        headers: {
+          'Content-Type': 'application/json; charset=utf-8',
+          Accept: 'application/json',
+        },
+        body: JSON.stringify(androidPayload),
         cache: 'no-store',
         signal: controller.signal,
       });
       clearTimeout(timeoutId);
 
-      if (res.ok) {
-        const json = await res.json().catch(() => ({}));
-        if (json.status === 'ok' || json.status === 'success' || json.channel === 'whatsapp') {
-          console.log(`[WhatsApp Client] Sent OTP successfully via Android WhatsApp Gateway at ${baseUrl}`);
-          return { success: true, status: 'sent_via_phone_whatsapp' };
+      const data = await res.json().catch(() => ({}));
+
+      if (res.ok && (data.status === 'ok' || data.success || data.channel === 'whatsapp' || data.status === 'duplicate')) {
+        console.log(`[WhatsApp Client] OTP sent successfully to ${cleanPhone} via Android Gateway at ${baseUrl}`);
+        return {
+          success: true,
+          messageId: data.messageId || 'android_sent',
+          status: 'sent',
+        };
+      }
+
+      // 2. إذا لم يكن مسار /send-whatsapp، تجربة مسار /send-otp الخاص بخادم Node.js
+      if (res.status === 404) {
+        const nodeController = new AbortController();
+        const nodeTimeout = setTimeout(() => nodeController.abort(), 5000);
+
+        const nodeRes = await fetch(`${baseUrl}/send-otp`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json; charset=utf-8',
+            Accept: 'application/json',
+          },
+          body: JSON.stringify({
+            phone: cleanPhone,
+            code: String(code).trim(),
+            appName: appName,
+          }),
+          cache: 'no-store',
+          signal: nodeController.signal,
+        });
+        clearTimeout(nodeTimeout);
+
+        const nodeData = await nodeRes.json().catch(() => ({}));
+        if (nodeRes.ok && nodeData.success) {
+          return {
+            success: true,
+            messageId: nodeData.messageId,
+            status: 'sent',
+          };
         }
       }
+
+      if (data.message || data.error) {
+        lastError = data.message || data.error;
+      }
     } catch (err: any) {
-      // Continue to next candidate
+      console.warn(`[WhatsApp Client] Connection attempt to ${baseUrl} failed:`, err?.message);
     }
   }
 
   return {
     success: false,
-    error: 'تعذر الاتصال ببوابة واتساب. يرجى التأكد من تشغيل تطبيق بوابة الرسائل على الهاتف أو تفعيل خدمة الإرسال التلقائي.',
+    error: lastError,
   };
+}
+
+/**
+ * إرسال رسالة نصية عامة عبر بوابة واتساب
+ */
+export async function sendWhatsAppMessage(
+  phone: string,
+  message: string
+): Promise<WhatsAppSendResult> {
+  return sendWhatsAppOTP(phone, message);
 }
