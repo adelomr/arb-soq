@@ -19,6 +19,7 @@ function getWhatsAppGatewayCandidates(): string[] {
 
   const list = [
     customUrl,
+    'https://pipes-cloth-salary-remember.trycloudflare.com',
     'http://192.168.1.4:8088',
     'http://127.0.0.1:8088',
     'http://localhost:8088',
