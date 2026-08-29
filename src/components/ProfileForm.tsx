@@ -275,12 +275,15 @@ export default function ProfileForm() {
       const phoneCountry = markets.find(m => m.id === form.getValues('phoneCountryCode')) || market || markets[0];
       const phoneCountryCode = phoneCountry?.phoneCode;
 
-      // بدء التشخيص
-      clearDiagLogs();
-      setShowDiag(true);
-      addDiagLog(`🔵 بدء محاولة الإرسال`);
-      addDiagLog(`📱 الرقم المدخل: "${phoneNumberInput}"`);
-      addDiagLog(`🌍 كود الدولة: ${phoneCountryCode || 'غير محدد'}`);
+      // بدء التشخيص (فقط على السيرفر المحلي localhost)
+      const isLocal = typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
+      if (isLocal) {
+        clearDiagLogs();
+        setShowDiag(true);
+        addDiagLog(`🔵 بدء محاولة الإرسال`);
+        addDiagLog(`📱 الرقم المدخل: "${phoneNumberInput}"`);
+        addDiagLog(`🌍 كود الدولة: ${phoneCountryCode || 'غير محدد'}`);
+      }
 
       if (!phoneNumberInput || !phoneCountryCode) {
           addDiagLog(`❌ فشل: رقم الهاتف أو كود الدولة فارغ`);
@@ -861,8 +864,8 @@ export default function ProfileForm() {
             />
         )}
        
-        {/* ── لوحة التشخيص ── */}
-        {showDiag && (
+        {/* ── لوحة التشخيص (تظهر فقط عند الاستخدام على السيرفر المحلي localhost) ── */}
+        {showDiag && typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') && (
           <div className="rounded-xl border border-amber-400/40 bg-amber-50/80 dark:bg-amber-950/30 dark:border-amber-500/30 p-3 space-y-2 text-xs font-mono">
             <div className="flex items-center justify-between gap-2 flex-wrap">
               <span className="font-bold text-amber-700 dark:text-amber-400 flex items-center gap-1.5">
