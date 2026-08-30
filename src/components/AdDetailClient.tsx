@@ -311,23 +311,17 @@ export default function AdDetailClient({ initialAd }: { initialAd: Ad }) {
                     <div className="mb-6">
                         <div className="flex flex-wrap items-center justify-between gap-3 mb-2">
                           <div className="flex items-center gap-2">
-                            {isBoostActive && boostTier === 'gold' && (
+                            {isBoostActive && boostTier === 'gold' ? (
                                 <Badge className="bg-gradient-to-r from-amber-500 to-yellow-400 text-black font-extrabold border-none shadow-md text-xs py-1 px-3">
                                     <Crown className="w-4 h-4 ml-1.5 fill-black text-black" />
                                     إعلان ذهبي VIP
                                 </Badge>
-                            )}
-                            {isBoostActive && boostTier === 'silver' && (
-                                <Badge className="bg-slate-800 text-white font-bold border border-slate-600 shadow-sm text-xs py-1 px-3">
-                                    <Sparkles className="w-3.5 h-3.5 ml-1.5 text-yellow-400" />
+                            ) : (isBoostActive || ad.isPromoted) ? (
+                                <Badge className="bg-primary text-primary-foreground font-bold border border-primary/20 shadow-sm text-xs py-1 px-3">
+                                    <Sparkles className="w-3.5 h-3.5 ml-1.5 text-primary-foreground" />
                                     إعلان مميز
                                 </Badge>
-                            )}
-                            {!isBoostActive && ad.isPromoted && (
-                                <Badge variant="destructive" className="bg-accent text-accent-foreground">
-                                    {t.promoted}
-                                </Badge>
-                            )}
+                            ) : null}
                             {(ad as any).aiEnhanced && (
                                 <Badge variant="outline" className="border-primary/40 bg-primary/5 text-primary text-xs">
                                   <Sparkles className="w-3 h-3 ml-1" />

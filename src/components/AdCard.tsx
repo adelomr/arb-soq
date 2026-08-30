@@ -199,25 +199,17 @@ function AdCard({ ad, priority = false }: AdCardProps) {
                     </div>
                 )}
                 <div className="absolute top-2 right-2 flex flex-col items-end gap-1.5">
-                    {isBoostActive && boostTier === 'gold' && (
+                    {isBoostActive && boostTier === 'gold' ? (
                         <Badge className="bg-gradient-to-r from-amber-500 to-yellow-400 text-black font-extrabold border-none shadow-md text-xs py-0.5 px-2">
                             <Crown className="w-3.5 h-3.5 ml-1 fill-black text-black" />
                             ذهبي VIP
                         </Badge>
-                    )}
-                    {isBoostActive && boostTier === 'silver' && (
-                        <Badge className="bg-slate-800 text-white font-bold border border-slate-600 shadow-sm text-xs py-0.5 px-2">
-                            <Sparkles className="w-3 h-3 ml-1 text-yellow-400" />
-                            مميز
+                    ) : (isBoostActive || ad.isPromoted) ? (
+                        <Badge className="bg-primary text-primary-foreground font-bold border border-primary/20 shadow-sm text-xs py-0.5 px-2">
+                            <Sparkles className="w-3 h-3 ml-1 text-primary-foreground" />
+                            {t.promoted}
                         </Badge>
-                    )}
-                    {!isBoostActive && ad.isPromoted && (
-                    <Badge variant="destructive" className="bg-accent text-accent-foreground">
-                        <Star className={`w-3 h-3 ${direction === 'rtl' ? 'ml-1' : 'mr-1'}`}/>
-                        {t.promoted}
-                    </Badge>
-                    )}
-
+                    ) : null}
                 </div>
             </CardHeader>
             <CardContent className="p-2 flex-grow flex flex-col">

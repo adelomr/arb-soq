@@ -5,7 +5,7 @@ import type { Ad } from '@/lib/types';
 import Image from 'next/image';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { MapPin, Tag, Star, Wrench, Handshake, ImageIcon, Calendar, Share2, Facebook, Twitter, Eye } from 'lucide-react';
+import { MapPin, Tag, Star, Sparkles, Wrench, Handshake, ImageIcon, Calendar, Share2, Facebook, Twitter, Eye } from 'lucide-react';
 import Link from 'next/link';
 import { useMarket } from '@/context/MarketContext';
 import { useAuth } from '@/context/AuthContext';
@@ -114,7 +114,8 @@ function AdRow({ ad, priority = false }: AdRowProps) {
             <AdPlaceholder category={ad.category} />
           )}
           {ad.isPromoted && (
-            <Badge variant="destructive" className="absolute top-2 right-2 z-10">
+            <Badge className="bg-primary text-primary-foreground font-bold border border-primary/20 shadow-sm text-xs py-0.5 px-2 absolute top-2 right-2 z-10 flex items-center gap-1">
+              <Sparkles className="w-3 h-3 ml-1 text-primary-foreground" />
               {t.promoted}
             </Badge>
           )}
