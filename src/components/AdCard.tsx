@@ -193,7 +193,7 @@ function AdCard({ ad, priority = false }: AdCardProps) {
                 </div>
                 {ad.condition && (
                     <div className="absolute top-2 left-2 flex items-center z-10 pointer-events-none">
-                        <Badge variant="secondary" className="bg-background/90 backdrop-blur-xs text-foreground font-bold text-2xs py-0.5 px-2 shadow-xs border border-border/60">
+                        <Badge variant="outline" className="bg-background text-foreground font-bold text-xs py-0.5 px-2.5 shadow-sm border border-border">
                             {ad.condition === 'new' ? 'جديد' : 'مستعمل'}
                         </Badge>
                     </div>
