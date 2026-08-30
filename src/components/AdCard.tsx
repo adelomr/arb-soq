@@ -269,7 +269,7 @@ function AdCard({ ad, priority = false }: AdCardProps) {
                             </div>
                         )}
                         {ad.condition && (
-                            <span className="bg-primary text-primary-foreground font-bold text-2xs py-0.5 px-2 rounded-md shadow-xs border border-primary/20">
+                            <span className="text-2xs sm:text-xs font-semibold text-muted-foreground">
                                 {ad.condition === 'new' ? 'جديد' : 'مستعمل'}
                             </span>
                         )}
