@@ -122,7 +122,14 @@ function AdRow({ ad, priority = false }: AdRowProps) {
 
         <div className="p-4 flex flex-col justify-between flex-1">
           <div className="flex items-center justify-between mb-2">
-            <Badge variant="outline">{ad.category}</Badge>
+            <div className="flex items-center gap-2">
+              <Badge variant="outline">{ad.category}</Badge>
+              {ad.condition && (
+                <span className="bg-background text-foreground font-bold text-xs py-0.5 px-2.5 rounded-md shadow-sm border border-border">
+                  {ad.condition === 'new' ? 'جديد' : 'مستعمل'}
+                </span>
+              )}
+            </div>
             <div className="flex items-center gap-2 text-xs text-muted-foreground">
               {(ad as any).isService && <Badge variant="secondary" className="gap-1"><Wrench className="w-3 h-3" />{t.service}</Badge>}
               {(ad as any).isRequested && <Badge variant="secondary" className="gap-1"><Handshake className="w-3 h-3" />{t.requested}</Badge>}
