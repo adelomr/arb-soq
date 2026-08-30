@@ -191,13 +191,6 @@ function AdCard({ ad, priority = false }: AdCardProps) {
                         <AdPlaceholder category={ad.category} iconClassName="h-16 w-16" />
                     )}
                 </div>
-                {ad.condition && (
-                    <div className="absolute top-2 left-2 flex items-center z-10 pointer-events-none">
-                        <span className="bg-primary text-primary-foreground font-bold text-xs py-0.5 px-2.5 rounded-md shadow-sm border border-primary/20">
-                            {ad.condition === 'new' ? 'جديد' : 'مستعمل'}
-                        </span>
-                    </div>
-                )}
                 <div className="absolute top-2 right-2 flex flex-col items-end gap-1.5">
                     {isBoostActive && boostTier === 'gold' ? (
                         <Badge className="bg-gradient-to-r from-amber-500 to-yellow-400 text-black font-extrabold border-none shadow-md text-xs py-0.5 px-2">
@@ -266,14 +259,21 @@ function AdCard({ ad, priority = false }: AdCardProps) {
                             </div>
                         </div>
                     )}
-                    {!!ad.price && Number(ad.price) > 0 && (
-                        <div className="flex items-center gap-1">
-                            <Tag className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-primary" />
-                            <span className="text-sm sm:text-base font-bold text-primary">
-                                {currencyFormatter.format(Number(ad.price))}
+                    <div className="flex flex-col items-end gap-1 shrink-0">
+                        {!!ad.price && Number(ad.price) > 0 && (
+                            <div className="flex items-center gap-1">
+                                <Tag className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-primary" />
+                                <span className="text-sm sm:text-base font-bold text-primary">
+                                    {currencyFormatter.format(Number(ad.price))}
+                                </span>
+                            </div>
+                        )}
+                        {ad.condition && (
+                            <span className="bg-primary text-primary-foreground font-bold text-2xs py-0.5 px-2 rounded-md shadow-xs border border-primary/20">
+                                {ad.condition === 'new' ? 'جديد' : 'مستعمل'}
                             </span>
-                        </div>
-                    )}
+                        )}
+                    </div>
                 </div>
                 {isStoreProduct && adUser ? (
                     <div className="flex items-center gap-2 mt-3">

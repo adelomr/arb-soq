@@ -123,14 +123,7 @@ function AdRow({ ad, priority = false }: AdRowProps) {
 
         <div className="p-4 flex flex-col justify-between flex-1">
           <div className="flex items-center justify-between mb-2">
-            <div className="flex items-center gap-2">
-              <Badge variant="outline">{ad.category}</Badge>
-              {ad.condition && (
-                <span className="bg-primary text-primary-foreground font-bold text-xs py-0.5 px-2.5 rounded-md shadow-sm border border-primary/20">
-                  {ad.condition === 'new' ? 'جديد' : 'مستعمل'}
-                </span>
-              )}
-            </div>
+            <Badge variant="outline">{ad.category}</Badge>
             <div className="flex items-center gap-2 text-xs text-muted-foreground">
               {(ad as any).isService && <Badge variant="secondary" className="gap-1"><Wrench className="w-3 h-3" />{t.service}</Badge>}
               {(ad as any).isRequested && <Badge variant="secondary" className="gap-1"><Handshake className="w-3 h-3" />{t.requested}</Badge>}
@@ -242,14 +235,21 @@ function AdRow({ ad, priority = false }: AdRowProps) {
               </DropdownMenu>
             )}
 
-            {!!ad.price && Number(ad.price) > 0 && (
-              <div className="flex items-center gap-2">
-                <Tag className="w-5 h-5 text-primary" />
-                <span className="text-lg font-bold text-primary">
-                  {currencyFormatter.format(Number(ad.price))}
+            <div className="flex flex-col items-end gap-1">
+              {!!ad.price && Number(ad.price) > 0 && (
+                <div className="flex items-center gap-2">
+                  <Tag className="w-5 h-5 text-primary" />
+                  <span className="text-lg font-bold text-primary">
+                    {currencyFormatter.format(Number(ad.price))}
+                  </span>
+                </div>
+              )}
+              {ad.condition && (
+                <span className="bg-primary text-primary-foreground font-bold text-xs py-0.5 px-2.5 rounded-md shadow-xs border border-primary/20">
+                  {ad.condition === 'new' ? 'جديد' : 'مستعمل'}
                 </span>
-              </div>
-            )}
+              )}
+            </div>
           </div>
         </div>
       </Card>
