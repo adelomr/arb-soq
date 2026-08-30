@@ -246,7 +246,7 @@ function AdRow({ ad, priority = false }: AdRowProps) {
               )}
               {ad.condition && (
                 <span className="text-xs font-semibold text-muted-foreground">
-                  {ad.condition === 'new' ? 'جديد' : 'مستعمل'}
+                  الحالة/ {ad.condition === 'new' ? 'جديد' : 'مستعمل'}
                 </span>
               )}
             </div>

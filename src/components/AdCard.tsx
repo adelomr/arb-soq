@@ -270,7 +270,7 @@ function AdCard({ ad, priority = false }: AdCardProps) {
                         )}
                         {ad.condition && (
                             <span className="text-2xs sm:text-xs font-semibold text-muted-foreground">
-                                {ad.condition === 'new' ? 'جديد' : 'مستعمل'}
+                                الحالة/ {ad.condition === 'new' ? 'جديد' : 'مستعمل'}
                             </span>
                         )}
                     </div>
