@@ -144,11 +144,11 @@ export default function HomeClient() {
     });
 
     const used = validAds.filter(ad => ad.condition === 'used' && !isBoostActive(ad));
-    const regular = validAds.filter(ad => !isBoostActive(ad) && ad.condition !== 'used');
+    const allLatest = validAds.filter(ad => !isBoostActive(ad));
     
     setPromotedAds(promoted);
     setUsedAds(used);
-    setLatestAds(regular);
+    setLatestAds(allLatest);
     setAdsLoading(false);
   }, []);
 
