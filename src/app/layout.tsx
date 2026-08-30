@@ -88,12 +88,16 @@ export default function RootLayout({
         <link rel="preconnect" href="https://arb-soq.firebaseapp.com" crossOrigin="anonymous" />
         <link rel="dns-prefetch" href="https://pagead2.googlesyndication.com" />
         <link rel="dns-prefetch" href="https://www.googletagmanager.com" />
-        <meta name="google-adsense-account" content="ca-pub-4808414573627321" />
-        <script
-          async
-          src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-4808414573627321"
-          crossOrigin="anonymous"
-        />
+        {process.env.NODE_ENV === 'production' && (
+          <>
+            <meta name="google-adsense-account" content="ca-pub-4808414573627321" />
+            <script
+              async
+              src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-4808414573627321"
+              crossOrigin="anonymous"
+            />
+          </>
+        )}
       </head>
       <body className={`${cairo.variable} min-h-screen w-full max-w-full overflow-x-hidden bg-background font-body text-base flex flex-col antialiased`} suppressHydrationWarning>
         <Script

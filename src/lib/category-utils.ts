@@ -175,7 +175,9 @@ export function matchAdToSubcategory(ad: Ad, subId: string, subName?: string): b
 }
 
 export const PHYSICAL_GOODS_CATEGORIES = [
-  'vehicles', 'cars', 'automotive', 'mobiles', 'phones', 'electronics', 
+  'vehicles', 'cars', 'automotive', 'mobiles', 'phones', 'electronics', 'electronic',
+  'appliances', 'devices', 'computers', 'laptops', 'gadgets', 'tech', 'electric',
+  'screens', 'tv', 'audio', 'cameras', 'gaming', 'consoles', 'smartphones', 'tablets',
   'furniture', 'fashion', 'clothes', 'baby', 'kids', 'hobbies', 'trade', 'store-product'
 ];
 
@@ -202,6 +204,7 @@ export function isPhysicalGoodsCategory(categoryOrId?: string, categoryName?: st
     name.includes('عقار') ||
     name.includes('شقق') ||
     name.includes('أراض') ||
+    name.includes('اراض') ||
     name.includes('وظائف') ||
     name.includes('توظيف') ||
     name.includes('عمل') ||
@@ -226,7 +229,7 @@ export function isPhysicalGoodsCategory(categoryOrId?: string, categoryName?: st
     return false;
   }
 
-  // 2. Strict whitelist of physical goods categories
+  // 2. Strict whitelist of physical goods categories (including all Electronics and Devices variations)
   return (
     PHYSICAL_GOODS_CATEGORIES.some(cat => key === cat || key.startsWith(cat) || key.includes(cat)) ||
     name.includes('عربيات') ||
@@ -234,13 +237,32 @@ export function isPhysicalGoodsCategory(categoryOrId?: string, categoryName?: st
     name.includes('مركبات') ||
     name.includes('موبايل') ||
     name.includes('هواتف') ||
+    name.includes('جوال') ||
     name.includes('إلكترون') ||
+    name.includes('الكترون') ||
+    name.includes('اكترون') ||
+    name.includes('أجهزة') ||
+    name.includes('اجهزة') ||
     name.includes('كهربائية') ||
+    name.includes('كهربائي') ||
+    name.includes('كمبيوتر') ||
+    name.includes('حاسوب') ||
+    name.includes('لابتوب') ||
+    name.includes('شاشات') ||
+    name.includes('تلفزيون') ||
+    name.includes('صوتيات') ||
+    name.includes('سماعات') ||
+    name.includes('كاميرا') ||
+    name.includes('ألعاب') ||
+    name.includes('العاب') ||
+    name.includes('بلايستيشن') ||
     name.includes('أثاث') ||
+    name.includes('اثاث') ||
     name.includes('مفروشات') ||
     name.includes('موضة') ||
     name.includes('ملابس') ||
     name.includes('أطفال') ||
+    name.includes('اطفال') ||
     name.includes('هوايات') ||
     name.includes('رياضة') ||
     name.includes('تجارة') ||

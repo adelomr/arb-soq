@@ -1,8 +1,6 @@
 'use client';
 import Footer from "@/components/Footer";
 import ProfileForm from "@/components/ProfileForm";
-import Image from "next/image";
-import { appIconUrl } from '@/lib/data';
 import dynamic from 'next/dynamic';
 
 import { useAuth } from '@/context/AuthContext';
@@ -11,19 +9,16 @@ import { BadgeCheck } from 'lucide-react';
 const Header = dynamic(() => import('@/components/Header'), { ssr: false });
 
 export default function ProfilePage() {
-  const { userProfile } = useAuth();
+  const { userProfile, loading: authLoading } = useAuth();
   const isVerified = !!userProfile?.verified;
 
   return (
     <div className="flex flex-col min-h-screen">
       <Header />
-      <main className="flex-1 bg-background py-12 md:py-20">
+      <main className="flex-1 bg-background py-8 md:py-16">
         <div className="container mx-auto px-4">
           <div className="max-w-2xl mx-auto bg-card p-6 sm:p-8 rounded-xl shadow-lg">
             <div className="text-center mb-8">
-               <div className="flex justify-center mb-4">
-                  <Image src={appIconUrl} alt="App Icon" width={128} height={128} className="h-24 w-24 md:h-32 md:w-32" />
-              </div>
               <div className="flex items-center justify-center gap-2">
                 <h1 className="text-3xl md:text-4xl font-bold font-headline">
                   {isVerified ? "تعديل بياناتي" : "توثيق حسابي"}
@@ -36,11 +31,25 @@ export default function ProfilePage() {
                   : "أدخل معلوماتك وعنوانك ورقم هاتفك للحصول على شارة التوثيق الرسمية في سوق العرب."}
               </p>
             </div>
-            <ProfileForm />
+            {authLoading ? (
+              <div className="space-y-6 animate-pulse">
+                <div className="flex flex-col items-center space-y-4">
+                  <div className="h-28 w-28 rounded-full bg-secondary" />
+                  <div className="h-9 w-28 bg-secondary rounded-lg" />
+                </div>
+                <div className="h-10 w-full bg-secondary rounded-lg" />
+                <div className="h-10 w-full bg-secondary rounded-lg" />
+                <div className="h-12 w-full bg-secondary rounded-lg" />
+              </div>
+            ) : (
+              <ProfileForm />
+            )}
           </div>
         </div>
       </main>
-      <Footer />
+      <div className="hidden md:block">
+        <Footer />
+      </div>
     </div>
   );
 }

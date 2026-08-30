@@ -157,7 +157,6 @@ export default function ProfileForm() {
   const [cooldown, setCooldown] = useState(0);
   const cooldownTimer = useRef<NodeJS.Timeout | null>(null);
   const [isClient, setIsClient] = useState(false);
-  const [showVerificationSentDialog, setShowVerificationSentDialog] = useState(false);
   // ── لوحة التشخيص ──
   const [diagLogs, setDiagLogs] = useState<string[]>([]);
   const [showDiag, setShowDiag] = useState(false);
@@ -190,6 +189,11 @@ export default function ProfileForm() {
 
   const selectedPhoneCountryId = form.watch('phoneCountryCode') || market?.id;
   const selectedPhoneCountry = markets.find(m => m.id === selectedPhoneCountryId) || market || markets[0];
+  const watchedPhoneNumber = form.watch('phoneNumber');
+  const isPhoneDirty = watchedPhoneNumber !== (userProfile?.phoneNumber || '').substring((selectedPhoneCountry?.phoneCode || '').length);
+  const isPhoneEmpty = !watchedPhoneNumber;
+  const showVerification = !userProfile?.phoneVerified || isPhoneDirty || !userProfile?.phoneNumber || isEditingPhone;
+  const isPhoneInputDisabled = codeSent || (userProfile?.phoneVerified && !!userProfile?.phoneNumber && !isEditingPhone);
 
   useEffect(() => {
     setIsClient(true);
@@ -400,11 +404,31 @@ export default function ProfileForm() {
             return;
         }
 
+        const nameVal = form.getValues('name') || userProfile?.name || '';
+        const countryVal = form.getValues('country') || userProfile?.country || '';
+        const provinceVal = form.getValues('province') || userProfile?.province || '';
+        const cityVal = form.getValues('city') || userProfile?.city || '';
+        const isDataComplete = Boolean(nameVal && countryVal && provinceVal && cityVal);
+
         if (user?.uid) {
-            await updateUserProfile(user.uid, { phoneNumber: fullPhoneNumber, phoneVerified: true });
+            await updateUserProfile(user.uid, { 
+              phoneNumber: fullPhoneNumber, 
+              phoneVerified: true,
+              ...(isDataComplete ? { verified: true } : {})
+            });
         }
 
-        toast({ title: t.phoneVerifiedSuccess, description: t.phoneVerifiedSuccessDesc });
+        if (isDataComplete) {
+            toast({ 
+              title: "🎉 أصبح حسابك الآن موثقاً!", 
+              description: "تم تأكيد رقم هاتفك واكتمال جميع بياناتك، وأصبح حسابك موثقاً بالعلامة الزرقاء 🛡️." 
+            });
+        } else {
+            toast({ 
+              title: t.phoneVerifiedSuccess, 
+              description: "تم تأكيد رقم هاتفك بنجاح. أكمل باقي بياناتك الشخصية والعنوان ليصبح حسابك موثقاً." 
+            });
+        }
 
         setCodeSent(false);
         setIsEditingPhone(false);
@@ -466,7 +490,6 @@ export default function ProfileForm() {
     setIsSaving(true);
     try {
         let newAvatarUrl = userProfile.avatarUrl;
-        const hadProfession = !!userProfile.profession;
 
         if (imageFile) {
             toast({ title: t.uploadingImage });
@@ -474,6 +497,10 @@ export default function ProfileForm() {
             newAvatarUrl = await uploadProfileImage(user.uid, imageFile, filePath);
             toast({ title: t.imageUploadSuccess });
         }
+
+        const isDataComplete = Boolean(data.name && data.country && data.province && data.city);
+        const isPhoneVerifiedNow = (userProfile.phoneVerified && fullPhoneNumber === userProfile.phoneNumber);
+        const isFullyVerified = isDataComplete && isPhoneVerifiedNow;
 
         const profileData: Partial<UserProfile> = {
             name: data.name,
@@ -484,17 +511,27 @@ export default function ProfileForm() {
             avatarUrl: newAvatarUrl,
             profession: data.profession,
             specialization: data.specialization,
+            ...(isFullyVerified ? { verified: true } : {})
         };
         
         if (fullPhoneNumber !== userProfile.phoneNumber) {
             profileData.phoneNumber = fullPhoneNumber;
             profileData.phoneVerified = false; // Always reset verification status on number change
+            profileData.verified = false;
         }
 
         toast({ title: t.updatingProfile });
         await updateUserProfile(user.uid, profileData);
         setImageFile(null); 
-        toast({ title: t.changesSaved });
+        
+        if (isFullyVerified && !userProfile.verified) {
+            toast({ 
+              title: "🎉 أصبح حسابك الآن موثقاً!", 
+              description: "تم حفظ بياناتك واكتمال تأكيد الهاتف، وأصبح حسابك موثقاً بالعلامة الزرقاء 🛡️." 
+            });
+        } else {
+            toast({ title: t.changesSaved });
+        }
 
         router.push('/');
     } catch (error: any) {
@@ -538,101 +575,6 @@ export default function ProfileForm() {
     }
   };
 
-  const handleWhatsAppVerification = async () => {
-    if (!user || !userProfile) return;
-
-    const nameVal = form.getValues('name');
-    const countryVal = form.getValues('country');
-    const provinceVal = form.getValues('province');
-    const cityVal = form.getValues('city');
-    const phoneInputVal = form.getValues('phoneNumber');
-
-    const phoneCountry = markets.find(m => m.id === (form.getValues('phoneCountryCode') || market?.id)) || market || markets[0];
-    const fullPhoneNumber = phoneInputVal
-      ? `${phoneCountry?.phoneCode}${phoneInputVal.replace(/^0+/, '')}`
-      : (userProfile.phoneNumber || '');
-
-    if (!nameVal || !countryVal || !provinceVal || !cityVal || !fullPhoneNumber) {
-      toast({
-        title: "بيانات غير مكتملة",
-        description: "يرجى تعبئة الاسم الكامل والعنوان ورقم الهاتف أولاً.",
-        variant: "destructive"
-      });
-      return;
-    }
-
-    setIsSaving(true);
-    try {
-      // 1. Save profile updates to Firestore
-      const profileData: Partial<UserProfile> = {
-        name: nameVal,
-        country: countryVal,
-        province: provinceVal,
-        city: cityVal,
-        village: form.getValues('village'),
-        profession: form.getValues('profession'),
-        specialization: form.getValues('specialization'),
-        phoneNumber: fullPhoneNumber,
-      };
-      await updateUserProfile(user.uid, profileData);
-
-      // 2. Save verification request in Firestore
-      const reqId = `${user.uid}_${Date.now()}`;
-      await setDoc(doc(firestore, 'verification_requests', reqId), {
-        id: reqId,
-        userId: user.uid,
-        userName: nameVal,
-        userEmail: user.email || '',
-        phoneNumber: fullPhoneNumber,
-        country: countryVal,
-        province: provinceVal,
-        city: cityVal,
-        profession: form.getValues('profession') || '',
-        status: 'pending',
-        createdAt: new Date().toISOString(),
-      });
-
-      // 3. Open WhatsApp chat with pre-filled message to official support number
-      const msg = `السلام عليكم إدارة سوق العرب 🛍️\nأرغب في توثيق حسابي بالعلامة الزرقاء 🛡️\n\n📌 بيانات الحساب:\n• الاسم: ${nameVal}\n• رقم الهاتف: ${fullPhoneNumber}\n• الدولة والمدينة: ${countryVal} - ${cityVal}\n• معرّف الحساب (ID): ${user.uid}`;
-      const waUrl = `https://wa.me/201003975823?text=${encodeURIComponent(msg)}`;
-      window.open(waUrl, '_blank');
-
-      // 4. Open confirmation Dialog
-      setShowVerificationSentDialog(true);
-      await refreshUserProfile();
-    } catch (err: any) {
-      console.error(err);
-      toast({
-        title: "حدث خطأ",
-        description: err.message || "فشل إرسال طلب التوثيق.",
-        variant: "destructive"
-      });
-    } finally {
-      setIsSaving(false);
-    }
-  };
-
-
-
-  if (authLoading) {
-    return (
-        <div className="space-y-8">
-            <div className="flex flex-col items-center space-y-4">
-                <Skeleton className="h-32 w-32 rounded-full" />
-                <Skeleton className="h-10 w-24" />
-            </div>
-            <Skeleton className="h-10 w-full" />
-            <Skeleton className="h-10 w-full" />
-            <Skeleton className="h-12 w-full" />
-        </div>
-    )
-  }
-
-  const isPhoneDirty = form.watch('phoneNumber') !== (userProfile?.phoneNumber || '').substring((selectedPhoneCountry?.phoneCode || '').length);
-  const isPhoneEmpty = !form.watch('phoneNumber');
-  const showVerification = !userProfile?.phoneVerified || isPhoneDirty || !userProfile.phoneNumber || isEditingPhone;
-  const isPhoneInputDisabled = codeSent || (userProfile?.phoneVerified && !!userProfile.phoneNumber && !isEditingPhone);
-
   return (
     <>
     <Form {...form}>
@@ -650,6 +592,22 @@ export default function ProfileForm() {
                 <Input id="image-upload" type="file" className="hidden" accept="image/*" onChange={handleImageChange} />
             </div>
         </div>
+
+        {/* شارة وحالة توثيق الحساب التلقائي */}
+        {userProfile?.verified ? (
+          <div className="p-4 rounded-xl bg-green-500/10 border border-green-500/30 text-green-700 dark:text-green-400 flex items-center gap-3 animate-in fade-in">
+            <BadgeCheck className="h-6 w-6 text-green-500 fill-green-500/10 flex-shrink-0" />
+            <div>
+              <h4 className="font-bold text-sm">أصبح حسابك الآن موثقاً بالعلامة الزرقاء 🛡️✨</h4>
+              <p className="text-xs opacity-90 mt-0.5">بياناتك مكتملة ورقم هاتفك مؤكد، وتظهر شارة التوثيق تلقائياً على جميع إعلاناتك وصفحتك الشخصية.</p>
+            </div>
+          </div>
+        ) : (
+          <div className="p-3.5 rounded-xl bg-blue-500/5 border border-blue-500/20 text-blue-700 dark:text-blue-400 flex items-center gap-2.5 text-xs animate-in fade-in">
+            <BadgeCheck className="h-4 w-4 text-blue-500 shrink-0" />
+            <span>عند ملء جميع بياناتك (الاسم والعنوان) وتأكيد رقم هاتفك، سيصبح حسابك موثقاً بالعلامة الزرقاء 🛡️ تلقائياً.</span>
+          </div>
+        )}
 
         <FormField
           control={form.control}
@@ -777,10 +735,11 @@ export default function ProfileForm() {
                             }, 50);
                           }}
                           variant="outline"
-                          className="relative min-w-28 flex items-center justify-center gap-1.5 border-primary/40 text-primary hover:bg-primary/10 font-semibold"
+                          title="تعديل رقم الهاتف"
+                          className="shrink-0 h-10 px-2.5 sm:px-3 flex items-center justify-center gap-1.5 border-primary/40 text-primary hover:bg-primary/10 font-semibold text-xs sm:text-sm"
                       >
                           <Pencil className="h-3.5 w-3.5" />
-                          تعديل الرقم
+                          <span>تعديل</span>
                       </Button>
                   ) : (
                       <div className="flex flex-wrap gap-2">
@@ -941,64 +900,7 @@ export default function ProfileForm() {
     </Form>
 
 
-    {/* Account Verification Section */}
-    <div className="mt-8 rounded-2xl border p-6 bg-card shadow-sm space-y-4">
-      <div className="flex items-center gap-2 pb-3 border-b">
-        <BadgeCheck className="h-6 w-6 text-blue-500 fill-blue-500/10" />
-        <h3 className="text-lg font-bold">توثيق الحساب بالعلامة الزرقاء 🛡️</h3>
-      </div>
-      
-      {userProfile?.verified ? (
-        <div className="flex items-center gap-3 p-4 rounded-xl bg-green-500/10 border border-green-500/30 text-green-700 dark:text-green-400">
-          <BadgeCheck className="h-8 w-8 text-green-500 fill-green-500/10 flex-shrink-0 animate-bounce" />
-          <div>
-            <h4 className="font-bold text-sm">حسابك موثق رسمياً بالعلامة الزرقاء! 🛡️✨</h4>
-            <p className="text-xs opacity-90 mt-1">تظهر شارة التوثيق الآن على جميع إعلاناتك وصفحتك الشخصية لزيادة المصداقية وجذب المشترين وتأكيد هويتك.</p>
-          </div>
-        </div>
-      ) : (
-        <div className="space-y-4">
-          <p className="text-sm text-muted-foreground leading-relaxed">
-            احصل على <strong>شارة التوثيق الزرقاء 🛡️</strong> الرسمية لإعلاناتك وحسابك في سوق العرب لبناء ثقة فورية مع المشترين ومضاعفة المبيعات.
-          </p>
-          
-          <div className="p-3.5 rounded-xl bg-secondary/60 border border-border/60 space-y-2.5">
-            <div className="text-xs font-bold text-foreground">بيانات التوثيق المطلوبة:</div>
-            <div className="flex items-center gap-2 text-xs">
-              <span className={`w-2.5 h-2.5 rounded-full ${form.watch('name') ? 'bg-green-500' : 'bg-slate-300'}`} />
-              <span className={form.watch('name') ? 'text-foreground font-medium' : 'text-muted-foreground'}>الاسم الكامل</span>
-            </div>
-            <div className="flex items-center gap-2 text-xs">
-              <span className={`w-2.5 h-2.5 rounded-full ${form.watch('country') && form.watch('province') && form.watch('city') ? 'bg-green-500' : 'bg-slate-300'}`} />
-              <span className={form.watch('country') && form.watch('province') && form.watch('city') ? 'text-foreground font-medium' : 'text-muted-foreground'}>العنوان بالكامل (البلد، المحافظة، المدينة)</span>
-            </div>
-            <div className="flex items-center gap-2 text-xs">
-              <span className={`w-2.5 h-2.5 rounded-full ${form.watch('phoneNumber') || userProfile?.phoneNumber ? 'bg-green-500' : 'bg-slate-300'}`} />
-              <span className={form.watch('phoneNumber') || userProfile?.phoneNumber ? 'text-foreground font-medium' : 'text-muted-foreground'}>رقم الهاتف للتواصل</span>
-            </div>
-          </div>
-
-          <Button 
-            type="button" 
-            onClick={handleWhatsAppVerification}
-            disabled={isSaving || !form.watch('name') || !form.watch('country') || !form.watch('province') || !form.watch('city') || (!form.watch('phoneNumber') && !userProfile?.phoneNumber)}
-            className="w-full bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white font-bold rounded-xl h-12 shadow-md hover:shadow-lg transition-all text-sm sm:text-base flex items-center justify-center gap-2"
-          >
-            {isSaving ? (
-              <Loader2 className="animate-spin h-5 w-5" />
-            ) : (
-              <>
-                <MessageSquare className="h-5 w-5 fill-white/20" />
-                <BadgeCheck className="h-5 w-5" />
-                <span>طلب توثيق الحساب عبر واتساب 🛡️📱</span>
-              </>
-            )}
-          </Button>
-        </div>
-      )}
-    </div>
-
-    <div className="pt-4 flex justify-center">
+    <div className="pt-6 flex justify-center">
       <Button 
         type="button" 
         variant="ghost" 
@@ -1029,30 +931,6 @@ export default function ProfileForm() {
               ) : (
                 t.confirmDelete
               )}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-
-      <AlertDialog open={showVerificationSentDialog} onOpenChange={setShowVerificationSentDialog}>
-        <AlertDialogContent className="max-w-md text-right" dir="rtl">
-          <AlertDialogHeader className="text-right">
-            <div className="mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-full bg-blue-500/10 text-blue-500 shadow-inner">
-              <BadgeCheck className="h-8 w-8" />
-            </div>
-            <AlertDialogTitle className="text-2xl font-bold font-headline text-center">
-              تم إرسال طلب التوثيق بنجاح! 🎉
-            </AlertDialogTitle>
-            <AlertDialogDescription className="text-center text-sm text-muted-foreground mt-2 leading-relaxed">
-              سيقوم فريق إدارة <strong>سوق العرب</strong> بمراجعة بياناتك والتواصل معك عبر واتساب لتأكيد وتفعيل شارة التوثيق الزرقاء 🛡️ لحسابك خلال 24 ساعة.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter className="sm:justify-center mt-4">
-            <AlertDialogAction 
-              onClick={() => setShowVerificationSentDialog(false)}
-              className="w-full sm:w-auto px-8 bg-blue-600 hover:bg-blue-700 font-bold rounded-xl h-11"
-            >
-              حسناً، فهمت
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

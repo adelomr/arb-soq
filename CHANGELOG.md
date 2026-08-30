@@ -2,6 +2,37 @@
 
 هذا السجل يوثق التعديلات والتحسينات المعمارية والبرمجية المنجزة لتكون مرجعاً دائمًا لفريق التطوير.
 
+## [تحسين تجربة تعديل الملف الشخصي، التوثيق التلقائي بالعلامة الزرقاء، تصنيف الإلكترونيات، وتبسيط إضافة الإعلانات] - 2026-08-30
+
+### 1. دعم خيار الحالة (جديد / مستعمل) لفئة الإلكترونيات والسلع المادية
+- **المهمة المنجزة:** إتاحة اختيار حالة المنتج (جديد أو مستعمل) لجميع فئات الإلكترونيات والأجهزة والسلع المادية وحفظها وتصفيتها بدقة.
+- **التفاصيل:**
+  - تحديث [category-utils.ts](file:///d:/mashro3/mashroh/arb-soq/arb_soq.wap/arb_soq.wap/src/lib/category-utils.ts) لتوسيع التعرف على أسماء ومصطلحات الإلكترونيات (`smartphones`, `tablets`, `اكترون`).
+  - تحديث [AdForm.tsx](file:///d:/mashro3/mashroh/arb-soq/arb_soq.wap/arb_soq.wap/src/components/AdForm.tsx) لضمان عرض وحفظ حقل الحالة `condition` لجميع إعلانات السلع المادية والصور.
+
+### 2. تبسيط نموذج إضافة الإعلان وتخصيص ميزات الفيديو والموقع للباقة الذهبية
+- **المهمة المنجزة:** منع تشتيت المستخدمين الجدد بإخفاء مربعات الفيديو والمواقع الترويجية من صفحة إضافة إعلان.
+- **التفاصيل:**
+  - حصر ظهور مدخلات روابط يوتيوب والمواقع الخارجية على مشتركي الباقة الذهبية (`plan === 'gold'`) أو الإدارة فقط في [AdForm.tsx](file:///d:/mashro3/mashroh/arb-soq/arb_soq.wap/arb_soq.wap/src/components/AdForm.tsx).
+
+### 3. التوثيق التلقائي بالعلامة الزرقاء وتبسيط صفحة الملف الشخصي
+- **المهمة المنجزة:** جعل توثيق الحساب بالعلامة الزرقاء 🛡️ تلقائياً وسلساً فور استكمال البيانات وتأكيد الهاتف، وإعادة تصميم صفحة تعديل البيانات لتكون خفيفة ومريحة للمستخدم.
+- **التفاصيل:**
+  - حذف صندوق طلب التوثيق اليدوي والواتساب القديم من [ProfileForm.tsx](file:///d:/mashro3/mashroh/arb-soq/arb_soq.wap/arb_soq.wap/src/components/ProfileForm.tsx).
+  - تفعيل التوثيق التلقائي المباشر (`verified: true`) في اللحظة التي يكتمل فيها الاسم والعنوان ويتأكد فيها الهاتف عبر كود OTP.
+  - استبدال زر "تعديل الرقم" بزر مصغر وأنيق بأيقونة قلم "تعديل" لتوفير مساحة كافية لعرض رقم الهاتف.
+  - إزالة شعار الموقع الكبير من رأس صفحة الملف الشخصي لتبسيط الواجهة في [page.tsx](file:///d:/mashro3/mashroh/arb-soq/arb_soq.wap/arb_soq.wap/src/app/profile/page.tsx).
+  - إخفاء الفوتر السفلي للموقع عند التصفح من الهاتف المحمول (`hidden md:block`) في صفحة الملف الشخصي.
+  - حل تعارض React Hooks في `ProfileForm` ونقل هياكل التحميل (Skeleton) إلى صفحة [ProfilePage](file:///d:/mashro3/mashroh/arb-soq/arb_soq.wap/arb_soq.wap/src/app/profile/page.tsx).
+
+### 4. تحسينات بيئة التطوير وأداء سرعة تحميل الصور (LCP)
+- **المهمة المنجزة:** منع أخطاء AdSense 403 في بيئة التطوير وتسريع عرض الصور الكبيرة.
+- **التفاصيل:**
+  - قصر استدعاء أكواد Google AdSense على بيئة الإنتاج فقط (`process.env.NODE_ENV === 'production'`) في [layout.tsx](file:///d:/mashro3/mashroh/arb-soq/arb_soq.wap/arb_soq.wap/src/app/layout.tsx) و [AdSlot.tsx](file:///d:/mashro3/mashroh/arb-soq/arb_soq.wap/arb_soq.wap/src/components/AdSlot.tsx).
+  - إضافة خاصية `priority={index < 2}` للصور الأولى في المدونة والصفحة الرئيسية في [HomeClient.tsx](file:///d:/mashro3/mashroh/arb-soq/arb_soq.wap/arb_soq.wap/src/app/HomeClient.tsx) و [blog/page.tsx](file:///d:/mashro3/mashroh/arb-soq/arb_soq.wap/arb_soq.wap/src/app/blog/page.tsx).
+
+---
+
 ## [تكامل سيرفر واتساب السحابي الدائم Google Cloud Run وتفعيل التنشيط التلقائي 24/7 وصيغة النسخ السريع] - 2026-08-29
 
 ### 1. الاعتماد الأساسي على سيرفر Google Cloud Run الدائم لواتساب

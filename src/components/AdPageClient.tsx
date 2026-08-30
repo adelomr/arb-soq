@@ -159,7 +159,7 @@ export default function AdPageClient({ page }: AdPageClientProps) {
     if (id === 'realestate' || slug.includes('real-estate') || title.includes('عقار')) return 'realestate';
     if (id === 'jobs' || slug.includes('jobs') || title.includes('وظائف')) return 'jobs';
     if (id === 'furniture' || slug.includes('furniture') || slug.includes('home-office') || title.includes('أثاث')) return 'furniture';
-    if (id === 'electronics' || slug.includes('electronics') || slug.includes('appliances') || title.includes('إلكترون') || title.includes('أجهزة')) return 'electronics';
+    if (id === 'electronics' || id.includes('electronic') || id.includes('appliance') || id.includes('device') || id.includes('tech') || slug.includes('electronics') || slug.includes('appliances') || title.includes('إلكترون') || title.includes('الكترون') || title.includes('أجهزة') || title.includes('اجهزة') || title.includes('كهربائي')) return 'electronics';
     if (id === 'fashion' || slug.includes('fashion') || title.includes('موضة')) return 'fashion';
     if (id === 'pets' || slug.includes('pets') || title.includes('حيوان')) return 'pets';
     if (id === 'baby' || slug.includes('baby') || title.includes('أطفال')) return 'baby';
@@ -177,7 +177,7 @@ export default function AdPageClient({ page }: AdPageClientProps) {
     realestate:  ['realestate', 'real-estate', 'عقارات'],
     jobs:        ['jobs', 'وظائف'],
     furniture:   ['furniture', 'أثاث'],
-    electronics: ['electronics', 'appliances', 'إلكترونيات', 'أجهزة'],
+    electronics: ['electronics', 'electronic', 'appliances', 'devices', 'tech', 'electric', 'إلكترونيات', 'الكترونيات', 'إلكترونية', 'الكترونية', 'أجهزة', 'اجهزة', 'أجهزة إلكترونية', 'اجهزة الكترونية', 'أجهزة كهربائية', 'اجهزة كهربائية', 'كمبيوتر', 'لابتوب', 'شاشات', 'تلفزيون'],
     fashion:     ['fashion', 'موضة'],
     pets:        ['pets', 'حيوانات'],
     baby:        ['baby', 'kids', 'أطفال'],

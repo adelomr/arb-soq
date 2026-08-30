@@ -298,7 +298,7 @@ export default function HomeClient() {
                 </div>
               ) : (
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-                {recentTopics.map((topic) => (
+                {recentTopics.map((topic, index) => (
                   <Link 
                     href={`/blog/${topic.slug}`} 
                     key={topic.id} 
@@ -311,7 +311,7 @@ export default function HomeClient() {
                           src={topic.imageUrl} 
                           alt={topic.title}
                           fill
-                          loading="lazy"
+                          priority={index < 2}
                           sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw"
                           className="object-cover group-hover:scale-105 transition-transform duration-500"
                         />

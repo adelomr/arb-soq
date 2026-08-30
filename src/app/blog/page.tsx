@@ -98,7 +98,7 @@ export default async function BlogListingPage() {
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8" dir="rtl">
-              {blogs.map((blog) => (
+              {blogs.map((blog, index) => (
                 <Link
                   href={`/blog/${blog.slug}`}
                   key={blog.id}
@@ -111,6 +111,7 @@ export default async function BlogListingPage() {
                         src={blog.imageUrl}
                         alt={blog.title}
                         fill
+                        priority={index < 2}
                         className="object-cover group-hover:scale-105 transition-transform duration-500"
                       />
                     ) : (

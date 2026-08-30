@@ -89,6 +89,12 @@ export default function AdSlot({
   useEffect(() => {
     if (!placement || placement.ad_type !== 'adsense' || !globalAdsEnabled) return;
 
+    const isLocalhost = typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
+    if (isLocalhost) {
+      setIsUnfilled(true);
+      return;
+    }
+
     if (!adSensePushedRef.current) {
       try {
         if (typeof window !== 'undefined' && window.adsbygoogle) {

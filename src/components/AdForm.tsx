@@ -697,7 +697,7 @@ function AdFormContent({ adId, userId, isEditMode, onSuccess }: { adId?: string 
             'video': 'فيديو',
             'image': 'صوري',
         };
-        const isPhysicalGood = data.adType === 'sell-item' && isPhysicalGoodsCategory(mainCatId, mainCategoryName);
+        const isPhysicalGood = (data.adType !== 'request-service' && data.adType !== 'sell-service') && isPhysicalGoodsCategory(mainCatId, mainCategoryName);
         const conditionToSave = isPhysicalGood ? (data.condition || 'new') : undefined;
 
         const adDataToSave = { 
@@ -943,10 +943,10 @@ function AdFormContent({ adId, userId, isEditMode, onSuccess }: { adId?: string 
                 )}
             </div>
 
-            {/* حقل حالة المنتج (جديد أو مستعمل) - يظهر فقط للسلع المادية */}
-            {adType === 'sell-item' && isPhysicalGoodsCategory(
+            {/* حقل حالة المنتج (جديد أو مستعمل) - يظهر فقط للسلع المادية مثل الإلكترونيات وغيرها */}
+            {(adType !== 'request-service' && adType !== 'sell-service') && isPhysicalGoodsCategory(
               form.watch('category') || selectedCategory?.id,
-              selectedCategory?.name?.ar
+              selectedCategory?.name?.ar || categories.find(c => c.id === (form.watch('category') || selectedCategory?.id))?.name?.ar
             ) && (
               <FormField
                 control={form.control}
@@ -1262,42 +1262,12 @@ function AdFormContent({ adId, userId, isEditMode, onSuccess }: { adId?: string 
                 />
             </div>
 
-            {/* Box: Optional Features (ميزات اختيارية - خاصة بالباقة الذهبية) */}
+            {/* Box: Optional Features (ميزات اختيارية - تظهر فقط للمشتركين في الباقة الذهبية أو المشرف) */}
             {(() => {
                 const isGoldUser = userProfile?.role === 'admin' || userProfile?.plan === 'gold';
                 
                 if (!isGoldUser) {
-                    return (
-                        <div className="p-5 rounded-2xl border border-amber-500/30 bg-gradient-to-r from-amber-500/5 via-primary/5 to-transparent space-y-3 text-right">
-                            <div className="flex items-center justify-between">
-                                <div className="flex items-center gap-2">
-                                    <div className="p-1.5 rounded-lg bg-amber-500/10 text-amber-600 dark:text-amber-400">
-                                        <Sparkles className="h-5 w-5" />
-                                    </div>
-                                    <h4 className="font-bold text-sm sm:text-base text-foreground font-headline">
-                                        إضافة رابط فيديو وموقع إلكتروني خارجي 🔒
-                                    </h4>
-                                </div>
-                                <Badge variant="outline" className="text-2xs bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/30 font-bold">
-                                    الباقة الذهبية 👑
-                                </Badge>
-                            </div>
-                            <p className="text-xs text-muted-foreground leading-relaxed">
-                                ميزة إرفاق روابط المواقع الإلكترونية وفيديوهات اليوتيوب التوضيحية داخل الإعلان متاحة حصرياً للمشتركين في الباقة الذهبية لزيادة ثقة المشترين ومضاعفة المبيعات.
-                            </p>
-                            <div className="pt-1">
-                                <Button
-                                    type="button"
-                                    onClick={() => router.push('/pricing')}
-                                    size="sm"
-                                    variant="outline"
-                                    className="border-amber-500/40 bg-amber-500/10 hover:bg-amber-500/20 text-amber-700 dark:text-amber-300 font-bold text-xs gap-1.5"
-                                >
-                                    <span>الترقية للباقة الذهبية الآن 🚀</span>
-                                </Button>
-                            </div>
-                        </div>
-                    );
+                    return null;
                 }
 
                 return (

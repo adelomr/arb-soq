@@ -367,7 +367,7 @@ export default function AdDetailClient({ initialAd }: { initialAd: Ad }) {
                                     <span>{ad.location}</span>
                                 </div>
                             )}
-                            {ad.condition && isPhysicalGoodsCategory(ad.category, (ad as any).categoryName) && (
+                            {ad.condition && (
                                 <div className="flex items-center gap-1.5">
                                     <Package className="h-4 w-4" />
                                     <span>{t.condition}: <span className="font-semibold text-foreground">{ad.condition === 'new' ? t.conditionNew : t.conditionUsed}</span></span>
