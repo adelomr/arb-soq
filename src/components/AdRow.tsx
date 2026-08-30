@@ -125,7 +125,7 @@ function AdRow({ ad, priority = false }: AdRowProps) {
             <div className="flex items-center gap-2">
               <Badge variant="outline">{ad.category}</Badge>
               {ad.condition && (
-                <span className="bg-background text-foreground font-bold text-xs py-0.5 px-2.5 rounded-md shadow-sm border border-border">
+                <span className="bg-primary text-primary-foreground font-bold text-xs py-0.5 px-2.5 rounded-md shadow-sm border border-primary/20">
                   {ad.condition === 'new' ? 'جديد' : 'مستعمل'}
                 </span>
               )}
