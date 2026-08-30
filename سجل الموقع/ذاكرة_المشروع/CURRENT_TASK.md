@@ -1,13 +1,15 @@
 # CURRENT TASK
 
-اسم المهمة: تحسين أداء الموقع ومؤشرات PageSpeed / Lighthouse وتصحيح فلترة الأسواق
-الحالة: مكتملة (Completed) ✅
-التاريخ: 2026-08-12
-الملفات المحدثة:
-- `src/components/AdCard.tsx`
-- `src/app/HomeClient.tsx`
-- `src/app/layout.tsx`
-- `src/lib/firebase-storage-helpers.ts`
-- `public/llms.txt`
-- `CHANGELOG.md`
-- `PROJECT_MEMORY/CHANGELOG.md`
+- **اسم المهمة:** توثيق حسابات المستخدمين التلقائي بالعلامة الزرقاء، تصنيف حالة السلع والإلكترونيات، تبسيط إضافة الإعلانات وتعديل البيانات، وحل أخطاء React Hooks وتنظيم السجل الكامل.
+- **الحالة:** مكتملة ومنشورة على GitHub (Completed & Deployed) ✅
+- **التاريخ:** 2026-08-30
+- **الملفات المحدثة:**
+  - `src/lib/category-utils.ts`
+  - `src/components/AdForm.tsx`
+  - `src/components/ProfileForm.tsx`
+  - `src/app/profile/page.tsx`
+  - `src/app/HomeClient.tsx`
+  - `src/app/blog/page.tsx`
+  - `src/app/layout.tsx`
+  - `src/components/AdSlot.tsx`
+  - `سجل الموقع/` (بكافة أقسامه ومجلداته)
