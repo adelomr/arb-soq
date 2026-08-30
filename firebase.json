@@ -13,6 +13,8 @@
       "scratch/**",
       "temp_puppeteer/**",
       "PROJECT_MEMORY/**",
+      "سجل الموقع/**",
+      "*.bat",
       "scripts/**",
       "src/scripts/**",
       "*.tsbuildinfo",
