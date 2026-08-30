@@ -576,7 +576,7 @@ export default function AdModerationList() {
                           <TableCell className="hidden sm:table-cell">
                             <div className="flex flex-col gap-1.5 items-start">
                               {getStatusBadge(ad.status)}
-                              {((ad.isFeatured || ad.isPromoted) && (!ad.featuredUntil || new Date(ad.featuredUntil) > new Date())) ? (
+                              {((ad.featuredTier === 'gold' || ad.featuredTier === 'silver') && (!ad.featuredUntil || new Date(ad.featuredUntil) > new Date())) ? (
                                 <Badge 
                                   variant="secondary" 
                                   className={cn(
@@ -599,7 +599,7 @@ export default function AdModerationList() {
                                   )}
                                 </Badge>
                               ) : null}
-                              {ad.featuredUntil && new Date(ad.featuredUntil) > new Date() && (
+                              {ad.featuredUntil && new Date(ad.featuredUntil) > new Date() && (ad.featuredTier === 'gold' || ad.featuredTier === 'silver') && (
                                 <span className="text-[10px] text-muted-foreground flex items-center gap-0.5">
                                   <Clock className="h-2.5 w-2.5" />
                                   <span>متبقي {Math.max(0, Math.ceil((new Date(ad.featuredUntil).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24)))} يوم</span>
@@ -624,7 +624,7 @@ export default function AdModerationList() {
                                 disabled={updatingId === ad.id}
                                 className={cn(
                                   "h-8 px-2.5 text-xs font-bold gap-1 transition-all",
-                                  ((ad.isFeatured || ad.isPromoted) && (!ad.featuredUntil || new Date(ad.featuredUntil) > new Date()))
+                                  ((ad.featuredTier === 'gold' || ad.featuredTier === 'silver') && (!ad.featuredUntil || new Date(ad.featuredUntil) > new Date()))
                                     ? (ad.featuredTier === 'gold'
                                         ? "bg-amber-500/15 text-amber-700 dark:text-amber-300 border-amber-500/50 hover:bg-amber-500/25"
                                         : "bg-blue-500/15 text-blue-700 dark:text-blue-300 border-blue-500/50 hover:bg-blue-500/25")

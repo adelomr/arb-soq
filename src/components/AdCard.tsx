@@ -104,8 +104,13 @@ function AdCard({ ad, priority = false }: AdCardProps) {
   const adUrl = typeof window !== 'undefined' ? `${window.location.origin}/ad/${ad.userId}/${ad.id}` : '';
   const shareText = encodeURIComponent(ad.title);
 
-  const isBoostActive = (ad as any).isFeatured && (!(ad as any).featuredUntil || new Date((ad as any).featuredUntil) > new Date());
-  const boostTier = (ad as any).featuredTier || 'silver';
+  const isBoostActive = Boolean(
+    (ad.featuredTier === 'gold' || ad.featuredTier === 'silver') && 
+    (!ad.featuredUntil || new Date(ad.featuredUntil) > new Date())
+  );
+  const boostTier: 'gold' | 'silver' | null = !isBoostActive 
+    ? null 
+    : (ad.featuredTier === 'gold' ? 'gold' : (ad.featuredTier === 'silver' ? 'silver' : null));
 
   useEffect(() => {
     if (!ad.user && ad.userId) {
@@ -176,7 +181,7 @@ function AdCard({ ad, priority = false }: AdCardProps) {
 
   return (
     <Link href={`/ad/${effectiveUserId}/${ad.id}`} className="block group h-full" onClick={() => incrementAdClick(ad)}>
-        <Card className={`overflow-hidden h-full flex flex-col transition-all duration-300 group-hover:shadow-xl group-hover:-translate-y-1 ${isBoostActive && boostTier === 'gold' ? 'border-amber-500/60 shadow-md ring-1 ring-amber-500/30' : (isBoostActive ? 'border-primary/50' : '')}`}>
+        <Card className={`overflow-hidden h-full flex flex-col transition-all duration-300 group-hover:shadow-xl group-hover:-translate-y-1 ${boostTier === 'gold' ? 'border-amber-500/60 shadow-md ring-1 ring-amber-500/30' : (boostTier === 'silver' ? 'border-slate-400/60 shadow-md ring-1 ring-slate-400/30' : '')}`}>
             <CardHeader className="p-0 relative">
                 <div className="relative w-full aspect-[4/3] bg-muted overflow-hidden">
                     {hasImage ? (
@@ -193,15 +198,15 @@ function AdCard({ ad, priority = false }: AdCardProps) {
                     )}
                 </div>
                 <div className="absolute top-2 right-2 flex flex-col items-end gap-1.5">
-                    {isBoostActive && boostTier === 'gold' ? (
+                    {boostTier === 'gold' ? (
                         <Badge className="bg-gradient-to-r from-amber-500 to-yellow-400 text-black font-extrabold border-none shadow-md text-xs py-0.5 px-2">
                             <Crown className="w-3.5 h-3.5 ml-1 fill-black text-black" />
                             ذهبي VIP
                         </Badge>
-                    ) : (isBoostActive || ad.isPromoted) ? (
-                        <Badge className="bg-primary text-primary-foreground font-bold border border-primary/20 shadow-sm text-xs py-0.5 px-2">
-                            <Sparkles className="w-3 h-3 ml-1 text-primary-foreground" />
-                            {t.promoted}
+                    ) : boostTier === 'silver' ? (
+                        <Badge className="bg-gradient-to-r from-slate-200 to-slate-100 dark:from-slate-800 dark:to-slate-700 text-slate-800 dark:text-slate-200 border border-slate-300 dark:border-slate-600 font-extrabold shadow-sm text-xs py-0.5 px-2">
+                            <Sparkles className="w-3 h-3 ml-1 text-slate-600 dark:text-slate-300" />
+                            فضي مميز
                         </Badge>
                     ) : null}
                 </div>

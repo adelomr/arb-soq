@@ -75,8 +75,8 @@ export default function AdminFeatureAdDialog({
   // Initialize form state when ad opens
   useEffect(() => {
     if (ad) {
-      const isCurrentlyFeatured = !!(ad.isFeatured || ad.isPromoted);
-      const tier = (ad.featuredTier as 'gold' | 'silver') || (isCurrentlyFeatured ? 'silver' : 'gold');
+      const isCurrentlyFeatured = Boolean((ad.featuredTier === 'gold' || ad.featuredTier === 'silver') && (!ad.featuredUntil || new Date(ad.featuredUntil) > new Date()));
+      const tier = (ad.featuredTier as 'gold' | 'silver') || 'gold';
       
       if (isCurrentlyFeatured) {
         setSelectedTier(tier);
@@ -90,8 +90,8 @@ export default function AdminFeatureAdDialog({
 
   if (!ad) return null;
 
-  const isBoostActive = (ad.isFeatured || ad.isPromoted) && (!ad.featuredUntil || new Date(ad.featuredUntil) > new Date());
-  const currentTier = ad.featuredTier || (isBoostActive ? 'silver' : null);
+  const isBoostActive = Boolean((ad.featuredTier === 'gold' || ad.featuredTier === 'silver') && (!ad.featuredUntil || new Date(ad.featuredUntil) > new Date()));
+  const currentTier = isBoostActive ? ad.featuredTier : null;
   const hasImage = (ad.imageUrls && ad.imageUrls.length > 0) || (ad as any).imageUrl;
   const imageSrc = (ad.imageUrls && ad.imageUrls.length > 0) ? ad.imageUrls[0] : (ad as any).imageUrl;
 

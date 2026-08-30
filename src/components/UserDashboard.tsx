@@ -1,4 +1,3 @@
-
 'use client';
 import Image from 'next/image';
 import {
@@ -28,7 +27,35 @@ import {
 } from "@/components/ui/alert-dialog"
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { MoreHorizontal, Pencil, Trash2, Loader2, LayoutDashboard, Store, PlusCircle, Building, Edit, Eye, MousePointerClick, RotateCcw, AlertTriangle, Activity, BarChart3, CarFront, Download, Sparkles, Smartphone } from 'lucide-react';
+import { 
+  MoreHorizontal, 
+  Pencil, 
+  Trash2, 
+  Loader2, 
+  LayoutDashboard, 
+  Store, 
+  PlusCircle, 
+  Building, 
+  Edit, 
+  Eye, 
+  MousePointerClick, 
+  RotateCcw, 
+  AlertTriangle, 
+  Activity, 
+  BarChart3, 
+  CarFront, 
+  Download, 
+  Sparkles, 
+  Smartphone,
+  Share2,
+  ExternalLink,
+  CheckCircle2,
+  Clock,
+  XCircle,
+  TrendingUp,
+  Layers,
+  Copy
+} from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -40,7 +67,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useLanguage } from '@/context/LanguageContext';
 import { useMarket } from '@/context/MarketContext';
 import { useAuth } from '@/context/AuthContext';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import type { Ad, Category, SubCategory, UserProfile } from '@/lib/types';
 import { Skeleton } from './ui/skeleton';
 import AdPlaceholder from '@/components/AdPlaceholder';
@@ -56,7 +83,7 @@ const VodafoneCashManager = dynamic(() => import('@/components/VodafoneCashManag
 const translations = {
     ar: {
         dashboardTitle: "إدارة الإعلانات",
-        dashboardDescription: "إدارة إعلاناتك، متجرك، وعرض أدائها.",
+        dashboardDescription: "إدارة إعلاناتك، متجرك، ومتابعة الأداء والإحصائيات المباشرة.",
         myAds: "إعلاناتي",
         myStore: "متجري",
         image: "صورة",
@@ -79,6 +106,7 @@ const translations = {
         noAds: "لم تقم بإضافة أي إعلانات بعد.",
         noProducts: "لم تقم بإضافة أي منتجات لمتجرك بعد.",
         addNewProduct: "إضافة منتج جديد",
+        addNewAd: "إضافة إعلان جديد",
         adminView: "أنت مسؤول. يمكنك رؤية جميع الإعلانات في هذا السوق.",
         deleteAdTitle: 'هل أنت متأكد من حذف هذا الإعلان؟',
         deleteAdDesc: 'لا يمكن التراجع عن هذا الإجراء. سيتم حذف الإعلان وصورته نهائياً.',
@@ -92,7 +120,7 @@ const translations = {
         countersReset: 'تم إعادة تعيين العدادات بنجاح.',
         storeDeleted: 'تم حذف المتجر بنجاح.',
         error: 'خطأ',
-        errorOccurred: 'حدث خطأ أثناء حذف الإعلان.',
+        errorOccurred: 'حدث خطأ أثناء تنفيذ الإجراء.',
         errorResetCounters: 'حدث خطأ أثناء إعادة تعيين العدادات.',
         errorDeleteStore: 'حدث خطأ أثناء حذف المتجر.',
         noStore: "ليس لديك متجر حتى الآن.",
@@ -101,9 +129,15 @@ const translations = {
         editStore: "تعديل المتجر",
         viewStore: "عرض المتجر",
         adLog: "السجل",
+        shareLink: "نسخ رابط الإعلان",
+        linkCopied: "تم نسخ رابط الإعلان إلى الحافظة",
+        totalAds: "إجمالي الإعلانات",
+        activeAds: "إعلانات نشطة",
+        totalViews: "المشاهدات",
+        totalClicks: "النقرات",
+        viewAd: "معاينة الإعلان"
     }
 }
-
 
 type DialogState = {
   isOpen: boolean;
@@ -115,20 +149,74 @@ const checkNeedsCategoryUpdate = (ad: Ad, dynamicCategories: Category[] = []): b
   if (!ad) return false;
   const catId = (ad.categoryId || ad.category || (ad as any).categoryName || '').toString().toLowerCase().trim();
   
-  // إذا كان الإعلان لا يحتوي على أي فئة إطلاقاً أو قيم غير معرّفة
   if (!catId || catId === 'undefined' || catId === 'null' || catId === 'unknown' || catId === 'none') {
     return true;
   }
   
-  // منتجات المتاجر فئتها صحيحة دائماً
   if (catId === 'store-product') return false;
-
-  // إذا تم تحديد أي فئة موجودة في النظام
   return false;
 };
 
+// Overview summary stats component
+const DashboardStatsSummary = ({ ads }: { ads: Ad[] }) => {
+  const t = translations.ar;
+  const stats = useMemo(() => {
+    const total = ads.length;
+    const active = ads.filter(a => a.status === 'active').length;
+    const views = ads.reduce((acc, a) => acc + (a.views || 0), 0);
+    const clicks = ads.reduce((acc, a) => acc + (a.clicks || 0), 0);
+    return { total, active, views, clicks };
+  }, [ads]);
+
+  if (ads.length === 0) return null;
+
+  return (
+    <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
+      <div className="bg-card border border-border/70 rounded-2xl p-3.5 sm:p-4 shadow-sm flex items-center gap-3.5 transition-all hover:border-primary/40">
+        <div className="w-10 h-10 sm:w-11 sm:h-11 rounded-xl bg-primary/10 text-primary flex items-center justify-center shrink-0">
+          <Layers className="h-5 w-5" />
+        </div>
+        <div>
+          <p className="text-2xs sm:text-xs text-muted-foreground font-medium">{t.totalAds}</p>
+          <p className="text-lg sm:text-2xl font-black font-headline text-foreground">{stats.total}</p>
+        </div>
+      </div>
+
+      <div className="bg-card border border-border/70 rounded-2xl p-3.5 sm:p-4 shadow-sm flex items-center gap-3.5 transition-all hover:border-emerald-500/40">
+        <div className="w-10 h-10 sm:w-11 sm:h-11 rounded-xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0">
+          <CheckCircle2 className="h-5 w-5" />
+        </div>
+        <div>
+          <p className="text-2xs sm:text-xs text-muted-foreground font-medium">{t.activeAds}</p>
+          <p className="text-lg sm:text-2xl font-black font-headline text-emerald-600 dark:text-emerald-400">{stats.active}</p>
+        </div>
+      </div>
+
+      <div className="bg-card border border-border/70 rounded-2xl p-3.5 sm:p-4 shadow-sm flex items-center gap-3.5 transition-all hover:border-blue-500/40">
+        <div className="w-10 h-10 sm:w-11 sm:h-11 rounded-xl bg-blue-500/10 text-blue-600 dark:text-blue-400 flex items-center justify-center shrink-0">
+          <Eye className="h-5 w-5" />
+        </div>
+        <div>
+          <p className="text-2xs sm:text-xs text-muted-foreground font-medium">{t.totalViews}</p>
+          <p className="text-lg sm:text-2xl font-black font-headline text-foreground">{stats.views.toLocaleString('en-US')}</p>
+        </div>
+      </div>
+
+      <div className="bg-card border border-border/70 rounded-2xl p-3.5 sm:p-4 shadow-sm flex items-center gap-3.5 transition-all hover:border-violet-500/40">
+        <div className="w-10 h-10 sm:w-11 sm:h-11 rounded-xl bg-violet-500/10 text-violet-600 dark:text-violet-400 flex items-center justify-center shrink-0">
+          <MousePointerClick className="h-5 w-5" />
+        </div>
+        <div>
+          <p className="text-2xs sm:text-xs text-muted-foreground font-medium">{t.totalClicks}</p>
+          <p className="text-lg sm:text-2xl font-black font-headline text-foreground">{stats.clicks.toLocaleString('en-US')}</p>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 const AdTable = ({ ads, isLoading, isAdmin, noItemsMessage, isStoreProduct = false }: { ads: Ad[]; isLoading: boolean; isAdmin: boolean; noItemsMessage: string; isStoreProduct?: boolean }) => {
-    const { language, direction } = useLanguage();
+    const { language } = useLanguage();
     const { market } = useMarket();
     const t = translations.ar;
     const [dialogState, setDialogState] = useState<DialogState>({ isOpen: false, ad: null, action: 'delete' });
@@ -169,21 +257,45 @@ const AdTable = ({ ads, isLoading, isAdmin, noItemsMessage, isStoreProduct = fal
         closeDialog();
     };
 
+    const handleCopyAdLink = (ad: Ad) => {
+        const url = `${window.location.origin}/ad/${ad.userId || 'owner'}/${ad.id}`;
+        navigator.clipboard.writeText(url).then(() => {
+            toast({ title: t.linkCopied });
+        }).catch(() => {
+            toast({ title: t.error, variant: 'destructive' });
+        });
+    };
+
     const currencyFormatter = new Intl.NumberFormat('ar-SA', {
         style: 'currency',
         currency: market.currency,
         maximumFractionDigits: 0,
-        numberingSystem: 'latn' // Force Latin numerals
+        numberingSystem: 'latn'
     });
 
     const getStatusBadge = (status: Ad['status']) => {
       switch (status) {
           case 'active':
-              return <Badge variant="secondary" className="border-green-500/50 bg-green-500/10 text-green-700">{t.active}</Badge>;
+              return (
+                <Badge variant="secondary" className="border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 font-bold gap-1 py-0.5 px-2 text-[11px]">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                  {t.active}
+                </Badge>
+              );
           case 'pending':
-              return <Badge variant="secondary" className="border-yellow-500/50 bg-yellow-500/10 text-yellow-700">{t.pending}</Badge>;
+              return (
+                <Badge variant="secondary" className="border-amber-500/30 bg-amber-500/10 text-amber-700 dark:text-amber-400 font-bold gap-1 py-0.5 px-2 text-[11px]">
+                  <Clock className="w-3 h-3 text-amber-500" />
+                  {t.pending}
+                </Badge>
+              );
           case 'rejected':
-              return <Badge variant="destructive">{t.rejected}</Badge>;
+              return (
+                <Badge variant="destructive" className="font-bold gap-1 py-0.5 px-2 text-[11px]">
+                  <XCircle className="w-3 h-3" />
+                  {t.rejected}
+                </Badge>
+              );
           default:
               return <Badge variant="outline">{status}</Badge>;
       }
@@ -206,13 +318,20 @@ const AdTable = ({ ads, isLoading, isAdmin, noItemsMessage, isStoreProduct = fal
         return (
             <div className="space-y-4">
                {[...Array(3)].map((_, i) => (
-                   <div key={i} className="flex items-center space-x-4">
-                       <Skeleton className="h-16 w-16 rounded-md" />
-                       <div className="space-y-2 flex-1">
-                           <Skeleton className="h-4 w-3/4" />
-                           <Skeleton className="h-4 w-1/2" />
+                   <div key={i} className="p-4 rounded-2xl border border-border/60 bg-card/60 flex flex-col sm:flex-row items-start sm:items-center gap-4 animate-pulse">
+                       <Skeleton className="h-20 w-20 sm:h-24 sm:w-24 rounded-xl shrink-0" />
+                       <div className="space-y-2.5 flex-1 w-full">
+                           <Skeleton className="h-5 w-3/4" />
+                           <Skeleton className="h-4 w-1/3" />
+                           <div className="flex gap-2">
+                             <Skeleton className="h-6 w-16 rounded-full" />
+                             <Skeleton className="h-6 w-20 rounded-full" />
+                           </div>
                        </div>
-                       <Skeleton className="h-8 w-20" />
+                       <div className="flex gap-2 w-full sm:w-auto">
+                         <Skeleton className="h-9 w-24 rounded-xl" />
+                         <Skeleton className="h-9 w-20 rounded-xl" />
+                       </div>
                    </div>
                ))}
            </div>
@@ -220,57 +339,209 @@ const AdTable = ({ ads, isLoading, isAdmin, noItemsMessage, isStoreProduct = fal
     }
     
     if (ads.length === 0) {
-        return <div className="text-center py-12 text-muted-foreground">{noItemsMessage}</div>;
+        return (
+          <div className="text-center py-16 px-4 bg-muted/20 border border-dashed border-border rounded-2xl flex flex-col items-center justify-center gap-4">
+              <div className="w-16 h-16 rounded-2xl bg-primary/10 text-primary flex items-center justify-center">
+                <LayoutDashboard className="h-8 w-8" />
+              </div>
+              <div className="space-y-1 max-w-sm">
+                <h4 className="text-lg font-bold font-headline text-foreground">{noItemsMessage}</h4>
+                <p className="text-xs text-muted-foreground">ابدأ بنشر إعلانك الآن للوصول إلى آلاف المشترين في منطقتك بكل سهولة.</p>
+              </div>
+              <Button asChild size="lg" className="rounded-xl font-bold gap-2 mt-2">
+                <Link href={isStoreProduct ? '/submit?type=store-product' : '/submit'}>
+                  <PlusCircle className="h-4 w-4" />
+                  <span>{isStoreProduct ? t.addNewProduct : t.addNewAd}</span>
+                </Link>
+              </Button>
+          </div>
+        );
     }
 
     return (
-        <>
+      <>
         {needsCategoryUpdateCount > 0 && (
-          <div className="mb-4 p-3 rounded-xl border border-amber-300 bg-amber-50 dark:bg-amber-950/40 text-amber-800 dark:text-amber-300 flex items-center justify-between text-xs font-bold font-headline">
-            <div className="flex items-center gap-2">
-              <AlertTriangle className="h-4 w-4 text-amber-600 flex-shrink-0" />
-              <span>يوجد {needsCategoryUpdateCount} إعلان بحاجة إلى تحديث الفئة حتى تظهر في أقسامها الصحيحة للمستخدمين. اضغط "تعديل" وتحديث الإعلان.</span>
+          <div className="mb-4 p-3.5 rounded-2xl border border-amber-300 bg-amber-50 dark:bg-amber-950/40 text-amber-800 dark:text-amber-300 flex items-center justify-between text-xs font-bold font-headline shadow-sm">
+            <div className="flex items-center gap-2.5">
+              <AlertTriangle className="h-4 w-4 text-amber-600 shrink-0" />
+              <span>يوجد {needsCategoryUpdateCount} إعلان بحاجة إلى تحديث الفئة حتى تظهر في أقسامها الصحيحة للمستخدمين. اضغط "تعديل" لتحديث الإعلان.</span>
             </div>
-            <span className="text-2xs bg-amber-200 dark:bg-amber-800 px-2 py-0.5 rounded-full">تنبيه فئات الإعلانات</span>
+            <span className="text-2xs bg-amber-200 dark:bg-amber-800 px-2.5 py-1 rounded-full shrink-0">تنبيه</span>
           </div>
         )}
-        <div className="w-full overflow-x-auto" dir="rtl">
+
+        {/* 📱 MOBILE VIEW: App-Style Ad Cards (Similar to Dubizzle / Haraj) */}
+        <div className="md:hidden space-y-3.5" dir="rtl">
+          {ads.map((ad) => {
+            const editLink = `/submit?id=${ad.id}&userId=${ad.userId}${isStoreProduct ? '&type=store-product' : ''}`;
+            const viewLink = `/ad/${ad.userId || 'owner'}/${ad.id}`;
+            const needsCatUpdate = checkNeedsCategoryUpdate(ad, categories);
+            const thumbUrl = (ad.imageUrls && ad.imageUrls.length > 0) ? ad.imageUrls[0] : (ad as any).imageUrl;
+
+            return (
+              <div 
+                key={ad.id}
+                className={cn(
+                  "bg-card border border-border/80 rounded-2xl p-3.5 shadow-sm transition-all relative overflow-hidden flex flex-col gap-3",
+                  needsCatUpdate && "border-amber-400 bg-amber-500/[0.03]"
+                )}
+              >
+                {/* Top Section: Image + Title + Status + Price */}
+                <div className="flex gap-3 items-start">
+                  <Link href={viewLink} className="relative w-20 h-20 rounded-xl overflow-hidden bg-muted shrink-0 border border-border/60">
+                    {thumbUrl ? (
+                      <Image
+                        alt={ad.title}
+                        className="object-cover w-full h-full"
+                        fill
+                        sizes="80px"
+                        src={thumbUrl}
+                      />
+                    ) : (
+                      <AdPlaceholder category={ad.category} iconClassName="h-6 w-6" />
+                    )}
+                  </Link>
+
+                  <div className="flex-1 min-w-0 flex flex-col justify-between self-stretch">
+                    <div>
+                      <div className="flex items-center justify-between gap-1 mb-1">
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          {getStatusBadge(ad.status)}
+                          {ad.isPromoted && <Badge className="text-[10px] py-0 px-1.5 font-bold">{t.promoted}</Badge>}
+                        </div>
+                      </div>
+
+                      <Link href={viewLink} className="block">
+                        <h4 className="font-bold text-sm text-foreground line-clamp-2 leading-snug hover:text-primary transition-colors">
+                          {ad.title}
+                        </h4>
+                      </Link>
+                    </div>
+
+                    <div className="flex items-center justify-between mt-2 pt-1 border-t border-border/40">
+                      <div className="text-sm font-black text-primary font-headline">
+                        {ad.price ? currencyFormatter.format(ad.price) : 'حسب الاتفاق'}
+                      </div>
+                      
+                      {/* Metric pills */}
+                      <div className="flex items-center gap-2 text-2xs text-muted-foreground font-medium">
+                        <span className="flex items-center gap-1 bg-muted/60 px-1.5 py-0.5 rounded-md">
+                          <Eye className="w-3 h-3 text-blue-500" />
+                          <span>{ad.views || 0}</span>
+                        </span>
+                        <span className="flex items-center gap-1 bg-muted/60 px-1.5 py-0.5 rounded-md">
+                          <MousePointerClick className="w-3 h-3 text-violet-500" />
+                          <span>{ad.clicks || 0}</span>
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {needsCatUpdate && (
+                  <div className="bg-amber-500/10 border border-amber-400/40 rounded-xl p-2 flex items-center justify-between text-2xs font-bold text-amber-700 dark:text-amber-300">
+                    <span className="flex items-center gap-1">
+                      <AlertTriangle className="h-3.5 w-3.5 text-amber-500" />
+                      يحتاج لتحديد وتحديث القسم
+                    </span>
+                    <Link href={editLink} className="underline text-amber-600 dark:text-amber-400">تحديث الآن</Link>
+                  </div>
+                )}
+
+                {/* Bottom Action Bar (Touch-Optimized) */}
+                <div className="flex items-center gap-2 pt-2 border-t border-border/60">
+                  <Button asChild size="sm" variant="default" className="flex-1 h-9 rounded-xl text-xs font-bold gap-1.5 shadow-sm">
+                    <Link href={editLink}>
+                      <Pencil className="h-3.5 w-3.5" />
+                      <span>{needsCatUpdate ? 'تحديث الفئة' : t.edit}</span>
+                    </Link>
+                  </Button>
+
+                  <Button asChild size="sm" variant="outline" className="h-9 px-3 rounded-xl text-xs font-semibold gap-1 border-border/80">
+                    <Link href={`/ad/${ad.userId || 'owner'}/${ad.id}/log`}>
+                      <Activity className="h-3.5 w-3.5 text-primary" />
+                      <span className="hidden xs:inline">{t.adLog}</span>
+                    </Link>
+                  </Button>
+
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button size="sm" variant="outline" className="h-9 w-9 p-0 rounded-xl border-border/80 shrink-0">
+                        <MoreHorizontal className="h-4 w-4" />
+                        <span className="sr-only">{t.toggleMenu}</span>
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end" className="w-48 rounded-xl p-1.5 shadow-lg">
+                      <DropdownMenuItem asChild className="rounded-lg text-xs gap-2 py-2 cursor-pointer">
+                        <Link href={viewLink}>
+                          <ExternalLink className="h-3.5 w-3.5 text-muted-foreground" />
+                          <span>{t.viewAd}</span>
+                        </Link>
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => handleCopyAdLink(ad)} className="rounded-lg text-xs gap-2 py-2 cursor-pointer">
+                        <Copy className="h-3.5 w-3.5 text-muted-foreground" />
+                        <span>{t.shareLink}</span>
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => openDialog(ad, 'reset')} className="rounded-lg text-xs gap-2 py-2 cursor-pointer">
+                        <RotateCcw className="h-3.5 w-3.5 text-muted-foreground" />
+                        <span>{t.resetCounters}</span>
+                      </DropdownMenuItem>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem onClick={() => openDialog(ad, 'delete')} className="rounded-lg text-xs gap-2 py-2 text-destructive focus:text-destructive focus:bg-destructive/10 cursor-pointer">
+                        <Trash2 className="h-3.5 w-3.5" />
+                        <span>{t.delete}</span>
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+
+        {/* 💻 DESKTOP VIEW: Clean Structured Table */}
+        <div className="hidden md:block w-full overflow-x-auto rounded-2xl border border-border/80 bg-card shadow-sm" dir="rtl">
             <Table dir="rtl">
-            <TableHeader>
+            <TableHeader className="bg-muted/40">
                 <TableRow>
-                <TableHead className="w-[64px] sm:w-[80px]">{t.image}</TableHead>
-                <TableHead>{t.title}</TableHead>
+                <TableHead className="w-[72px]">{t.image}</TableHead>
+                <TableHead className="min-w-[200px]">{t.title}</TableHead>
                 {isAdmin && <TableHead className="hidden lg:table-cell">{t.user}</TableHead>}
-                <TableHead className="hidden sm:table-cell">{t.status}</TableHead>
+                <TableHead>{t.status}</TableHead>
                 <TableHead>{t.price}</TableHead>
-                <TableHead className="text-center min-w-[160px]">{t.actions}</TableHead>
+                <TableHead className="text-center">{t.views} / {t.clicks}</TableHead>
+                <TableHead className="text-center min-w-[170px]">{t.actions}</TableHead>
                 </TableRow>
             </TableHeader>
             <TableBody>
                 {ads.map((ad) => {
                     const editLink = `/submit?id=${ad.id}&userId=${ad.userId}${isStoreProduct ? '&type=store-product' : ''}`;
+                    const viewLink = `/ad/${ad.userId || 'owner'}/${ad.id}`;
                     const needsCatUpdate = checkNeedsCategoryUpdate(ad, categories);
+                    const thumbUrl = (ad.imageUrls && ad.imageUrls.length > 0) ? ad.imageUrls[0] : (ad as any).imageUrl;
+
                     return (
-                        <TableRow key={ad.id} className={needsCatUpdate ? 'bg-amber-500/5' : undefined}>
+                        <TableRow key={ad.id} className={cn("hover:bg-muted/30 transition-colors", needsCatUpdate && 'bg-amber-500/5')}>
                             <TableCell>
-                             {(ad.imageUrls && ad.imageUrls.length > 0) || (ad as any).imageUrl ? (
-                               <Image
-                                   alt={ad.title}
-                                   className="aspect-square rounded-md object-cover transition-all hover:scale-105"
-                                   height={64}
-                                   src={(ad.imageUrls && ad.imageUrls.length > 0) ? ad.imageUrls[0] : (ad as any).imageUrl}
-                                   width={64}
-                                   data-ai-hint={(ad.imageHints && ad.imageHints.length > 0) ? ad.imageHints[0] : ''}
-                               />
-                             ) : (
-                               <div className="w-16 h-16 rounded-md overflow-hidden">
-                                 <AdPlaceholder category={ad.category} iconClassName="h-6 w-6" />
-                               </div>
-                             )}
+                             <Link href={viewLink} className="relative block w-14 h-14 rounded-xl overflow-hidden bg-muted border border-border/60">
+                               {thumbUrl ? (
+                                 <Image
+                                     alt={ad.title}
+                                     className="object-cover transition-all hover:scale-105"
+                                     fill
+                                     sizes="56px"
+                                     src={thumbUrl}
+                                 />
+                               ) : (
+                                 <AdPlaceholder category={ad.category} iconClassName="h-5 w-5" />
+                               )}
+                             </Link>
                             </TableCell>
                             <TableCell className="font-medium">
                               <div>
-                                <span>{ad.title}</span>
+                                <Link href={viewLink} className="font-bold text-foreground hover:text-primary transition-colors line-clamp-1">
+                                  {ad.title}
+                                </Link>
                                 {needsCatUpdate && (
                                   <div className="mt-1">
                                     <Badge variant="outline" className="bg-amber-500/10 text-amber-600 border-amber-400 text-[10px] font-bold gap-1 py-0.5 px-2">
@@ -291,23 +562,36 @@ const AdTable = ({ ads, isLoading, isAdmin, noItemsMessage, isStoreProduct = fal
                                                 {ad.user?.name?.[0]?.toUpperCase() || 'U'}
                                             </div>
                                         )}
-                                        <span>{ad.user?.name || 'Unknown'}</span>
+                                        <span className="text-xs">{ad.user?.name || 'Unknown'}</span>
                                     </div>
                                 </TableCell>
                             )}
-                            <TableCell className="hidden sm:table-cell">
-                            <div className="flex flex-col gap-1">
-                                {getStatusBadge(ad.status)}
-                                {ad.isPromoted && <Badge className="mt-1">{t.promoted}</Badge>}
-                            </div>
-                            </TableCell>
                             <TableCell>
+                              <div className="flex flex-col gap-1 items-start">
+                                  {getStatusBadge(ad.status)}
+                                  {ad.isPromoted && <Badge className="text-[10px] py-0 px-1.5">{t.promoted}</Badge>}
+                              </div>
+                            </TableCell>
+                            <TableCell className="font-black font-headline text-foreground">
                                 {ad.price ? currencyFormatter.format(ad.price) : '-'}
+                            </TableCell>
+                            <TableCell className="text-center">
+                              <div className="flex items-center justify-center gap-2 text-xs text-muted-foreground font-semibold">
+                                <span className="flex items-center gap-1" title={t.views}>
+                                  <Eye className="h-3.5 w-3.5 text-blue-500" />
+                                  <span>{ad.views || 0}</span>
+                                </span>
+                                <span>/</span>
+                                <span className="flex items-center gap-1" title={t.clicks}>
+                                  <MousePointerClick className="h-3.5 w-3.5 text-violet-500" />
+                                  <span>{ad.clicks || 0}</span>
+                                </span>
+                              </div>
                             </TableCell>
                             <TableCell>
                             <div className="flex items-center justify-center gap-1.5">
                                 {/* زر السجل المباشر */}
-                                <Button asChild size="sm" variant="outline" className="h-8 px-2.5 text-xs font-semibold gap-1 text-primary border-primary/30 hover:bg-primary/10 hover:text-primary">
+                                <Button asChild size="sm" variant="outline" className="h-8 px-2.5 text-xs font-semibold gap-1 text-primary border-primary/30 hover:bg-primary/10 hover:text-primary rounded-lg">
                                     <Link href={`/ad/${ad.userId || 'owner'}/${ad.id}/log`}>
                                         <Activity className="h-3.5 w-3.5" />
                                         <span>{t.adLog}</span>
@@ -315,24 +599,37 @@ const AdTable = ({ ads, isLoading, isAdmin, noItemsMessage, isStoreProduct = fal
                                 </Button>
 
                                 {/* أيقونة وزر التعديل المباشر */}
-                                <Button asChild size="sm" variant="outline" className={cn("h-8 px-2.5 text-xs gap-1", needsCatUpdate && "border-amber-500 text-amber-600 bg-amber-500/5")}>
+                                <Button asChild size="sm" variant="outline" className={cn("h-8 px-2.5 text-xs gap-1 rounded-lg font-semibold", needsCatUpdate && "border-amber-500 text-amber-600 bg-amber-500/5")}>
                                     <Link href={editLink} title={t.edit}>
                                         <Pencil className="h-3.5 w-3.5" />
-                                        <span className="hidden md:inline">{needsCatUpdate ? 'تحديث الفئة' : t.edit}</span>
+                                        <span>{needsCatUpdate ? 'تحديث الفئة' : t.edit}</span>
                                     </Link>
                                 </Button>
 
-                                {/* أيقونة الحذف المباشر */}
-                                <Button 
-                                    size="sm" 
-                                    variant="outline" 
-                                    className="h-8 px-2 text-xs text-destructive border-destructive/30 hover:bg-destructive/10 hover:text-destructive"
-                                    onClick={() => openDialog(ad, 'delete')}
-                                    title={t.delete}
-                                >
-                                    <Trash2 className="h-3.5 w-3.5" />
-                                    <span className="sr-only">{t.delete}</span>
-                                </Button>
+                                {/* قائمة المزيد */}
+                                <DropdownMenu>
+                                  <DropdownMenuTrigger asChild>
+                                    <Button size="sm" variant="outline" className="h-8 w-8 p-0 rounded-lg">
+                                      <MoreHorizontal className="h-4 w-4" />
+                                      <span className="sr-only">{t.toggleMenu}</span>
+                                    </Button>
+                                  </DropdownMenuTrigger>
+                                  <DropdownMenuContent align="end" className="w-44 rounded-xl p-1.5 shadow-lg">
+                                    <DropdownMenuItem onClick={() => handleCopyAdLink(ad)} className="rounded-lg text-xs gap-2 py-2 cursor-pointer">
+                                      <Copy className="h-3.5 w-3.5 text-muted-foreground" />
+                                      <span>{t.shareLink}</span>
+                                    </DropdownMenuItem>
+                                    <DropdownMenuItem onClick={() => openDialog(ad, 'reset')} className="rounded-lg text-xs gap-2 py-2 cursor-pointer">
+                                      <RotateCcw className="h-3.5 w-3.5 text-muted-foreground" />
+                                      <span>{t.resetCounters}</span>
+                                    </DropdownMenuItem>
+                                    <DropdownMenuSeparator />
+                                    <DropdownMenuItem onClick={() => openDialog(ad, 'delete')} className="rounded-lg text-xs gap-2 py-2 text-destructive focus:text-destructive focus:bg-destructive/10 cursor-pointer">
+                                      <Trash2 className="h-3.5 w-3.5" />
+                                      <span>{t.delete}</span>
+                                    </DropdownMenuItem>
+                                  </DropdownMenuContent>
+                                </DropdownMenu>
                             </div>
                             </TableCell>
                         </TableRow>
@@ -341,15 +638,16 @@ const AdTable = ({ ads, isLoading, isAdmin, noItemsMessage, isStoreProduct = fal
             </TableBody>
             </Table>
         </div>
-            <AlertDialog open={dialogState.isOpen} onOpenChange={closeDialog}>
-            <AlertDialogContent>
+
+        <AlertDialog open={dialogState.isOpen} onOpenChange={closeDialog}>
+            <AlertDialogContent className="rounded-2xl max-w-md">
             <AlertDialogHeader>
-                <AlertDialogTitle>{dialogContent[dialogState.action].title}</AlertDialogTitle>
-                <AlertDialogDescription>{dialogContent[dialogState.action].description}</AlertDialogDescription>
+                <AlertDialogTitle className="font-headline text-lg">{dialogContent[dialogState.action].title}</AlertDialogTitle>
+                <AlertDialogDescription className="text-sm">{dialogContent[dialogState.action].description}</AlertDialogDescription>
             </AlertDialogHeader>
-            <AlertDialogFooter>
-                <AlertDialogCancel onClick={closeDialog}>{t.cancel}</AlertDialogCancel>
-                <AlertDialogAction onClick={handleConfirmAction} className={cn(dialogState.action === 'delete' && 'bg-destructive text-destructive-foreground hover:bg-destructive/90')}>
+            <AlertDialogFooter className="gap-2 sm:gap-0">
+                <AlertDialogCancel onClick={closeDialog} className="rounded-xl">{t.cancel}</AlertDialogCancel>
+                <AlertDialogAction onClick={handleConfirmAction} className={cn("rounded-xl font-bold", dialogState.action === 'delete' && 'bg-destructive text-destructive-foreground hover:bg-destructive/90')}>
                 {t.confirm}
                 </AlertDialogAction>
             </AlertDialogFooter>
@@ -385,7 +683,6 @@ const StoreTab = ({ user, userProfile, targetUserId, effectiveProfile }: { user:
         }
     }, [targetUserId, effectiveProfile?.store, getAds]);
 
-
     if (!targetUserId || !effectiveProfile) return null;
 
     const hasStore = !!effectiveProfile.store;
@@ -410,13 +707,17 @@ const StoreTab = ({ user, userProfile, targetUserId, effectiveProfile }: { user:
 
     if (!hasStore) {
         return (
-            <div className="text-center py-12 flex flex-col items-center gap-4">
-                <Building className="h-16 w-16 text-muted-foreground" />
-                <h3 className="text-xl font-semibold">{t.noStore}</h3>
-                <p className="text-muted-foreground max-w-md">{t.noStoreDesc}</p>
-                <Button asChild size="lg">
+            <div className="text-center py-16 flex flex-col items-center gap-4 bg-muted/20 border border-dashed border-border rounded-2xl">
+                <div className="w-16 h-16 rounded-2xl bg-primary/10 text-primary flex items-center justify-center">
+                  <Building className="h-8 w-8" />
+                </div>
+                <div className="space-y-1 max-w-md">
+                  <h3 className="text-xl font-bold font-headline">{t.noStore}</h3>
+                  <p className="text-xs text-muted-foreground">{t.noStoreDesc}</p>
+                </div>
+                <Button asChild size="lg" className="rounded-xl font-bold gap-2 mt-2">
                     <Link href="/store/create">
-                        <PlusCircle className="mr-2 h-5 w-5" />
+                        <PlusCircle className="h-5 w-5" />
                         {t.createNewStore}
                     </Link>
                 </Button>
@@ -431,30 +732,30 @@ const StoreTab = ({ user, userProfile, targetUserId, effectiveProfile }: { user:
                    <StoreCard store={effectiveProfile} />
                 </div>
                 {canManage && (
-                    <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto self-start">
-                        <Button asChild variant="outline" className="w-full sm:w-auto">
+                    <div className="flex flex-wrap gap-2.5 w-full sm:w-auto self-start">
+                        <Button asChild variant="outline" className="rounded-xl text-xs font-semibold">
                             <Link href={`/store/${targetUserId}`}>
-                                <Store className="mr-2 h-4 w-4" />
+                                <Store className="mr-1.5 h-4 w-4 text-primary" />
                                 {t.viewStore}
                             </Link>
                         </Button>
-                        <Button asChild variant="outline" className="w-full sm:w-auto">
+                        <Button asChild variant="outline" className="rounded-xl text-xs font-semibold">
                             <Link href="/store/create">
-                                <Edit className="mr-2 h-4 w-4" />
+                                <Edit className="mr-1.5 h-4 w-4" />
                                 {t.editStore}
                             </Link>
                         </Button>
-                        <Button variant="destructive" className="w-full sm:w-auto" onClick={() => setShowDeleteDialog(true)} disabled={isDeleting}>
-                        {isDeleting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Trash2 className="mr-2 h-4 w-4" />}
+                        <Button variant="destructive" className="rounded-xl text-xs font-semibold" onClick={() => setShowDeleteDialog(true)} disabled={isDeleting}>
+                        {isDeleting ? <Loader2 className="mr-1.5 h-4 w-4 animate-spin" /> : <Trash2 className="mr-1.5 h-4 w-4" />}
                         {t.delete}
                         </Button>
                     </div>
                 )}
                 {!canManage && (
-                     <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto self-start">
-                        <Button asChild variant="outline" className="w-full sm:w-auto">
+                     <div className="flex flex-wrap gap-2.5 w-full sm:w-auto self-start">
+                        <Button asChild variant="outline" className="rounded-xl text-xs font-semibold">
                             <Link href={`/store/${targetUserId}`}>
-                                <Store className="mr-2 h-4 w-4" />
+                                <Store className="mr-1.5 h-4 w-4 text-primary" />
                                 {t.viewStore}
                             </Link>
                         </Button>
@@ -463,11 +764,11 @@ const StoreTab = ({ user, userProfile, targetUserId, effectiveProfile }: { user:
             </div>
 
             <div className="mb-4 flex justify-between items-center">
-                 <h3 className="text-xl font-semibold">{t.myAds}</h3>
+                 <h3 className="text-lg font-bold font-headline">{t.myAds}</h3>
                 {canManage && (
-                    <Button asChild>
+                    <Button asChild size="sm" className="rounded-xl font-bold gap-1.5">
                         <Link href="/submit?type=store-product">
-                            <PlusCircle className="mr-2 h-4 w-4" />
+                            <PlusCircle className="h-4 w-4" />
                             {t.addNewProduct}
                         </Link>
                     </Button>
@@ -477,15 +778,15 @@ const StoreTab = ({ user, userProfile, targetUserId, effectiveProfile }: { user:
             <AdTable ads={storeProducts} isLoading={isLoading} isAdmin={isAdmin} noItemsMessage={t.noProducts} isStoreProduct={true} />
 
             <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
-                <AlertDialogContent>
+                <AlertDialogContent className="rounded-2xl max-w-md">
                     <AlertDialogHeader>
-                        <AlertDialogTitle>{t.deleteStoreTitle}</AlertDialogTitle>
-                        <AlertDialogDescription>{t.deleteStoreDesc}</AlertDialogDescription>
+                        <AlertDialogTitle className="font-headline text-lg">{t.deleteStoreTitle}</AlertDialogTitle>
+                        <AlertDialogDescription className="text-sm">{t.deleteStoreDesc}</AlertDialogDescription>
                     </AlertDialogHeader>
-                    <AlertDialogFooter>
-                        <AlertDialogCancel>{t.cancel}</AlertDialogCancel>
-                        <AlertDialogAction onClick={handleDeleteStore} className="bg-destructive hover:bg-destructive/90">
-                           {isDeleting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : t.confirm}
+                    <AlertDialogFooter className="gap-2 sm:gap-0">
+                        <AlertDialogCancel className="rounded-xl">{t.cancel}</AlertDialogCancel>
+                        <AlertDialogAction onClick={handleDeleteStore} className="rounded-xl font-bold bg-destructive hover:bg-destructive/90">
+                           {isDeleting ? <Loader2 className="mr-1.5 h-4 w-4 animate-spin" /> : t.confirm}
                         </AlertDialogAction>
                     </AlertDialogFooter>
                 </AlertDialogContent>
@@ -493,7 +794,6 @@ const StoreTab = ({ user, userProfile, targetUserId, effectiveProfile }: { user:
         </>
     )
 }
-
 
 export default function UserDashboard() {
   const { language } = useLanguage();
@@ -561,39 +861,46 @@ export default function UserDashboard() {
   const effectiveProfile = userProfile || externalProfile;
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-6">
+      {/* Quick Dashboard Overview Stats */}
+      {!isLoading && regularAds.length > 0 && (
+        <DashboardStatsSummary ads={regularAds} />
+      )}
+
       {/* Main user dashboard card */}
-      <Card>
-        <CardHeader className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+      <Card className="rounded-3xl border-border/80 shadow-sm overflow-hidden">
+        <CardHeader className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 bg-muted/20 border-b border-border/50 py-5">
           <div>
-            <CardTitle className="text-2xl md:text-3xl font-headline flex items-center gap-3">
-                <LayoutDashboard className="h-6 w-6 md:h-8 md:w-8" />
+            <CardTitle className="text-xl sm:text-2xl font-black font-headline flex items-center gap-2.5">
+                <div className="w-9 h-9 rounded-xl bg-primary/10 text-primary flex items-center justify-center">
+                  <LayoutDashboard className="h-5 w-5" />
+                </div>
                 {t.dashboardTitle}
             </CardTitle>
-            <CardDescription>
+            <CardDescription className="text-xs sm:text-sm mt-1">
                 {t.dashboardDescription}
-                {urlUserId && <Badge variant="outline" className="ml-2">عرض ملف: {effectiveProfile?.name}</Badge>}
+                {urlUserId && <Badge variant="outline" className="mr-2">عرض ملف: {effectiveProfile?.name}</Badge>}
             </CardDescription>
           </div>
 
           {isSelf && (
             <div className="flex flex-wrap items-center gap-2">
-              <Button asChild size="sm" className="flex items-center gap-1.5 text-xs font-bold cursor-pointer">
+              <Button asChild size="default" className="flex items-center gap-2 text-xs font-bold rounded-xl shadow-sm">
                 <Link href="/submit">
-                  <PlusCircle className="h-3.5 w-3.5" />
+                  <PlusCircle className="h-4 w-4" />
                   <span>إضافة إعلان جديد</span>
                 </Link>
               </Button>
             </div>
           )}
         </CardHeader>
-        <CardContent>
+        <CardContent className="p-4 sm:p-6">
             <Tabs defaultValue={urlTab === 'vodafone-cash' && isAdmin ? 'vodafone-cash' : 'ads'} className="w-full">
-                <TabsList className={cn("grid w-full", isAdmin && isSelf ? (hasStore ? 'grid-cols-3' : 'grid-cols-2') : (hasStore ? 'grid-cols-2' : 'grid-cols-1'))}>
-                    <TabsTrigger value="ads" className="gap-2"><LayoutDashboard className="h-4 w-4" />{t.myAds}</TabsTrigger>
-                    {hasStore && <TabsTrigger value="store" className="gap-2"><Store className="h-4 w-4" />{t.myStore}</TabsTrigger>}
+                <TabsList className={cn("grid w-full rounded-2xl p-1 bg-muted/60", isAdmin && isSelf ? (hasStore ? 'grid-cols-3' : 'grid-cols-2') : (hasStore ? 'grid-cols-2' : 'grid-cols-1'))}>
+                    <TabsTrigger value="ads" className="gap-2 rounded-xl text-xs sm:text-sm font-bold data-[state=active]:shadow-sm"><LayoutDashboard className="h-4 w-4" />{t.myAds}</TabsTrigger>
+                    {hasStore && <TabsTrigger value="store" className="gap-2 rounded-xl text-xs sm:text-sm font-bold data-[state=active]:shadow-sm"><Store className="h-4 w-4" />{t.myStore}</TabsTrigger>}
                     {isAdmin && isSelf && (
-                      <TabsTrigger value="vodafone-cash" className="gap-1.5 relative">
+                      <TabsTrigger value="vodafone-cash" className="gap-1.5 relative rounded-xl text-xs sm:text-sm font-bold data-[state=active]:shadow-sm">
                         <Smartphone className="h-4 w-4" />
                         <span>فودافون كاش</span>
                         {vodafonePendingCount > 0 && (
@@ -623,8 +930,6 @@ export default function UserDashboard() {
             </Tabs>
         </CardContent>
       </Card>
-
-
     </div>
   );
 }

@@ -5,7 +5,7 @@ import type { Ad } from '@/lib/types';
 import Image from 'next/image';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { MapPin, Tag, Star, Sparkles, Wrench, Handshake, ImageIcon, Calendar, Share2, Facebook, Twitter, Eye } from 'lucide-react';
+import { MapPin, Tag, Star, Sparkles, Crown, Wrench, Handshake, ImageIcon, Calendar, Share2, Facebook, Twitter, Eye } from 'lucide-react';
 import Link from 'next/link';
 import { useMarket } from '@/context/MarketContext';
 import { useAuth } from '@/context/AuthContext';
@@ -98,9 +98,17 @@ function AdRow({ ad, priority = false }: AdRowProps) {
 
   const effectiveUserId = ad.userId || ad.user?.id || 'owner';
 
+  const isBoostActive = Boolean(
+    (ad.featuredTier === 'gold' || ad.featuredTier === 'silver') && 
+    (!ad.featuredUntil || new Date(ad.featuredUntil) > new Date())
+  );
+  const boostTier: 'gold' | 'silver' | null = !isBoostActive 
+    ? null 
+    : (ad.featuredTier === 'gold' ? 'gold' : (ad.featuredTier === 'silver' ? 'silver' : null));
+
   return (
     <Link href={`/ad/${effectiveUserId}/${ad.id}`} className="block group" onClick={() => incrementAdClick(ad)}>
-      <Card className="overflow-hidden transition-all duration-300 group-hover:shadow-lg group-hover:border-primary/50 flex flex-col md:flex-row h-full">
+      <Card className={`overflow-hidden transition-all duration-300 group-hover:shadow-lg group-hover:border-primary/50 flex flex-col md:flex-row h-full ${boostTier === 'gold' ? 'border-amber-500/60 shadow-md ring-1 ring-amber-500/30' : (boostTier === 'silver' ? 'border-slate-400/60 shadow-md ring-1 ring-slate-400/30' : '')}`}>
         <div className="md:w-1/3 relative aspect-[4/3] md:aspect-auto">
           {hasImage ? (
             <Image
@@ -114,12 +122,17 @@ function AdRow({ ad, priority = false }: AdRowProps) {
           ) : (
             <AdPlaceholder category={ad.category} />
           )}
-          {ad.isPromoted && (
-            <Badge className="bg-primary text-primary-foreground font-bold border border-primary/20 shadow-sm text-xs py-0.5 px-2 absolute top-2 right-2 z-10 flex items-center gap-1">
-              <Sparkles className="w-3 h-3 ml-1 text-primary-foreground" />
-              {t.promoted}
+          {boostTier === 'gold' ? (
+            <Badge className="bg-gradient-to-r from-amber-500 to-yellow-400 text-black font-extrabold border-none shadow-md text-xs py-0.5 px-2 absolute top-2 right-2 z-10 flex items-center gap-1">
+              <Crown className="w-3.5 h-3.5 ml-1 fill-black text-black" />
+              ذهبي VIP
             </Badge>
-          )}
+          ) : boostTier === 'silver' ? (
+            <Badge className="bg-gradient-to-r from-slate-200 to-slate-100 dark:from-slate-800 dark:to-slate-700 text-slate-800 dark:text-slate-200 border border-slate-300 dark:border-slate-600 font-extrabold shadow-sm text-xs py-0.5 px-2 absolute top-2 right-2 z-10 flex items-center gap-1">
+              <Sparkles className="w-3 h-3 ml-1 text-slate-600 dark:text-slate-300" />
+              فضي مميز
+            </Badge>
+          ) : null}
         </div>
 
         <div className="p-4 flex flex-col justify-between flex-1">

@@ -21,7 +21,7 @@ import dynamic from 'next/dynamic';
 import { AdPlaceholder } from '@/components/Adsense';
 import AdSlot from '@/components/AdSlot';
 import { Button } from '@/components/ui/button';
-import { Grid, List, BookOpen, User, Calendar, ChevronLeft, Share2, Facebook, Twitter, Eye } from 'lucide-react';
+import { Grid, List, BookOpen, User, Calendar, ChevronLeft, Share2, Facebook, Twitter, Eye, Crown, Sparkles, Clock, RotateCcw } from 'lucide-react';
 import AdCard from '@/components/AdCard';
 import { cn } from '@/lib/utils';
 import { getRecentBlogs, BlogPost } from '@/lib/blog-service';
@@ -63,7 +63,8 @@ const WhatsappIcon = () => (
 const t = {
     title: "أكبر سوق عربي للبيع والشراء",
     subtitle: "أفضل سوق لاكتشاف صفقات مذهلة أو نشر إعلاناتك الخاصة مجانًا.",
-    promotedAds: "إعلانات مميزة",
+    goldenAds: "إعلانات الباقة الذهبية",
+    silverAds: "إعلانات الباقة الفضية",
     latestAds: "أحدث الإعلانات",
     usedMarket: "سوق المستعمل",
     cars: "سيارات",
@@ -91,7 +92,8 @@ export default function HomeClient() {
   const { getAds, incrementSiteVisit } = useAuth();
   const { toast } = useToast();
   
-  const [promotedAds, setPromotedAds] = useState<Ad[]>([]);
+  const [goldenAds, setGoldenAds] = useState<Ad[]>([]);
+  const [silverAds, setSilverAds] = useState<Ad[]>([]);
   const [latestAds, setLatestAds] = useState<Ad[]>([]);
   const [usedAds, setUsedAds] = useState<Ad[]>([]);
   const [adsLoading, setAdsLoading] = useState(true);
@@ -121,34 +123,56 @@ export default function HomeClient() {
   const sortAndSetAds = useCallback((allAds: Ad[], location: { latitude: number, longitude: number } | null, currentMarket: { id: string; name: { ar: string } }) => {
     const validAds = allAds.filter(ad => isAdInMarket(ad, currentMarket.id, currentMarket.name.ar));
 
-    const isBoostActive = (ad: any) => (ad.isFeatured || ad.isPromoted) && (!ad.featuredUntil || new Date(ad.featuredUntil) > new Date());
+    const getAdTime = (ad: any): number => {
+      if (ad.postedAt) {
+        const t = new Date(ad.postedAt).getTime();
+        if (!isNaN(t) && t > 0) return t;
+      }
+      if (ad.createdAt) {
+        const t = new Date(ad.createdAt).getTime();
+        if (!isNaN(t) && t > 0) return t;
+      }
+      if (ad.timestamp) {
+        const t = Number(ad.timestamp);
+        if (!isNaN(t) && t > 0) return t;
+      }
+      return 0;
+    };
 
-    if (location) {
-        validAds.sort((a, b) => {
-            if (a.latitude && a.longitude && b.latitude && b.longitude) {
-                const distA = getDistance(location.latitude, location.longitude, a.latitude, a.longitude);
-                const distB = getDistance(location.latitude, location.longitude, b.latitude, b.longitude);
-                return distA - distB;
-            }
-            if (a.latitude && a.longitude) return -1;
-            if (b.latitude && b.longitude) return 1;
-            return 0;
-        });
-    }
+    const isBoostActive = (ad: any) => Boolean(
+      (ad.featuredTier === 'gold' || ad.featuredTier === 'silver') && 
+      (!ad.featuredUntil || new Date(ad.featuredUntil) > new Date())
+    );
 
-    const promoted = validAds.filter(ad => isBoostActive(ad));
-    promoted.sort((a: any, b: any) => {
-      if (a.featuredTier === 'gold' && b.featuredTier !== 'gold') return -1;
-      if (a.featuredTier !== 'gold' && b.featuredTier === 'gold') return 1;
-      return new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime();
-    });
+    const getBoostTier = (ad: any): 'gold' | 'silver' | null => {
+      if (!isBoostActive(ad)) return null;
+      if (ad.featuredTier === 'gold') return 'gold';
+      if (ad.featuredTier === 'silver') return 'silver';
+      return null;
+    };
 
-    const used = validAds.filter(ad => ad.condition === 'used' && !isBoostActive(ad));
-    const allLatest = validAds.filter(ad => !isBoostActive(ad));
+    // 1. Golden Package Ads (الباقة الذهبية) - الأولوية للأحدث في الباقة الذهبية
+    const golden = validAds.filter(ad => getBoostTier(ad) === 'gold');
+    golden.sort((a, b) => getAdTime(b) - getAdTime(a));
+
+    // 2. Silver Package Ads (الباقة الفضية) - الأولوية للأحدث في الباقة الفضية
+    const silver = validAds.filter(ad => getBoostTier(ad) === 'silver');
+    silver.sort((a, b) => getAdTime(b) - getAdTime(a));
+
+    // 3. Regular / Free Latest Ads (أحدث الإعلانات العادية المجانية) - الأولوية للأحدث
+    const allLatest = validAds.filter(ad => getBoostTier(ad) === null);
+    allLatest.sort((a, b) => getAdTime(b) - getAdTime(a));
+
+    // 4. Used Market Ads (سوق المستعمل) - الأولوية للأحدث
+    const used = validAds.filter(ad => 
+      ad.condition === 'used' && getBoostTier(ad) === null
+    );
+    used.sort((a, b) => getAdTime(b) - getAdTime(a));
     
-    setPromotedAds(promoted);
-    setUsedAds(used);
+    setGoldenAds(golden);
+    setSilverAds(silver);
     setLatestAds(allLatest);
+    setUsedAds(used);
     setAdsLoading(false);
   }, []);
 
@@ -209,35 +233,65 @@ export default function HomeClient() {
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12">
                 <div className={cn("transition-all duration-300", view === 'grid' ? "lg:col-span-12" : "lg:col-span-8")}>
                     
-                    <div className="flex justify-between items-center mb-4 sm:mb-6">
-                       <h2 className="text-xl sm:text-2xl font-bold font-headline">{promotedAds.length > 0 ? t.promotedAds : t.latestAds}</h2>
-                    </div>
-                    
                     {adsLoading ? (
                       <section>
                         {renderAdView([])}
                       </section>
                     ) : (
                       <>
-                        {promotedAds.length > 0 && (
+                        {/* 1. إعلانات الباقة الذهبية */}
+                        {goldenAds.length > 0 && (
                           <section className="mb-10">
-                            {renderAdView(promotedAds)}
+                            <div className="flex justify-between items-center mb-4 sm:mb-6">
+                              <h2 className="text-xl sm:text-2xl font-bold font-headline flex items-center gap-2.5 text-amber-600 dark:text-amber-400">
+                                <span className="p-1.5 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-500 flex items-center justify-center shadow-xs">
+                                  <Crown className="h-5 w-5" />
+                                </span>
+                                <span>{t.goldenAds}</span>
+                              </h2>
+                            </div>
+                            {renderAdView(goldenAds)}
                           </section>
                         )}
 
-                        <section>
-                          {promotedAds.length > 0 && (
+                        {/* 2. إعلانات الباقة الفضية */}
+                        {silverAds.length > 0 && (
+                          <section className="mb-10">
                             <div className="flex justify-between items-center mb-4 sm:mb-6">
-                               <h2 className="text-xl sm:text-2xl font-bold font-headline">{t.latestAds}</h2>
+                              <h2 className="text-xl sm:text-2xl font-bold font-headline flex items-center gap-2.5 text-slate-700 dark:text-slate-200">
+                                <span className="p-1.5 rounded-xl bg-slate-500/10 border border-slate-500/20 text-slate-500 dark:text-slate-300 flex items-center justify-center shadow-xs">
+                                  <Sparkles className="h-5 w-5" />
+                                </span>
+                                <span>{t.silverAds}</span>
+                              </h2>
                             </div>
-                          )}
+                            {renderAdView(silverAds)}
+                          </section>
+                        )}
+
+                        {/* 3. أحدث الإعلانات العادية المجانية */}
+                        <section className="mb-10">
+                          <div className="flex justify-between items-center mb-4 sm:mb-6">
+                            <h2 className="text-xl sm:text-2xl font-bold font-headline flex items-center gap-2.5 text-foreground">
+                              <span className="p-1.5 rounded-xl bg-primary/10 text-primary flex items-center justify-center shadow-xs">
+                                <Clock className="h-5 w-5" />
+                              </span>
+                              <span>{t.latestAds}</span>
+                            </h2>
+                          </div>
                           {renderAdView(latestAds)}
                         </section>
                         
+                        {/* 4. سوق المستعمل */}
                         {usedAds.length > 0 && (
                           <section className="mt-10 content-auto">
                              <div className="flex justify-between items-center mb-4 sm:mb-6">
-                               <h2 className="text-xl sm:text-2xl font-bold font-headline">{t.usedMarket}</h2>
+                               <h2 className="text-xl sm:text-2xl font-bold font-headline flex items-center gap-2.5 text-foreground">
+                                 <span className="p-1.5 rounded-xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shadow-xs">
+                                   <RotateCcw className="h-5 w-5" />
+                                 </span>
+                                 <span>{t.usedMarket}</span>
+                               </h2>
                             </div>
                             {renderAdView(usedAds)}
                           </section>
@@ -246,7 +300,7 @@ export default function HomeClient() {
                     )}
                 </div>
 
-                <aside className={cn("lg:col-span-4 lg:sticky top-28 h-fit space-y-8 transition-all duration-300", view === 'grid' ? "hidden" : "block")}>
+                <aside className={cn("lg:col-span-4 lg:sticky top-28 h-fit space-y-8 transition-all duration-300", view === 'grid' ? "hidden" : "hidden lg:block")}>
                     <RelatedAdsSidebar />
                     <StoreSidebarSection />
                 </aside>

@@ -283,8 +283,13 @@ export default function AdDetailClient({ initialAd }: { initialAd: Ad }) {
   const isAdmin = userProfile?.role === 'admin';
   const canViewLog = isOwner || isAdmin;
 
-  const isBoostActive = (ad as any).isFeatured && (!(ad as any).featuredUntil || new Date((ad as any).featuredUntil) > new Date());
-  const boostTier = (ad as any).featuredTier || 'silver';
+  const isBoostActive = Boolean(
+    (ad.featuredTier === 'gold' || ad.featuredTier === 'silver') && 
+    (!ad.featuredUntil || new Date(ad.featuredUntil) > new Date())
+  );
+  const boostTier: 'gold' | 'silver' | null = !isBoostActive 
+    ? null 
+    : (ad.featuredTier === 'gold' ? 'gold' : (ad.featuredTier === 'silver' ? 'silver' : null));
 
   useEffect(() => {
     if (typeof window !== 'undefined') {

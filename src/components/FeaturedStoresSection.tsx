@@ -79,7 +79,7 @@ export default function FeaturedStoresSection() {
           </div>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
-            {stores.map((userWithStore) => {
+            {stores.map((userWithStore, index) => {
               const store = userWithStore.store;
               if (!store) return null;
 
@@ -96,6 +96,8 @@ export default function FeaturedStoresSection() {
                         src={store.coverImageUrl || 'https://images.unsplash.com/photo-1490481651871-ab68de25d43d?w=800'}
                         alt={store.storeName}
                         fill
+                        priority={index < 2}
+                        sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw"
                         className="object-cover transition-transform duration-500 group-hover:scale-105"
                       />
                       <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent" />
