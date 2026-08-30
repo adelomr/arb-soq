@@ -16,6 +16,7 @@ import { navTranslations } from './Header';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import AdPlaceholder from '@/components/AdPlaceholder';
 import RequireAuthModal from '@/components/RequireAuthModal';
+import { isPhysicalGoodsCategory } from '@/lib/category-utils';
 
 const WhatsappIcon = () => (
     <svg role="img" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="currentColor">
@@ -268,7 +269,7 @@ function AdCard({ ad, priority = false }: AdCardProps) {
                                 </span>
                             </div>
                         )}
-                        {ad.condition && (
+                        {isPhysicalGoodsCategory(ad.category, (ad as any).categoryName || (ad as any).subcategory) && ad.condition && (
                             <span className="text-2xs sm:text-xs font-semibold text-muted-foreground">
                                 الحالة/ {ad.condition === 'new' ? 'جديد' : 'مستعمل'}
                             </span>

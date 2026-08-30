@@ -20,6 +20,7 @@ import { safeParseDate } from '@/lib/utils';
 import { memo, useState, useRef } from 'react';
 import AdPlaceholder from '@/components/AdPlaceholder';
 import RequireAuthModal from '@/components/RequireAuthModal';
+import { isPhysicalGoodsCategory } from '@/lib/category-utils';
 
 
 const WhatsappIcon = () => (
@@ -244,7 +245,7 @@ function AdRow({ ad, priority = false }: AdRowProps) {
                   </span>
                 </div>
               )}
-              {ad.condition && (
+              {isPhysicalGoodsCategory(ad.category, (ad as any).categoryName || (ad as any).subcategory) && ad.condition && (
                 <span className="text-xs font-semibold text-muted-foreground">
                   الحالة/ {ad.condition === 'new' ? 'جديد' : 'مستعمل'}
                 </span>

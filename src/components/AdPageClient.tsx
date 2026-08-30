@@ -30,7 +30,7 @@ import {
 import { useRouter, useSearchParams } from 'next/navigation';
 import RequireAuthModal from '@/components/RequireAuthModal';
 import type { Ad, PageData, Category, AdpageStore, AdpageBrand, AdpageConditionFilter } from '@/lib/types';
-import { matchAdToCategory, matchAdToSubcategory, isAdInMarket, getParentCategoryId } from '@/lib/category-utils';
+import { matchAdToCategory, matchAdToSubcategory, isAdInMarket, getParentCategoryId, isPhysicalGoodsCategory } from '@/lib/category-utils';
 import { matchAdToBrand, POPULAR_CAR_BRANDS, isVehicleCategory } from '@/lib/car-brands';
 
 const PHYSICAL_GOODS_CATEGORIES = ['vehicles', 'mobiles', 'electronics', 'furniture', 'fashion', 'baby', 'hobbies', 'trade'];
@@ -758,29 +758,24 @@ export default function AdPageClient({ page }: AdPageClientProps) {
 
               {/* ===== شريط الفلاتر الموحد ===== */}
               {(() => {
-                const isServiceCategory = ['crafts', 'crafts-professions', 'services', 'professional-services', 'jobs', 'jobs-careers', 'transport', 'transport-delivery', 'pets', 'ziraa', 'agriculture', 'cat_1786316040524'].includes(categoryId || '');
+                const isPhysical = isPhysicalGoodsCategory(categoryId, categoryName);
+                const isRealEstate = categoryId === 'realestate' || categoryName?.includes('عقار');
                 
                 // إذا تم تحديد أزرار فلترة مخصصة في صفحة الإنشاء، نعرضها هي تماماً!
                 // وإذا لم يتم تحديد أزرار، نعرض الفلاتر الافتراضية المناسبة لنوع الفئة
                 const activeButtons: { id?: string; name: string; value: string }[] = 
                   conditionFilters.length > 0 
                     ? conditionFilters 
-                    : isServiceCategory
+                    : isRealEstate
                       ? [
                           { id: 'cf_all', name: 'الكل', value: 'all' },
                           { id: 'cf_recent', name: 'الأحدث', value: 'recent' },
+                          { id: 'cf_sale', name: 'للبيع / تمليك', value: 'sale' },
+                          { id: 'cf_rent', name: 'للإيجار', value: 'rent' },
                           { id: 'cf_top', name: '⭐ الأعلى تقييماً', value: 'top_rated' },
-                          { id: 'cf_ver', name: 'حسابات وصنايعية موثقة', value: 'verified' },
                         ]
-                      : categoryId === 'realestate'
+                      : isPhysical
                         ? [
-                            { id: 'cf_all', name: 'الكل', value: 'all' },
-                            { id: 'cf_recent', name: 'الأحدث', value: 'recent' },
-                            { id: 'cf_sale', name: 'للبيع / تمليك', value: 'sale' },
-                            { id: 'cf_rent', name: 'للإيجار', value: 'rent' },
-                            { id: 'cf_top', name: '⭐ الأعلى تقييماً', value: 'top_rated' },
-                          ]
-                        : [
                             { id: 'cf_all', name: 'الكل', value: 'all' },
                             { id: 'cf_recent', name: 'الأحدث', value: 'recent' },
                             { id: 'cf_top', name: '⭐ الأعلى تقييماً', value: 'top_rated' },
@@ -788,6 +783,12 @@ export default function AdPageClient({ page }: AdPageClientProps) {
                             { id: 'cf_used', name: 'مستعمل', value: 'used' },
                             { id: 'cf_low', name: 'الأقل سعراً', value: 'price_low' },
                             { id: 'cf_high', name: 'الأعلى سعراً', value: 'price_high' },
+                          ]
+                        : [
+                            { id: 'cf_all', name: 'الكل', value: 'all' },
+                            { id: 'cf_recent', name: 'الأحدث', value: 'recent' },
+                            { id: 'cf_top', name: '⭐ الأعلى تقييماً', value: 'top_rated' },
+                            { id: 'cf_ver', name: 'حسابات وصنايعية موثقة', value: 'verified' },
                           ];
 
                 const isBtnSelected = (btn: { id?: string; value: string; name: string }, idx: number) => {
