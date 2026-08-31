@@ -2,7 +2,21 @@
 
 هذا السجل يوثق التعديلات والتحسينات المعمارية والبرمجية المنجزة لتكون مرجعاً دائمًا لفريق التطوير.
 
-## [تطوير نظام مراجعة الإعلانات، عداد التمييز التنازلي، إدارة المستخدمين والباقات، وتوحيد لوحة التحكم] - 2026-08-31
+## [تطوير وتوحيد سجل المشاهدات والنقرات، تنظيف خيارات القائمة، وربط تحليلات الأداء] - 2026-08-31
+
+### 1. توحيد وإصلاح سجل المشاهدات والنقرات الفعلي (Ad Activity Log & Tracking)
+- **المهمة المنجزة:** حل مشكلة عدم ظهور النقرات داخل السجل، وتوحيد أرقام المشاهدات والنقرات في جميع بطاقات وصفحات الموقع.
+- **التفاصيل:**
+  - تصحيح دالة تتبع النقرات `incrementAdClick` في [AuthContext.tsx](file:///d:/mashro3/mashroh/arb-soq/arb_soq.wap/arb_soq.wap/src/context/AuthContext.tsx) لتسجيل نوع الحدث `'click'` الفعلي بدلاً من `'view'`.
+  - تحديث [types.ts](file:///d:/mashro3/mashroh/arb-soq/arb_soq.wap/arb_soq.wap/src/lib/types.ts) و [ad-log-service.ts](file:///d:/mashro3/mashroh/arb-soq/arb_soq.wap/arb_soq.wap/src/lib/ad-log-service.ts) لدعم أحداث ونقرات التصفح وإجمالي التفاعل بدقة.
+  - إظهار المشاهدات والنقرات معاً في: بطاقة الإعلان [AdCard.tsx](file:///d:/mashro3/mashroh/arb-soq/arb_soq.wap/arb_soq.wap/src/components/AdCard.tsx)، القوائم [AdRow.tsx](file:///d:/mashro3/mashroh/arb-soq/arb_soq.wap/arb_soq.wap/src/components/AdRow.tsx)، وتفاصيل الإعلان [AdDetailClient.tsx](file:///d:/mashro3/mashroh/arb-soq/arb_soq.wap/arb_soq.wap/src/components/AdDetailClient.tsx).
+  - تطوير صفحة السجل [AdLogPageClient.tsx](file:///d:/mashro3/mashroh/arb-soq/arb_soq.wap/arb_soq.wap/src/components/AdLogPageClient.tsx) بـ 5 بطاقات مؤشرات، ومخطط بياني زمني مكدس، وسجل أحداث مع فلاتر وزر نسخ تقرير الأداء الموثق.
+
+### 2. تنظيف قائمة المستخدم وإزالة روابط فودافون كاش المكررة
+- **المهمة المنجزة:** إزالة رابط "طلبات فودافون كاش" من قائمة الهيدر عند النقر على صورة المستخدم [Header.tsx](file:///d:/mashro3/mashroh/arb-soq/arb_soq.wap/arb_soq.wap/src/components/Header.tsx) للاكتفاء بالصندوق والتبويب المخصص لها في لوحة تحكم المسؤول `/admin`.
+- **التفاصيل:** توجيه كافة إشعارات طلبات الدفع إلى `/admin?tab=vodafone-cash`.
+
+---
 
 ### 1. نظام عداد التمييز التنازلي التفاعلي والرجوع التلقائي للباقة المجانية
 - **المهمة المنجزة:** بناء شارة العداد التنازلي المباشرة باليوم (`متبقي X يوم`) أسفل عنوان الإعلان في جدول مراجعة الإعلانات.

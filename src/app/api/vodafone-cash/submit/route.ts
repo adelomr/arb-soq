@@ -55,7 +55,7 @@ export async function POST(request: NextRequest) {
           type: 'payment',
           isRead: false,
           createdAt: serverTimestamp(),
-          link: '/dashboard?tab=vodafone-cash',
+          link: '/admin?tab=vodafone-cash',
           paymentId: paymentId || undefined,
         });
       } catch (notifErr) {
@@ -66,7 +66,7 @@ export async function POST(request: NextRequest) {
     // ── إرسال رسالة واتساب للأدمن عبر بوابة واتساب الخاصة وسيرفر CallMeBot ──
     const planLabel =
       planId === 'gold' ? '👑 الباقة الذهبية VIP' : '⭐ الباقة الفضية المميزة';
-    const messageText = `🔔 *طلب دفع جديد - فودافون كاش*\n━━━━━━━━━━━━\n👤 *العميل:* ${userName || 'عميل'}\n📱 *هاتفه:* ${transferPhone}\n📦 *الباقة:* ${planLabel}\n💰 *المبلغ:* ${amount} ${currency || 'ج.م'}\n🔢 *رقم العملية:* ${transactionRef}\n━━━━━━━━━━━━\n✅ *للمراجعة والتفعيل:* arb-soq.com/dashboard?tab=vodafone-cash`;
+    const messageText = `🔔 *طلب دفع جديد - فودافون كاش*\n━━━━━━━━━━━━\n👤 *العميل:* ${userName || 'عميل'}\n📱 *هاتفه:* ${transferPhone}\n📦 *الباقة:* ${planLabel}\n💰 *المبلغ:* ${amount} ${currency || 'ج.م'}\n🔢 *رقم العملية:* ${transactionRef}\n━━━━━━━━━━━━\n✅ *للمراجعة والتفعيل:* arb-soq.com/admin?tab=vodafone-cash`;
 
     // 1. محاولة الإرسال عبر بوابة واتساب الخاصة أولاً
     try {

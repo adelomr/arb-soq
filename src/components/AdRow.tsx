@@ -5,7 +5,7 @@ import type { Ad } from '@/lib/types';
 import Image from 'next/image';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { MapPin, Tag, Star, Sparkles, Crown, Wrench, Handshake, ImageIcon, Calendar, Share2, Facebook, Twitter, Eye } from 'lucide-react';
+import { MapPin, Tag, Star, Sparkles, Crown, Wrench, Handshake, ImageIcon, Calendar, Share2, Facebook, Twitter, Eye, MousePointerClick } from 'lucide-react';
 import Link from 'next/link';
 import { useMarket } from '@/context/MarketContext';
 import { useAuth } from '@/context/AuthContext';
@@ -169,10 +169,17 @@ function AdRow({ ad, priority = false }: AdRowProps) {
           )}
 
           <div className="flex items-center justify-between w-full mt-auto text-xs text-muted-foreground">
-            <span className="flex items-center gap-1 font-medium">
-              <Eye className="h-3.5 w-3.5 text-primary/70" />
-              <span>{(ad.views || 0).toLocaleString('en-US')} مشاهدة</span>
-            </span>
+            <div className="flex items-center gap-2 font-medium">
+              <span className="flex items-center gap-1 text-blue-600 dark:text-blue-400" title="المشاهدات">
+                <Eye className="h-3.5 w-3.5" />
+                <span>{(ad.views || 0).toLocaleString('en-US')}</span>
+              </span>
+              <span className="text-border">/</span>
+              <span className="flex items-center gap-1 text-violet-600 dark:text-violet-400" title="النقرات">
+                <MousePointerClick className="h-3.5 w-3.5" />
+                <span>{(ad.clicks || 0).toLocaleString('en-US')}</span>
+              </span>
+            </div>
 
             {!user ? (
               <Button

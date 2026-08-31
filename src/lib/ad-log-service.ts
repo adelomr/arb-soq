@@ -39,7 +39,7 @@ export function getClientDevice(): 'mobile' | 'desktop' | 'tablet' {
 }
 
 /**
- * Log an ad activity event (view, call, whatsapp, share)
+ * Log an ad activity event (view, click, call, whatsapp, share)
  * Writes to subcollection `ads/{adId}/activity_logs` and increments summary counters in Firestore.
  */
 export async function logAdActivity(
@@ -70,6 +70,8 @@ export async function logAdActivity(
     const updatePayload: Record<string, any> = {};
     if (type === 'view') {
       updatePayload.views = increment(1);
+    } else if (type === 'click') {
+      updatePayload.clicks = increment(1);
     } else if (type === 'call') {
       updatePayload.callClicks = increment(1);
       updatePayload.clicks = increment(1);
@@ -161,7 +163,7 @@ export async function getAdActivityStats(
 
       rawLogs.push({
         id: docSnap.id,
-        type: data.type as AdActivityEventType,
+        type: (data.type || 'view') as AdActivityEventType,
         timestampDate: eventDate,
         dateStr,
         device: data.device || 'desktop',
@@ -176,21 +178,23 @@ export async function getAdActivityStats(
     ? rawLogs.filter((log) => isAfter(log.timestampDate, cutoffDate!))
     : rawLogs;
 
-  let views = 0;
-  let callClicks = 0;
-  let whatsappClicks = 0;
-  let shares = 0;
+  let loggedViews = 0;
+  let loggedClicks = 0;
+  let loggedCallClicks = 0;
+  let loggedWhatsappClicks = 0;
+  let loggedShares = 0;
 
   // Aggregate daily breakdown
-  const dailyMap: Record<string, { views: number; callClicks: number; whatsappClicks: number; total: number; dateObj: Date }> = {};
+  const dailyMap: Record<string, { views: number; clicks: number; callClicks: number; whatsappClicks: number; total: number; dateObj: Date }> = {};
 
-  // If timeframe is 7d or 30d or 24h, initialize days so chart has continuous timeline
+  // Initialize days span for continuous timeline chart
   const daysSpan = timeframe === '24h' ? 1 : timeframe === '7d' ? 7 : timeframe === '30d' ? 30 : 7;
   for (let i = daysSpan - 1; i >= 0; i--) {
     const d = subDays(now, i);
     const key = format(d, 'yyyy-MM-dd');
     dailyMap[key] = {
       views: 0,
+      clicks: 0,
       callClicks: 0,
       whatsappClicks: 0,
       total: 0,
@@ -199,15 +203,17 @@ export async function getAdActivityStats(
   }
 
   filteredLogs.forEach((log) => {
-    if (log.type === 'view') views++;
-    else if (log.type === 'call') callClicks++;
-    else if (log.type === 'whatsapp') whatsappClicks++;
-    else if (log.type === 'share') shares++;
+    if (log.type === 'view') loggedViews++;
+    else if (log.type === 'click') loggedClicks++;
+    else if (log.type === 'call') loggedCallClicks++;
+    else if (log.type === 'whatsapp') loggedWhatsappClicks++;
+    else if (log.type === 'share') loggedShares++;
 
     const key = log.dateStr;
     if (!dailyMap[key]) {
       dailyMap[key] = {
         views: 0,
+        clicks: 0,
         callClicks: 0,
         whatsappClicks: 0,
         total: 0,
@@ -216,28 +222,46 @@ export async function getAdActivityStats(
     }
 
     if (log.type === 'view') dailyMap[key].views++;
+    else if (log.type === 'click') dailyMap[key].clicks++;
     else if (log.type === 'call') dailyMap[key].callClicks++;
     else if (log.type === 'whatsapp') dailyMap[key].whatsappClicks++;
     dailyMap[key].total++;
   });
 
-  // Fallback if no subcollection events found (e.g. legacy ads)
-  if (filteredLogs.length === 0 && timeframe === 'all') {
-    views = typeof liveAdData.views === 'number' ? liveAdData.views : (fallbackAd?.views ?? 0);
-    callClicks = typeof liveAdData.callClicks === 'number' ? liveAdData.callClicks : (fallbackAd?.callClicks ?? 0);
-    whatsappClicks = typeof liveAdData.whatsappClicks === 'number' ? liveAdData.whatsappClicks : (fallbackAd?.whatsappClicks ?? 0);
+  // Reconcile with live cumulative document counters to guarantee numbers match exactly everywhere
+  const docViews = typeof liveAdData.views === 'number' ? liveAdData.views : (fallbackAd?.views ?? 0);
+  const docClicks = typeof liveAdData.clicks === 'number' ? liveAdData.clicks : (fallbackAd?.clicks ?? 0);
+  const docCallClicks = typeof liveAdData.callClicks === 'number' ? liveAdData.callClicks : (fallbackAd?.callClicks ?? 0);
+  const docWhatsappClicks = typeof liveAdData.whatsappClicks === 'number' ? liveAdData.whatsappClicks : (fallbackAd?.whatsappClicks ?? 0);
 
-    const todayKey = format(now, 'yyyy-MM-dd');
-    if (dailyMap[todayKey]) {
-      dailyMap[todayKey].views = views;
-      dailyMap[todayKey].callClicks = callClicks;
-      dailyMap[todayKey].whatsappClicks = whatsappClicks;
-      dailyMap[todayKey].total = views + callClicks + whatsappClicks;
+  let finalViews = loggedViews;
+  let finalClicks = loggedClicks;
+  let finalCallClicks = loggedCallClicks;
+  let finalWhatsappClicks = loggedWhatsappClicks;
+  let finalShares = loggedShares;
+
+  if (timeframe === 'all') {
+    finalViews = Math.max(loggedViews, docViews);
+    finalClicks = Math.max(loggedClicks, docClicks);
+    finalCallClicks = Math.max(loggedCallClicks, docCallClicks);
+    finalWhatsappClicks = Math.max(loggedWhatsappClicks, docWhatsappClicks);
+
+    // If subcollection had no events (e.g. legacy ad), ensure today's bucket reflects the totals
+    if (filteredLogs.length === 0) {
+      const todayKey = format(now, 'yyyy-MM-dd');
+      if (dailyMap[todayKey]) {
+        dailyMap[todayKey].views = finalViews;
+        dailyMap[todayKey].clicks = finalClicks;
+        dailyMap[todayKey].callClicks = finalCallClicks;
+        dailyMap[todayKey].whatsappClicks = finalWhatsappClicks;
+        dailyMap[todayKey].total = finalViews + finalClicks + finalCallClicks + finalWhatsappClicks;
+      }
     }
   }
 
-  const totalInteractions = callClicks + whatsappClicks + shares;
-  const interactionRate = views > 0 ? Number(((totalInteractions / views) * 100).toFixed(1)) : 0;
+  // Total interactions includes ad card clicks, call clicks, whatsapp clicks, and shares
+  const totalInteractions = finalClicks + finalCallClicks + finalWhatsappClicks + finalShares;
+  const interactionRate = finalViews > 0 ? Number(((totalInteractions / finalViews) * 100).toFixed(1)) : 0;
 
   // Convert dailyMap to sorted array
   const dailyBreakdown: AdActivityDailyPoint[] = Object.keys(dailyMap)
@@ -248,14 +272,15 @@ export async function getAdActivityStats(
         date: dateKey,
         formattedDate: format(item.dateObj, 'EEE d MMM', { locale: ar }),
         views: item.views,
+        clicks: item.clicks,
         callClicks: item.callClicks,
         whatsappClicks: item.whatsappClicks,
         total: item.total,
       };
     });
 
-  // Recent events list (up to 30 events)
-  const recentEvents: AdActivityEvent[] = filteredLogs.slice(0, 30).map((log) => ({
+  // Recent events list (up to 50 events)
+  let recentEvents: AdActivityEvent[] = filteredLogs.slice(0, 50).map((log) => ({
     id: log.id,
     adId,
     type: log.type,
@@ -264,12 +289,38 @@ export async function getAdActivityStats(
     dateStr: log.dateStr,
   }));
 
+  // Fallback synthetic recent event if subcollection is empty but live numbers exist
+  if (recentEvents.length === 0 && (finalViews > 0 || finalClicks > 0)) {
+    if (finalClicks > 0) {
+      recentEvents.push({
+        id: 'legacy-click',
+        adId,
+        type: 'click',
+        timestamp: now.toISOString(),
+        device: 'mobile',
+        dateStr: format(now, 'yyyy-MM-dd'),
+      });
+    }
+    if (finalViews > 0) {
+      recentEvents.push({
+        id: 'legacy-view',
+        adId,
+        type: 'view',
+        timestamp: now.toISOString(),
+        device: 'desktop',
+        dateStr: format(now, 'yyyy-MM-dd'),
+      });
+    }
+  }
+
   return {
     adId,
     timeframe,
-    views,
-    callClicks,
-    whatsappClicks,
+    views: finalViews,
+    clicks: finalClicks,
+    callClicks: finalCallClicks,
+    whatsappClicks: finalWhatsappClicks,
+    shares: finalShares,
     totalInteractions,
     interactionRate,
     dailyBreakdown,

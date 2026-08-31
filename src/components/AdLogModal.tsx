@@ -21,6 +21,7 @@ import {
   Clock, 
   Smartphone, 
   Monitor, 
+  Tablet,
   RotateCcw, 
   Loader2, 
   Activity, 
@@ -100,7 +101,7 @@ export default function AdLogModal({ ad, isOpen, onClose, onStatsReset }: AdLogM
 
     setIsResetting(true);
     try {
-      await resetAdActivityLogs(ad.id);
+      await resetAdActivityLogs(ad.id, ad.userId);
       toast({
         title: 'تم التصفير',
         description: 'تم إعادة تعيين سجل الإعلان بنجاح.',
@@ -127,6 +128,13 @@ export default function AdLogModal({ ad, isOpen, onClose, onStatsReset }: AdLogM
           <Badge variant="outline" className="bg-blue-500/10 text-blue-600 border-blue-500/20 flex items-center gap-1">
             <Eye className="h-3 w-3" />
             <span>مشاهدة</span>
+          </Badge>
+        );
+      case 'click':
+        return (
+          <Badge variant="outline" className="bg-violet-500/10 text-violet-600 border-violet-500/20 flex items-center gap-1 font-semibold">
+            <MousePointerClick className="h-3 w-3" />
+            <span>نقر على الإعلان</span>
           </Badge>
         );
       case 'call':
@@ -174,7 +182,7 @@ export default function AdLogModal({ ad, isOpen, onClose, onStatsReset }: AdLogM
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="max-w-3xl max-h-[92vh] overflow-y-auto p-4 sm:p-6" dir="rtl">
+      <DialogContent className="max-w-4xl max-h-[92vh] overflow-y-auto p-4 sm:p-6" dir="rtl">
         {/* Header with Title "السجل" */}
         <DialogHeader className="text-right pb-3 border-b border-border/60">
           <div className="flex items-center justify-between gap-3">
@@ -184,13 +192,13 @@ export default function AdLogModal({ ad, isOpen, onClose, onStatsReset }: AdLogM
               </div>
               <div>
                 <DialogTitle className="text-2xl font-black text-foreground flex items-center gap-2">
-                  السجل
-                  <Badge variant="secondary" className="font-normal text-xs px-2 py-0.5">
-                    سجل نشاط الإعلان
+                  سجل نشاط الإعلان
+                  <Badge variant="secondary" className="font-normal text-xs px-2 py-0.5 bg-primary/10 text-primary">
+                    مباشر
                   </Badge>
                 </DialogTitle>
                 <DialogDescription className="text-xs text-muted-foreground mt-0.5">
-                  تفاصيل المشاهدات، نقرات الاتصال والواتساب مع فلاتر زمنية دقيقة.
+                  تفاصيل المشاهدات، نقرات التصفح، الاتصال، والواتساب بدقة وموثوقية عالية.
                 </DialogDescription>
               </div>
             </div>
@@ -235,12 +243,17 @@ export default function AdLogModal({ ad, isOpen, onClose, onStatsReset }: AdLogM
               </div>
             </div>
 
-            <Button asChild variant="ghost" size="sm" className="h-8 text-xs text-primary gap-1 flex-shrink-0">
-              <Link href={adUrl} target="_blank">
-                <span>عرض الإعلان</span>
-                <ExternalLink className="h-3.5 w-3.5" />
-              </Link>
-            </Button>
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-mono font-semibold bg-background px-2 py-1 rounded-lg border">
+                👁️ {(stats?.views || ad.views || 0).toLocaleString('en-US')} / 🖱️ {(stats?.clicks || ad.clicks || 0).toLocaleString('en-US')}
+              </span>
+              <Button asChild variant="ghost" size="sm" className="h-8 text-xs text-primary gap-1 flex-shrink-0">
+                <Link href={adUrl} target="_blank">
+                  <span>عرض الإعلان</span>
+                  <ExternalLink className="h-3.5 w-3.5" />
+                </Link>
+              </Button>
+            </div>
           </div>
         </DialogHeader>
 
@@ -258,7 +271,7 @@ export default function AdLogModal({ ad, isOpen, onClose, onStatsReset }: AdLogM
                 آخر شهر
               </TabsTrigger>
               <TabsTrigger value="all" className="text-xs sm:text-sm font-medium">
-                الكل
+                كافة الأوقات
               </TabsTrigger>
             </TabsList>
           </Tabs>
@@ -271,72 +284,88 @@ export default function AdLogModal({ ad, isOpen, onClose, onStatsReset }: AdLogM
           </div>
         ) : (
           <div className="space-y-6 pt-1">
-            {/* KPI Stat Cards Grid */}
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+            {/* KPI Stat Cards Grid (5 Grid) */}
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2.5">
               {/* Views Card */}
               <Card className="bg-gradient-to-br from-blue-500/10 via-background to-blue-500/5 border-blue-500/20 shadow-sm">
-                <CardContent className="p-4">
+                <CardContent className="p-3.5">
                   <div className="flex items-center justify-between text-blue-600 mb-2">
-                    <span className="text-xs font-semibold">المشاهدات</span>
-                    <div className="p-2 rounded-lg bg-blue-500/10">
+                    <span className="text-xs font-bold">المشاهدات</span>
+                    <div className="p-1.5 rounded-lg bg-blue-500/10">
                       <Eye className="h-4 w-4" />
                     </div>
                   </div>
-                  <div className="text-2xl font-black text-foreground">
+                  <div className="text-xl font-black text-foreground">
                     {(stats?.views || 0).toLocaleString('en-US')}
                   </div>
-                  <p className="text-2xs text-muted-foreground mt-1">مرات ظهور وتصفح</p>
+                  <p className="text-2xs text-muted-foreground mt-1">تصفح الإعلان</p>
+                </CardContent>
+              </Card>
+
+              {/* Ad Clicks Card */}
+              <Card className="bg-gradient-to-br from-violet-500/10 via-background to-violet-500/5 border-violet-500/20 shadow-sm">
+                <CardContent className="p-3.5">
+                  <div className="flex items-center justify-between text-violet-600 mb-2">
+                    <span className="text-xs font-bold">نقرات الإعلان</span>
+                    <div className="p-1.5 rounded-lg bg-violet-500/10">
+                      <MousePointerClick className="h-4 w-4" />
+                    </div>
+                  </div>
+                  <div className="text-xl font-black text-foreground">
+                    {(stats?.clicks || 0).toLocaleString('en-US')}
+                  </div>
+                  <p className="text-2xs text-muted-foreground mt-1">فتح البطاقة</p>
                 </CardContent>
               </Card>
 
               {/* Call Clicks Card */}
               <Card className="bg-gradient-to-br from-amber-500/10 via-background to-amber-500/5 border-amber-500/20 shadow-sm">
-                <CardContent className="p-4">
+                <CardContent className="p-3.5">
                   <div className="flex items-center justify-between text-amber-600 mb-2">
-                    <span className="text-xs font-semibold">نقرات الاتصال</span>
-                    <div className="p-2 rounded-lg bg-amber-500/10">
+                    <span className="text-xs font-bold">نقرات الاتصال</span>
+                    <div className="p-1.5 rounded-lg bg-amber-500/10">
                       <Phone className="h-4 w-4" />
                     </div>
                   </div>
-                  <div className="text-2xl font-black text-foreground">
+                  <div className="text-xl font-black text-foreground">
                     {(stats?.callClicks || 0).toLocaleString('en-US')}
                   </div>
-                  <p className="text-2xs text-muted-foreground mt-1">نقر زر الهاتف</p>
+                  <p className="text-2xs text-muted-foreground mt-1">زر الهاتف</p>
                 </CardContent>
               </Card>
 
               {/* WhatsApp Clicks Card */}
               <Card className="bg-gradient-to-br from-green-500/10 via-background to-green-500/5 border-green-500/20 shadow-sm">
-                <CardContent className="p-4">
+                <CardContent className="p-3.5">
                   <div className="flex items-center justify-between text-green-600 mb-2">
-                    <span className="text-xs font-semibold">نقرات الواتساب</span>
-                    <div className="p-2 rounded-lg bg-green-500/10">
+                    <span className="text-xs font-bold">نقرات الواتساب</span>
+                    <div className="p-1.5 rounded-lg bg-green-500/10">
                       <WhatsappIcon className="h-4 w-4" />
                     </div>
                   </div>
-                  <div className="text-2xl font-black text-foreground">
+                  <div className="text-xl font-black text-foreground">
                     {(stats?.whatsappClicks || 0).toLocaleString('en-US')}
                   </div>
-                  <p className="text-2xs text-muted-foreground mt-1">بدء مراسلة واتساب</p>
+                  <p className="text-2xs text-muted-foreground mt-1">محادثة واتساب</p>
                 </CardContent>
               </Card>
 
               {/* Total Interactions & Rate */}
-              <Card className="bg-gradient-to-br from-purple-500/10 via-background to-purple-500/5 border-purple-500/20 shadow-sm">
-                <CardContent className="p-4">
-                  <div className="flex items-center justify-between text-purple-600 mb-2">
-                    <span className="text-xs font-semibold">إجمالي التفاعل</span>
-                    <div className="p-2 rounded-lg bg-purple-500/10">
-                      <MousePointerClick className="h-4 w-4" />
+              <Card className="bg-gradient-to-br from-emerald-500/10 via-background to-emerald-500/5 border-emerald-500/20 shadow-sm col-span-2 sm:col-span-1">
+                <CardContent className="p-3.5">
+                  <div className="flex items-center justify-between text-emerald-600 mb-2">
+                    <span className="text-xs font-bold">التفاعل الإجمالي</span>
+                    <div className="p-1.5 rounded-lg bg-emerald-500/10">
+                      <TrendingUp className="h-4 w-4" />
                     </div>
                   </div>
-                  <div className="text-2xl font-black text-foreground flex items-baseline gap-1.5">
+                  <div className="text-xl font-black text-foreground flex items-baseline gap-1">
                     {(stats?.totalInteractions || 0).toLocaleString('en-US')}
-                    <span className="text-xs font-normal text-muted-foreground">
+                    <span className="text-2xs font-semibold text-emerald-600">
                       ({stats?.interactionRate || 0}%)
                     </span>
                   </div>
-                  <p className="text-2xs text-muted-foreground mt-1">نسبة التحويل والتواصل</p>
+                  <p className="text-2xs text-muted-foreground mt-1">معدل التحويل الكلي</p>
                 </CardContent>
               </Card>
             </div>
@@ -354,6 +383,10 @@ export default function AdLogModal({ ad, isOpen, onClose, onStatsReset }: AdLogM
                       <span className="flex items-center gap-1">
                         <span className="w-2.5 h-2.5 rounded-sm bg-blue-500 inline-block" />
                         مشاهدات
+                      </span>
+                      <span className="flex items-center gap-1">
+                        <span className="w-2.5 h-2.5 rounded-sm bg-violet-500 inline-block" />
+                        نقرات فتح
                       </span>
                       <span className="flex items-center gap-1">
                         <span className="w-2.5 h-2.5 rounded-sm bg-amber-500 inline-block" />
@@ -377,7 +410,7 @@ export default function AdLogModal({ ad, isOpen, onClose, onStatsReset }: AdLogM
                           {/* Tooltip on Hover */}
                           <div className="absolute -top-12 z-20 hidden group-hover:flex flex-col items-center bg-popover text-popover-foreground border shadow-md px-2 py-1 rounded text-2xs whitespace-nowrap pointer-events-none">
                             <span className="font-bold">{point.formattedDate}</span>
-                            <span>مشاهدات: {point.views} | اتصال: {point.callClicks} | واتساب: {point.whatsappClicks}</span>
+                            <span>مشاهدات: {point.views} | نقرات: {point.clicks} | اتصال: {point.callClicks} | واتساب: {point.whatsappClicks}</span>
                           </div>
 
                           {/* Stacked Bar */}
@@ -389,6 +422,12 @@ export default function AdLogModal({ ad, isOpen, onClose, onStatsReset }: AdLogM
                               <div 
                                 style={{ height: `${(point.views / Math.max(point.total, 1)) * 100}%` }} 
                                 className="bg-blue-500 w-full"
+                              />
+                            )}
+                            {point.clicks > 0 && (
+                              <div 
+                                style={{ height: `${(point.clicks / Math.max(point.total, 1)) * 100}%` }} 
+                                className="bg-violet-500 w-full"
                               />
                             )}
                             {point.callClicks > 0 && (
@@ -438,6 +477,7 @@ export default function AdLogModal({ ad, isOpen, onClose, onStatsReset }: AdLogM
                           {getEventBadge(event.type)}
                           <span className="text-xs text-muted-foreground">
                             {event.type === 'view' && 'زيارة لصفحة الإعلان'}
+                            {event.type === 'click' && 'نقر على بطاقة الإعلان'}
                             {event.type === 'call' && 'ضغط على زر اتصل بالبائع'}
                             {event.type === 'whatsapp' && 'ضغط على زر المراسلة بالواتساب'}
                             {event.type === 'share' && 'مشاركة رابط الإعلان'}
@@ -448,43 +488,48 @@ export default function AdLogModal({ ad, isOpen, onClose, onStatsReset }: AdLogM
                           {event.device === 'mobile' ? (
                             <span className="flex items-center gap-0.5" title="هاتف محمول">
                               <Smartphone className="h-3 w-3" />
-                              <span className="hidden sm:inline">جوال</span>
+                              <span>جوال</span>
+                            </span>
+                          ) : event.device === 'tablet' ? (
+                            <span className="flex items-center gap-0.5" title="جهاز لوحي">
+                              <Tablet className="h-3 w-3" />
+                              <span>تابلت</span>
                             </span>
                           ) : (
-                            <span className="flex items-center gap-0.5" title="كمبيوتر مكتبي">
+                            <span className="flex items-center gap-0.5" title="كمبيوتر">
                               <Monitor className="h-3 w-3" />
-                              <span className="hidden sm:inline">كمبيوتر</span>
+                              <span>كمبيوتر</span>
                             </span>
                           )}
                           <span>•</span>
-                          <span title={event.timestamp}>{formatRelativeTime(event.timestamp)}</span>
+                          <span>{formatRelativeTime(event.timestamp)}</span>
                         </div>
                       </div>
                     ))}
                   </div>
                 ) : (
                   <div className="text-center py-8 text-muted-foreground flex flex-col items-center gap-2">
-                    <Info className="h-8 w-8 text-muted-foreground/50" />
-                    <p className="text-xs">لا توجد سجلات نشاط مسجلة خلال هذه الفترة حتى الآن.</p>
+                    <Info className="h-8 w-8 text-muted-foreground/40" />
+                    <p className="text-xs">لا توجد سجلات نشاط مسجلة خلال الفترة الزمنية المحددة.</p>
                   </div>
                 )}
               </CardContent>
             </Card>
 
             {/* Bottom Actions */}
-            <div className="flex items-center justify-between pt-2 border-t border-border/40">
+            <div className="flex items-center justify-between pt-2 border-t border-border/40 text-xs">
               <Button
                 variant="ghost"
                 size="sm"
                 onClick={handleResetLogs}
                 disabled={isResetting}
-                className="text-xs text-destructive hover:bg-destructive/10 hover:text-destructive flex items-center gap-1.5"
+                className="text-amber-600 dark:text-amber-400 hover:bg-amber-500/10 hover:text-amber-700 h-8 text-xs"
               >
-                <RotateCcw className={cn("h-3.5 w-3.5", isResetting && "animate-spin")} />
+                <RotateCcw className={cn("h-3 w-3 mr-1", isResetting && "animate-spin")} />
                 <span>إعادة تعيين وتصفير السجل</span>
               </Button>
 
-              <Button variant="outline" size="sm" onClick={onClose} className="text-xs">
+              <Button variant="outline" size="sm" onClick={onClose} className="h-8 text-xs">
                 إغلاق
               </Button>
             </div>

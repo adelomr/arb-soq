@@ -1634,7 +1634,7 @@ const getAds = useCallback((
         if (!ad || !ad.id) return;
         const adRef = await getAdRef(ad);
         await updateDoc(adRef, { clicks: increment(1) });
-        logAdActivity(ad.id, 'view', { userId: user?.uid, sellerUserId: ad.userId }).catch(() => {});
+        logAdActivity(ad.id, 'click', { userId: user?.uid, sellerUserId: ad.userId }).catch(() => {});
       } catch (e) {
         console.warn("Could not increment ad click:", e);
       }

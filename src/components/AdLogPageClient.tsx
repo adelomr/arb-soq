@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import dynamic from 'next/dynamic';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -15,6 +15,7 @@ import {
   Clock, 
   Smartphone, 
   Monitor, 
+  Tablet,
   RotateCcw, 
   Loader2, 
   Activity, 
@@ -27,11 +28,15 @@ import {
   Tag,
   MapPin,
   Globe,
-  Trash2
+  Trash2,
+  Copy,
+  CheckCircle2,
+  Sparkles,
+  Filter
 } from 'lucide-react';
-import type { Ad, AdActivityStats, AdTimeframe, AdActivityEvent } from '@/lib/types';
+import type { Ad, AdActivityStats, AdTimeframe, AdActivityEvent, AdActivityEventType } from '@/lib/types';
 import { getAdActivityStats, resetAdActivityLogs } from '@/lib/ad-log-service';
-import { formatDistanceToNow, parseISO } from 'date-fns';
+import { formatDistanceToNow, parseISO, format } from 'date-fns';
 import { ar } from 'date-fns/locale';
 import Image from 'next/image';
 import Link from 'next/link';
@@ -58,10 +63,12 @@ export default function AdLogPageClient({ initialAd }: { initialAd: Ad }) {
   const { userProfile, categories } = useAuth();
   const [ad, setAd] = useState<Ad>(initialAd);
   const [timeframe, setTimeframe] = useState<AdTimeframe>('all');
+  const [selectedTypeFilter, setSelectedTypeFilter] = useState<string>('all');
   const [stats, setStats] = useState<AdActivityStats | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [refreshing, setRefreshing] = useState<boolean>(false);
   const [isResetting, setIsResetting] = useState<boolean>(false);
+  const [copiedReport, setCopiedReport] = useState<boolean>(false);
 
   // تحديد ما إذا كان المستخدم قادماً من مراجعة الإعلانات في لوحة تحكم المسؤول
   const isFromAdmin = searchParams.get('from') === 'admin' || userProfile?.role === 'admin';
@@ -76,6 +83,15 @@ export default function AdLogPageClient({ initialAd }: { initialAd: Ad }) {
     try {
       const data = await getAdActivityStats(ad.id, selectedTf, ad);
       setStats(data);
+      if (data) {
+        setAd(prev => ({
+          ...prev,
+          views: data.views,
+          clicks: data.clicks,
+          callClicks: data.callClicks,
+          whatsappClicks: data.whatsappClicks,
+        }));
+      }
     } catch (error) {
       console.error('Failed to load ad activity stats:', error);
       toast({
@@ -100,6 +116,32 @@ export default function AdLogPageClient({ initialAd }: { initialAd: Ad }) {
     setTimeframe(tf);
   };
 
+  const handleCopyReport = () => {
+    if (!stats || !ad) return;
+
+    const reportText = `📊 تقرير نشاط وأداء الإعلان الموثق
+العنوان: ${ad.title}
+معرف الإعلان: ${ad.id}
+الفترة الزمنية: ${timeframe === 'all' ? 'كافة الأوقات' : timeframe === '30d' ? 'آخر 30 يوماً' : timeframe === '7d' ? 'آخر أسبوع' : 'آخر 24 ساعة'}
+----------------------------
+👁️ إجمالي المشاهدات: ${(stats.views || 0).toLocaleString('ar-EG')} مشاهدة
+🖱️ نقرات فتح الإعلان: ${(stats.clicks || 0).toLocaleString('ar-EG')} نقرة
+📞 نقرات الاتصال بالبائع: ${(stats.callClicks || 0).toLocaleString('ar-EG')} اتصال
+💬 نقرات الواتساب والمراسلة: ${(stats.whatsappClicks || 0).toLocaleString('ar-EG')} مراسلة
+⚡ إجمالي النقرات والتفاعل: ${(stats.totalInteractions || 0).toLocaleString('ar-EG')} تفاعل
+📈 معدل التحويل والتفاعل (CTR): ${stats.interactionRate || 0}%
+----------------------------
+سوق العرب - نظام التتبع والتحليلات المباشر`;
+
+    navigator.clipboard.writeText(reportText);
+    setCopiedReport(true);
+    toast({
+      title: 'تم نسخ التقرير بنجاح! 📋',
+      description: 'يمكنك الآن مشاركة تقرير الأداء كإثبات موثق لنتائج الإعلان.',
+    });
+    setTimeout(() => setCopiedReport(false), 3000);
+  };
+
   const handleResetLogs = async () => {
     if (!ad?.id) return;
     const confirmed = window.confirm('هل أنت متأكد من رغبتك في إعادة تعيين وتصفير سجل هذا الإعلان؟ سيتم تصفير جميع العدادات إلى صفر.');
@@ -118,22 +160,27 @@ export default function AdLogPageClient({ initialAd }: { initialAd: Ad }) {
       };
       setAd(zeroedAd);
 
-      setStats((prev) => prev ? {
-        ...prev,
+      setStats({
+        adId: ad.id,
+        timeframe,
         views: 0,
+        clicks: 0,
         callClicks: 0,
         whatsappClicks: 0,
+        shares: 0,
         totalInteractions: 0,
         interactionRate: 0,
-        dailyBreakdown: prev.dailyBreakdown.map((d) => ({
+        dailyBreakdown: (stats?.dailyBreakdown || []).map((d) => ({
           ...d,
           views: 0,
+          clicks: 0,
           callClicks: 0,
           whatsappClicks: 0,
           total: 0,
         })),
         recentEvents: [],
-      } : null);
+        lastUpdated: new Date().toISOString(),
+      });
 
       toast({
         title: 'تم التصفير بنجاح',
@@ -157,30 +204,37 @@ export default function AdLogPageClient({ initialAd }: { initialAd: Ad }) {
     switch (type) {
       case 'view':
         return (
-          <Badge variant="outline" className="bg-blue-500/10 text-blue-600 border-blue-500/20 flex items-center gap-1">
+          <Badge variant="outline" className="bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/30 flex items-center gap-1">
             <Eye className="h-3 w-3" />
-            <span>مشاهدة</span>
+            <span>مشاهدة صفحة الإعلان</span>
+          </Badge>
+        );
+      case 'click':
+        return (
+          <Badge variant="outline" className="bg-violet-500/10 text-violet-600 dark:text-violet-400 border-violet-500/30 flex items-center gap-1 font-semibold">
+            <MousePointerClick className="h-3 w-3" />
+            <span>نقر على بطاقة الإعلان</span>
           </Badge>
         );
       case 'call':
         return (
-          <Badge variant="outline" className="bg-amber-500/10 text-amber-600 border-amber-500/20 flex items-center gap-1 font-semibold">
+          <Badge variant="outline" className="bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/30 flex items-center gap-1 font-semibold">
             <Phone className="h-3 w-3" />
-            <span>اتصال بالبائع</span>
+            <span>اتصال هاتفي بالبائع</span>
           </Badge>
         );
       case 'whatsapp':
         return (
-          <Badge variant="outline" className="bg-green-500/10 text-green-600 border-green-500/20 flex items-center gap-1 font-semibold">
+          <Badge variant="outline" className="bg-green-500/10 text-green-600 dark:text-green-400 border-green-500/30 flex items-center gap-1 font-semibold">
             <WhatsappIcon className="h-3 w-3" />
-            <span>رسالة واتساب</span>
+            <span>مراسلة عبر واتساب</span>
           </Badge>
         );
       case 'share':
         return (
-          <Badge variant="outline" className="bg-purple-500/10 text-purple-600 border-purple-500/20 flex items-center gap-1">
+          <Badge variant="outline" className="bg-pink-500/10 text-pink-600 dark:text-pink-400 border-pink-500/30 flex items-center gap-1">
             <Share2 className="h-3 w-3" />
-            <span>مشاركة</span>
+            <span>مشاركة رابط الإعلان</span>
           </Badge>
         );
       default:
@@ -196,6 +250,22 @@ export default function AdLogPageClient({ initialAd }: { initialAd: Ad }) {
       return isoString;
     }
   };
+
+  const formatExactTime = (isoString: string) => {
+    try {
+      const date = parseISO(isoString);
+      return format(date, 'yyyy/MM/dd hh:mm a', { locale: ar });
+    } catch {
+      return isoString;
+    }
+  };
+
+  // Filter recent events based on selected type filter
+  const filteredEvents = useMemo(() => {
+    if (!stats?.recentEvents) return [];
+    if (selectedTypeFilter === 'all') return stats.recentEvents;
+    return stats.recentEvents.filter(e => e.type === selectedTypeFilter);
+  }, [stats?.recentEvents, selectedTypeFilter]);
 
   const maxDailyTotal = stats?.dailyBreakdown
     ? Math.max(...stats.dailyBreakdown.map(d => d.total), 1)
@@ -220,7 +290,7 @@ export default function AdLogPageClient({ initialAd }: { initialAd: Ad }) {
                 {backLabel}
               </Link>
               <ChevronLeft className="h-4 w-4" />
-              <span className="text-foreground font-semibold">السجل</span>
+              <span className="text-foreground font-semibold">سجل الإعلان والنشاط</span>
             </div>
 
             <div className="flex items-center gap-2">
@@ -233,39 +303,50 @@ export default function AdLogPageClient({ initialAd }: { initialAd: Ad }) {
               <Button asChild variant="ghost" size="sm" className="gap-1.5 text-xs text-muted-foreground hover:text-foreground">
                 <Link href={adUrl} target="_blank">
                   <ExternalLink className="h-3.5 w-3.5" />
-                  <span>عرض الإعلان</span>
+                  <span>عرض صفحة الإعلان</span>
                 </Link>
               </Button>
             </div>
           </div>
 
           {/* Main Page Title Header */}
-          <div className="p-6 rounded-2xl bg-card border border-border/60 shadow-sm flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+          <div className="p-6 rounded-2xl bg-card border border-border/70 shadow-sm flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
             <div className="flex items-center gap-4">
-              <div className="p-3.5 rounded-2xl bg-primary/10 text-primary flex-shrink-0">
+              <div className="p-3.5 rounded-2xl bg-primary/10 text-primary flex-shrink-0 shadow-inner">
                 <Activity className="h-8 w-8" />
               </div>
               <div>
                 <div className="flex items-center gap-2.5">
-                  <h1 className="text-3xl font-black text-foreground tracking-tight">السجل</h1>
-                  <Badge variant="secondary" className="font-semibold text-xs px-2.5 py-0.5 bg-primary/10 text-primary border-primary/20">
-                    سجل نشاط الإعلان
+                  <h1 className="text-2xl md:text-3xl font-black text-foreground tracking-tight">سجل ونشاط الإعلان</h1>
+                  <Badge variant="secondary" className="font-semibold text-xs px-2.5 py-0.5 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20">
+                    نظام التتبع المباشر
                   </Badge>
                 </div>
                 <p className="text-sm text-muted-foreground mt-1">
-                  إحصائيات وتحليلات دقيقة لعدد المشاهدات ونقرات الاتصال والواتساب مع فلاتر زمنية.
+                  إحصائيات دقيقة ومطابقة بنسبة 100% لعدد المشاهدات ونقرات التصفح والاتصال والواتساب مع إمكانية تصدير التقرير.
                 </p>
               </div>
             </div>
 
-            <div className="flex flex-wrap items-center gap-2.5 w-full md:w-auto">
+            <div className="flex flex-wrap items-center gap-2 w-full md:w-auto">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleCopyReport}
+                className="flex-1 md:flex-initial items-center justify-center gap-1.5 h-10 px-3.5 text-xs font-semibold text-primary border-primary/30 hover:bg-primary/10"
+                title="نسخ تقرير الأداء لمشاركته"
+              >
+                {copiedReport ? <CheckCircle2 className="h-4 w-4 text-emerald-600" /> : <Copy className="h-4 w-4" />}
+                <span>{copiedReport ? 'تم النسخ!' : 'نسخ تقرير الأداء'}</span>
+              </Button>
+
               <Button
                 variant="outline"
                 size="sm"
                 onClick={() => fetchStats(timeframe, true)}
                 disabled={loading || refreshing}
-                className="flex-1 md:flex-initial items-center justify-center gap-1.5 h-10 px-3.5"
-                title="تحديث بيانات السجل"
+                className="flex-1 md:flex-initial items-center justify-center gap-1.5 h-10 px-3.5 text-xs"
+                title="تحديث بيانات السجل فورياً"
               >
                 <RotateCcw className={cn("h-4 w-4", (loading || refreshing) && "animate-spin")} />
                 <span>تحديث</span>
@@ -280,10 +361,10 @@ export default function AdLogPageClient({ initialAd }: { initialAd: Ad }) {
                 title="إعادة ضبط وتصفير العدادات"
               >
                 <RotateCcw className={cn("h-4 w-4", isResetting && "animate-spin")} />
-                <span>إعادة ضبط العدادات</span>
+                <span>تصفير السجل</span>
               </Button>
 
-              <Button asChild variant="default" size="sm" className="flex-1 md:flex-initial h-10 px-4 gap-1.5">
+              <Button asChild variant="default" size="sm" className="flex-1 md:flex-initial h-10 px-4 gap-1.5 text-xs font-bold">
                 <Link href={adUrl} target="_blank">
                   <span>مشاهدة الإعلان</span>
                   <ExternalLink className="h-4 w-4" />
@@ -292,8 +373,8 @@ export default function AdLogPageClient({ initialAd }: { initialAd: Ad }) {
             </div>
           </div>
 
-          {/* Ad Info Card */}
-          <div className="p-4 rounded-2xl bg-muted/40 border border-border/40 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+          {/* Ad Info Card & Live Unified Counters Bar */}
+          <div className="p-4 rounded-2xl bg-muted/40 border border-border/50 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
             <div className="flex items-center gap-3.5 min-w-0">
               {ad.imageUrls && ad.imageUrls.length > 0 ? (
                 <div className="relative w-16 h-16 rounded-xl overflow-hidden flex-shrink-0 border border-border/60 shadow-sm">
@@ -338,9 +419,18 @@ export default function AdLogPageClient({ initialAd }: { initialAd: Ad }) {
               </div>
             </div>
 
-            <Badge variant={ad.status === 'active' ? 'secondary' : 'outline'} className="capitalize px-3 py-1">
-              {ad.status === 'active' ? 'نشط ومتاح' : ad.status}
-            </Badge>
+            {/* Quick Live Summary Badge */}
+            <div className="flex items-center gap-2 bg-background/80 border border-border/80 px-3.5 py-2 rounded-xl text-xs font-semibold shadow-xs">
+              <span className="flex items-center gap-1 text-blue-600 dark:text-blue-400" title="المشاهدات المعتمدة">
+                <Eye className="h-4 w-4" />
+                <span>{(stats?.views || ad.views || 0).toLocaleString('en-US')} مشاهدة</span>
+              </span>
+              <span className="text-border font-normal">/</span>
+              <span className="flex items-center gap-1 text-violet-600 dark:text-violet-400" title="النقرات المعتمدة">
+                <MousePointerClick className="h-4 w-4" />
+                <span>{(stats?.clicks || ad.clicks || 0).toLocaleString('en-US')} نقرة</span>
+              </span>
+            </div>
           </div>
 
           {/* Timeframe Filter Tabs */}
@@ -366,94 +456,117 @@ export default function AdLogPageClient({ initialAd }: { initialAd: Ad }) {
           {loading ? (
             <div className="py-24 flex flex-col items-center justify-center gap-4 bg-card rounded-2xl border border-border/60">
               <Loader2 className="h-10 w-10 animate-spin text-primary" />
-              <p className="text-base text-muted-foreground font-medium">جارٍ تحميل بيانات السجل والإحصائيات...</p>
+              <p className="text-base text-muted-foreground font-medium">جارٍ تحميل وتدقيق بيانات السجل والإحصائيات...</p>
             </div>
           ) : (
             <div className="space-y-6">
 
-              {/* KPI Stat Cards Grid */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+              {/* KPI Stat Cards Grid (5 Grid) */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3.5">
                 {/* Views Card */}
-                <Card className="bg-gradient-to-br from-blue-500/10 via-card to-blue-500/5 border-blue-500/25 shadow-sm">
-                  <CardContent className="p-5">
-                    <div className="flex items-center justify-between text-blue-600 mb-3">
-                      <span className="text-sm font-bold">المشاهدات</span>
-                      <div className="p-2.5 rounded-xl bg-blue-500/15">
-                        <Eye className="h-5 w-5" />
+                <Card className="bg-gradient-to-br from-blue-500/10 via-card to-blue-500/5 border-blue-500/30 shadow-xs">
+                  <CardContent className="p-4.5">
+                    <div className="flex items-center justify-between text-blue-600 mb-2.5">
+                      <span className="text-xs font-bold">المشاهدات</span>
+                      <div className="p-2 rounded-xl bg-blue-500/15">
+                        <Eye className="h-4.5 w-4.5" />
                       </div>
                     </div>
-                    <div className="text-3xl font-black text-foreground">
+                    <div className="text-2xl font-black text-foreground">
                       {(stats?.views || 0).toLocaleString('en-US')}
                     </div>
-                    <p className="text-xs text-muted-foreground mt-1.5">عدد مرات فتح وتصفح الإعلان</p>
+                    <p className="text-2xs text-muted-foreground mt-1">تصفح صفحة الإعلان</p>
+                  </CardContent>
+                </Card>
+
+                {/* Ad Clicks Card */}
+                <Card className="bg-gradient-to-br from-violet-500/10 via-card to-violet-500/5 border-violet-500/30 shadow-xs">
+                  <CardContent className="p-4.5">
+                    <div className="flex items-center justify-between text-violet-600 mb-2.5">
+                      <span className="text-xs font-bold">نقرات فتح الإعلان</span>
+                      <div className="p-2 rounded-xl bg-violet-500/15">
+                        <MousePointerClick className="h-4.5 w-4.5" />
+                      </div>
+                    </div>
+                    <div className="text-2xl font-black text-foreground">
+                      {(stats?.clicks || 0).toLocaleString('en-US')}
+                    </div>
+                    <p className="text-2xs text-muted-foreground mt-1">الضغط على بطاقة الإعلان</p>
                   </CardContent>
                 </Card>
 
                 {/* Call Clicks Card */}
-                <Card className="bg-gradient-to-br from-amber-500/10 via-card to-amber-500/5 border-amber-500/25 shadow-sm">
-                  <CardContent className="p-5">
-                    <div className="flex items-center justify-between text-amber-600 mb-3">
-                      <span className="text-sm font-bold">نقرات الاتصال</span>
-                      <div className="p-2.5 rounded-xl bg-amber-500/15">
-                        <Phone className="h-5 w-5" />
+                <Card className="bg-gradient-to-br from-amber-500/10 via-card to-amber-500/5 border-amber-500/30 shadow-xs">
+                  <CardContent className="p-4.5">
+                    <div className="flex items-center justify-between text-amber-600 mb-2.5">
+                      <span className="text-xs font-bold">نقرات الاتصال</span>
+                      <div className="p-2 rounded-xl bg-amber-500/15">
+                        <Phone className="h-4.5 w-4.5" />
                       </div>
                     </div>
-                    <div className="text-3xl font-black text-foreground">
+                    <div className="text-2xl font-black text-foreground">
                       {(stats?.callClicks || 0).toLocaleString('en-US')}
                     </div>
-                    <p className="text-xs text-muted-foreground mt-1.5">الضغط على زر اتصل بالبائع</p>
+                    <p className="text-2xs text-muted-foreground mt-1">الضغط على زر اتصل بالبائع</p>
                   </CardContent>
                 </Card>
 
                 {/* WhatsApp Clicks Card */}
-                <Card className="bg-gradient-to-br from-green-500/10 via-card to-green-500/5 border-green-500/25 shadow-sm">
-                  <CardContent className="p-5">
-                    <div className="flex items-center justify-between text-green-600 mb-3">
-                      <span className="text-sm font-bold">نقرات الواتساب</span>
-                      <div className="p-2.5 rounded-xl bg-green-500/15">
-                        <WhatsappIcon className="h-5 w-5" />
+                <Card className="bg-gradient-to-br from-green-500/10 via-card to-green-500/5 border-green-500/30 shadow-xs">
+                  <CardContent className="p-4.5">
+                    <div className="flex items-center justify-between text-green-600 mb-2.5">
+                      <span className="text-xs font-bold">نقرات الواتساب</span>
+                      <div className="p-2 rounded-xl bg-green-500/15">
+                        <WhatsappIcon className="h-4.5 w-4.5" />
                       </div>
                     </div>
-                    <div className="text-3xl font-black text-foreground">
+                    <div className="text-2xl font-black text-foreground">
                       {(stats?.whatsappClicks || 0).toLocaleString('en-US')}
                     </div>
-                    <p className="text-xs text-muted-foreground mt-1.5">الضغط على زر المراسلة بالواتساب</p>
+                    <p className="text-2xs text-muted-foreground mt-1">المراسلة الفورية عبر واتساب</p>
                   </CardContent>
                 </Card>
 
-                {/* Total Interactions Card */}
-                <Card className="bg-gradient-to-br from-purple-500/10 via-card to-purple-500/5 border-purple-500/25 shadow-sm">
-                  <CardContent className="p-5">
-                    <div className="flex items-center justify-between text-purple-600 mb-3">
-                      <span className="text-sm font-bold">إجمالي التفاعل</span>
-                      <div className="p-2.5 rounded-xl bg-purple-500/15">
-                        <MousePointerClick className="h-5 w-5" />
+                {/* Total Interactions & Rate Card */}
+                <Card className="bg-gradient-to-br from-emerald-500/10 via-card to-emerald-500/5 border-emerald-500/30 shadow-xs sm:col-span-2 lg:col-span-1">
+                  <CardContent className="p-4.5">
+                    <div className="flex items-center justify-between text-emerald-600 mb-2.5">
+                      <span className="text-xs font-bold">إجمالي التفاعل (CTR)</span>
+                      <div className="p-2 rounded-xl bg-emerald-500/15">
+                        <TrendingUp className="h-4.5 w-4.5" />
                       </div>
                     </div>
-                    <div className="text-3xl font-black text-foreground flex items-baseline gap-2">
+                    <div className="text-2xl font-black text-foreground flex items-baseline gap-1.5">
                       {(stats?.totalInteractions || 0).toLocaleString('en-US')}
-                      <span className="text-xs font-normal text-muted-foreground">
+                      <span className="text-xs font-semibold text-emerald-600 dark:text-emerald-400">
                         ({stats?.interactionRate || 0}%)
                       </span>
                     </div>
-                    <p className="text-xs text-muted-foreground mt-1.5">معدل التحويل والتواصل الإجمالي</p>
+                    <div className="mt-1 flex items-center gap-1 text-2xs font-semibold text-emerald-700 dark:text-emerald-400">
+                      <Sparkles className="h-3 w-3" />
+                      <span>{Number(stats?.interactionRate || 0) > 5 ? 'أداء ممتاز وجذاب 🔥' : 'إعلان نشط ومتفاعل'}</span>
+                    </div>
                   </CardContent>
                 </Card>
               </div>
 
               {/* Daily Timeline Breakdown Chart */}
               {stats?.dailyBreakdown && stats.dailyBreakdown.length > 0 && (
-                <Card className="border border-border/60 shadow-sm">
+                <Card className="border border-border/70 shadow-sm">
                   <CardHeader className="pb-2">
                     <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-                      <CardTitle className="text-lg font-bold flex items-center gap-2">
+                      <CardTitle className="text-base sm:text-lg font-bold flex items-center gap-2">
                         <BarChart3 className="h-5 w-5 text-primary" />
-                        التوزيع الزمني لنشاط وتفاعل الإعلان
+                        التوزيع الزمني الدقيق للنشاط والتفاعل
                       </CardTitle>
-                      <div className="flex items-center gap-3 text-xs text-muted-foreground">
+                      <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground font-medium">
                         <span className="flex items-center gap-1.5">
                           <span className="w-3 h-3 rounded-sm bg-blue-500 inline-block" />
                           مشاهدات
+                        </span>
+                        <span className="flex items-center gap-1.5">
+                          <span className="w-3 h-3 rounded-sm bg-violet-500 inline-block" />
+                          نقرات فتح
                         </span>
                         <span className="flex items-center gap-1.5">
                           <span className="w-3 h-3 rounded-sm bg-amber-500 inline-block" />
@@ -470,27 +583,33 @@ export default function AdLogPageClient({ initialAd }: { initialAd: Ad }) {
                     <div className="flex items-end justify-between gap-1 sm:gap-3 h-48 pt-6 px-2 border-b border-border/40 overflow-x-auto">
                       {stats.dailyBreakdown.map((point, idx) => {
                         const totalBarHeight = maxDailyTotal > 0 ? (point.total / maxDailyTotal) * 100 : 0;
-                        const heightPercent = Math.max(totalBarHeight, point.total > 0 ? 12 : 4);
+                        const heightPercent = Math.max(totalBarHeight, point.total > 0 ? 14 : 4);
                         
                         return (
-                          <div key={idx} className="flex-1 min-w-[32px] max-w-[60px] flex flex-col items-center gap-1.5 group relative">
+                          <div key={idx} className="flex-1 min-w-[34px] max-w-[64px] flex flex-col items-center gap-1.5 group relative">
                             {/* Tooltip on Hover */}
-                            <div className="absolute -top-14 z-30 hidden group-hover:flex flex-col items-center bg-popover text-popover-foreground border shadow-lg px-3 py-1.5 rounded-lg text-xs whitespace-nowrap pointer-events-none">
-                              <span className="font-bold">{point.formattedDate}</span>
-                              <span className="text-2xs text-muted-foreground">
-                                مشاهدات: {point.views} | اتصال: {point.callClicks} | واتساب: {point.whatsappClicks}
+                            <div className="absolute -top-16 z-30 hidden group-hover:flex flex-col items-center bg-popover text-popover-foreground border shadow-xl px-3 py-1.5 rounded-lg text-xs whitespace-nowrap pointer-events-none">
+                              <span className="font-bold text-foreground">{point.formattedDate}</span>
+                              <span className="text-2xs text-muted-foreground mt-0.5">
+                                مشاهدات: {point.views} | نقرات: {point.clicks} | اتصال: {point.callClicks} | واتساب: {point.whatsappClicks}
                               </span>
                             </div>
 
                             {/* Stacked Bar */}
                             <div 
-                              className="w-full rounded-t-lg bg-secondary flex flex-col-reverse overflow-hidden transition-all duration-300 group-hover:brightness-110 group-hover:scale-y-105"
+                              className="w-full rounded-t-lg bg-secondary/70 flex flex-col-reverse overflow-hidden transition-all duration-300 group-hover:brightness-110 group-hover:scale-y-105"
                               style={{ height: `${heightPercent}%` }}
                             >
                               {point.views > 0 && (
                                 <div 
                                   style={{ height: `${(point.views / Math.max(point.total, 1)) * 100}%` }} 
                                   className="bg-blue-500 w-full"
+                                />
+                              )}
+                              {point.clicks > 0 && (
+                                <div 
+                                  style={{ height: `${(point.clicks / Math.max(point.total, 1)) * 100}%` }} 
+                                  className="bg-violet-500 w-full"
                                 />
                               )}
                               {point.callClicks > 0 && (
@@ -519,48 +638,100 @@ export default function AdLogPageClient({ initialAd }: { initialAd: Ad }) {
                 </Card>
               )}
 
-              {/* Recent Activity Log Feed */}
-              <Card className="border border-border/60 shadow-sm">
+              {/* Recent Activity Log Feed with Filters */}
+              <Card className="border border-border/70 shadow-sm">
                 <CardHeader className="pb-3">
-                  <div className="flex items-center justify-between">
-                    <CardTitle className="text-lg font-bold flex items-center gap-2">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                    <div className="flex items-center gap-2">
                       <Clock className="h-5 w-5 text-primary" />
-                      سجل الأحداث الزمني التفصيلي
-                    </CardTitle>
-                    <span className="text-xs text-muted-foreground">
-                      آخر {stats?.recentEvents?.length || 0} عملية مسجلة
-                    </span>
+                      <CardTitle className="text-base sm:text-lg font-bold">
+                        سجل الأحداث المباشر والعمليات المسجلة
+                      </CardTitle>
+                      <Badge variant="outline" className="text-2xs font-normal">
+                        {filteredEvents.length} حدث
+                      </Badge>
+                    </div>
+
+                    {/* Filter Tabs for Event Types */}
+                    <div className="flex flex-wrap items-center gap-1.5 text-xs">
+                      <Button
+                        size="sm"
+                        variant={selectedTypeFilter === 'all' ? 'default' : 'outline'}
+                        onClick={() => setSelectedTypeFilter('all')}
+                        className="h-7 px-2.5 text-xs"
+                      >
+                        الكل
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant={selectedTypeFilter === 'view' ? 'default' : 'outline'}
+                        onClick={() => setSelectedTypeFilter('view')}
+                        className="h-7 px-2.5 text-xs text-blue-600 dark:text-blue-400"
+                      >
+                        مشاهدات
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant={selectedTypeFilter === 'click' ? 'default' : 'outline'}
+                        onClick={() => setSelectedTypeFilter('click')}
+                        className="h-7 px-2.5 text-xs text-violet-600 dark:text-violet-400"
+                      >
+                        نقرات فتح
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant={selectedTypeFilter === 'call' ? 'default' : 'outline'}
+                        onClick={() => setSelectedTypeFilter('call')}
+                        className="h-7 px-2.5 text-xs text-amber-600 dark:text-amber-400"
+                      >
+                        اتصال
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant={selectedTypeFilter === 'whatsapp' ? 'default' : 'outline'}
+                        onClick={() => setSelectedTypeFilter('whatsapp')}
+                        className="h-7 px-2.5 text-xs text-green-600 dark:text-green-400"
+                      >
+                        واتساب
+                      </Button>
+                    </div>
                   </div>
                 </CardHeader>
                 <CardContent className="p-5 pt-0">
-                  {stats?.recentEvents && stats.recentEvents.length > 0 ? (
+                  {filteredEvents.length > 0 ? (
                     <div className="divide-y divide-border/40">
-                      {stats.recentEvents.map((event, idx) => (
+                      {filteredEvents.map((event, idx) => (
                         <div key={event.id || idx} className="py-3 flex items-center justify-between gap-3 hover:bg-muted/30 px-3 rounded-xl transition-colors">
                           <div className="flex items-center gap-3">
                             {getEventBadge(event.type)}
-                            <span className="text-sm text-muted-foreground">
-                              {event.type === 'view' && 'زيارة لصفحة الإعلان'}
-                              {event.type === 'call' && 'نقر على زر اتصل بالبائع'}
-                              {event.type === 'whatsapp' && 'نقر على زر المراسلة بالواتساب'}
+                            <span className="text-xs sm:text-sm text-foreground/80 font-medium hidden sm:inline">
+                              {event.type === 'view' && 'زيارة وتصفح صفحة الإعلان'}
+                              {event.type === 'click' && 'نقر على بطاقة الإعلان في القائمة'}
+                              {event.type === 'call' && 'طلب اتصال مباشر بالبائع'}
+                              {event.type === 'whatsapp' && 'فتح محادثة واتساب مع البائع'}
                               {event.type === 'share' && 'مشاركة رابط الإعلان'}
                             </span>
                           </div>
 
                           <div className="flex items-center gap-2.5 text-xs text-muted-foreground flex-shrink-0">
                             {event.device === 'mobile' ? (
-                              <span className="flex items-center gap-1 bg-secondary/60 px-2 py-0.5 rounded text-2xs" title="هاتف محمول">
-                                <Smartphone className="h-3.5 w-3.5" />
-                                <span>هاتف جوال</span>
+                              <span className="flex items-center gap-1 bg-secondary/70 px-2 py-0.5 rounded text-2xs font-medium" title="هاتف جوال">
+                                <Smartphone className="h-3 w-3 text-primary" />
+                                <span>جوال</span>
+                              </span>
+                            ) : event.device === 'tablet' ? (
+                              <span className="flex items-center gap-1 bg-secondary/70 px-2 py-0.5 rounded text-2xs font-medium" title="جهاز لوحي">
+                                <Tablet className="h-3 w-3 text-primary" />
+                                <span>تابلت</span>
                               </span>
                             ) : (
-                              <span className="flex items-center gap-1 bg-secondary/60 px-2 py-0.5 rounded text-2xs" title="كمبيوتر">
-                                <Monitor className="h-3.5 w-3.5" />
+                              <span className="flex items-center gap-1 bg-secondary/70 px-2 py-0.5 rounded text-2xs font-medium" title="جهاز كمبيوتر">
+                                <Monitor className="h-3 w-3 text-primary" />
                                 <span>كمبيوتر</span>
                               </span>
                             )}
                             <span>•</span>
-                            <span className="font-medium" title={event.timestamp}>
+                            <span className="font-medium" title={formatExactTime(event.timestamp)}>
                               {formatRelativeTime(event.timestamp)}
                             </span>
                           </div>
@@ -570,7 +741,7 @@ export default function AdLogPageClient({ initialAd }: { initialAd: Ad }) {
                   ) : (
                     <div className="text-center py-12 text-muted-foreground flex flex-col items-center gap-3">
                       <Info className="h-10 w-10 text-muted-foreground/40" />
-                      <p className="text-sm">لا توجد سجلات نشاط مسجلة خلال الفترة الزمنية المحددة.</p>
+                      <p className="text-sm">لا توجد سجلات نشاط مسجلة ضمن الفلتر والفترة المحددة.</p>
                     </div>
                   )}
                 </CardContent>

@@ -13,7 +13,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
 import Image from 'next/image';
 import { AspectRatio } from '@/components/ui/aspect-ratio';
-import { MapPin, Tag, Calendar, User, Phone, MessageCircle, ZoomIn, ZoomOut, RotateCcw, Star, PlusCircle, ShoppingCart, Globe, Hash, Package, Eye, ChevronLeft, ChevronRight, AlertTriangle, ExternalLink, BadgeCheck, Crown, Sparkles, Rocket } from 'lucide-react';
+import { MapPin, Tag, Calendar, User, Phone, MessageCircle, ZoomIn, ZoomOut, RotateCcw, Star, PlusCircle, ShoppingCart, Globe, Hash, Package, Eye, MousePointerClick, Activity, ChevronLeft, ChevronRight, AlertTriangle, ExternalLink, BadgeCheck, Crown, Sparkles, Rocket } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { useMarket } from '@/context/MarketContext';
@@ -199,10 +199,9 @@ export default function AdDetailClient({ initialAd }: { initialAd: Ad }) {
   useEffect(() => {
     if (ad?.id && !viewIncremented.current) {
         incrementAdView(ad);
-        logAdActivity(ad.id, 'view', { userId: user?.uid, sellerUserId: ad.userId || seller?.id });
         viewIncremented.current = true;
     }
-  }, [ad, incrementAdView, user?.uid, seller?.id]);
+  }, [ad, incrementAdView]);
   
   const isStoreProduct = ad?.category === 'store-product';
   const isInCart = cart.some(item => item.id === adId);
@@ -335,21 +334,38 @@ export default function AdDetailClient({ initialAd }: { initialAd: Ad }) {
                             )}
                           </div>
 
-                          {isOwner && (
-                            <PromoteAdDialog
-                              ad={ad}
-                              trigger={
-                                <Button
-                                  variant="outline"
-                                  size="sm"
-                                  className="border-amber-500/50 bg-amber-500/10 hover:bg-amber-500/20 text-amber-700 dark:text-amber-300 font-bold gap-1.5 shadow-sm"
-                                >
-                                  <Rocket className="h-4 w-4 text-amber-500" />
-                                  <span>ترقية وتمييز الإعلان 🚀</span>
-                                </Button>
-                              }
-                            />
-                          )}
+                          <div className="flex items-center gap-2">
+                            {canViewLog && (
+                              <Button
+                                asChild
+                                variant="outline"
+                                size="sm"
+                                className="border-primary/40 bg-primary/5 hover:bg-primary/15 text-primary font-bold gap-1.5 shadow-sm text-xs"
+                                title="سجل نشاط وإحصائيات الإعلان"
+                              >
+                                <Link href={`/ad/${effectiveUserId}/${ad.id}/log${isAdmin ? '?from=admin' : ''}`}>
+                                  <Activity className="h-3.5 w-3.5 text-primary" />
+                                  <span>سجل الإعلان</span>
+                                </Link>
+                              </Button>
+                            )}
+
+                            {isOwner && (
+                              <PromoteAdDialog
+                                ad={ad}
+                                trigger={
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    className="border-amber-500/50 bg-amber-500/10 hover:bg-amber-500/20 text-amber-700 dark:text-amber-300 font-bold gap-1.5 shadow-sm text-xs"
+                                  >
+                                    <Rocket className="h-3.5 w-3.5 text-amber-500" />
+                                    <span>ترقية وتمييز 🚀</span>
+                                  </Button>
+                                }
+                              />
+                            )}
+                          </div>
                         </div>
 
                         <h1 className="text-2xl md:text-3xl font-extrabold text-foreground tracking-tight break-words mb-3">
@@ -372,12 +388,17 @@ export default function AdDetailClient({ initialAd }: { initialAd: Ad }) {
                                     <span>{t.condition}: <span className="font-semibold text-foreground">{ad.condition === 'new' ? t.conditionNew : t.conditionUsed}</span></span>
                                 </div>
                             )}
-                            {ad.views !== undefined && (
-                                <div className="flex items-center gap-1.5">
+                            <div className="flex items-center gap-3 bg-muted/60 px-3 py-1 rounded-xl text-xs font-semibold">
+                                <span className="flex items-center gap-1.5 text-blue-600 dark:text-blue-400" title="عدد المشاهدات">
                                     <Eye className="h-4 w-4" />
-                                    <span>{ad.views.toLocaleString('en-US')} مشاهدة</span>
-                                </div>
-                            )}
+                                    <span>{(ad.views || 0).toLocaleString('en-US')} مشاهدة</span>
+                                </span>
+                                <span className="text-border">/</span>
+                                <span className="flex items-center gap-1.5 text-violet-600 dark:text-violet-400" title="عدد النقرات">
+                                    <MousePointerClick className="h-4 w-4" />
+                                    <span>{(ad.clicks || 0).toLocaleString('en-US')} نقرة</span>
+                                </span>
+                            </div>
                         </div>
                     </div>
 

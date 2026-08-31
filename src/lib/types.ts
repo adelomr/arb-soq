@@ -378,7 +378,7 @@ export interface PageData {
 }
 
 // === أنواع سجل الإعلان والنشاطات (Ad Activity Log & Stats) ===
-export type AdActivityEventType = 'view' | 'call' | 'whatsapp' | 'share';
+export type AdActivityEventType = 'view' | 'click' | 'call' | 'whatsapp' | 'share';
 export type AdTimeframe = '24h' | '7d' | '30d' | 'all';
 
 export interface AdActivityEvent {
@@ -395,6 +395,7 @@ export interface AdActivityDailyPoint {
   date: string; // YYYY-MM-DD
   formattedDate: string; // e.g. 'السبت 15 أغسطس'
   views: number;
+  clicks: number;
   callClicks: number;
   whatsappClicks: number;
   total: number;
@@ -404,8 +405,10 @@ export interface AdActivityStats {
   adId: string;
   timeframe: AdTimeframe;
   views: number;
+  clicks: number;
   callClicks: number;
   whatsappClicks: number;
+  shares?: number;
   totalInteractions: number;
   interactionRate: number; // percentage (e.g. 4.5%)
   dailyBreakdown: AdActivityDailyPoint[];
