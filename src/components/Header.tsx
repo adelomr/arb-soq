@@ -13,9 +13,8 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription, SheetTrigger } from '@/components/ui/sheet';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Menu, PlusCircle, User, LayoutDashboard, LogOut, Globe, LogIn, Sun, Moon, Minus, Plus, Undo2, Shield, Bell, Trash2, Info, Wallet, Megaphone, X, BadgeDollarSign, Store, Edit, ShoppingCart, MapPin, Tv, Grid, List, Smartphone, BadgeCheck } from 'lucide-react';
+import { PlusCircle, User, LayoutDashboard, LogOut, Globe, LogIn, Sun, Moon, Minus, Plus, Undo2, Shield, Bell, Trash2, Info, Wallet, Megaphone, X, BadgeDollarSign, Store, Edit, ShoppingCart, MapPin, Tv, Grid, List, Smartphone, BadgeCheck } from 'lucide-react';
 import { useState, useEffect, useRef } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import RequireAuthModal from './RequireAuthModal';
@@ -163,7 +162,6 @@ const NotificationBar = () => {
 
 export default function Header() {
   const [isClient, setIsClient] = useState(false);
-  const [isSheetOpen, setSheetOpen] = useState(false);
   const pathname = usePathname();
   const { user, userProfile, signOutUser, getUserNotifications, deleteNotification, markNotificationsAsRead } = useAuth();
   const { theme, setTheme } = useTheme();
@@ -527,68 +525,6 @@ export default function Header() {
                   </Link>
                 </Button>
             )}
-
-            <Sheet open={isSheetOpen} onOpenChange={setSheetOpen}>
-              <SheetTrigger asChild>
-                <Button variant="outline" size="icon" className="md:hidden h-9 w-9 sm:h-10 sm:w-10">
-                  <Menu className="h-5 w-5" />
-                  <span className="sr-only">{currentLabels.toggleMenu}</span>
-                </Button>
-              </SheetTrigger>
-              <SheetContent side={direction === 'rtl' ? 'right' : 'left'} className="pr-0">
-                <SheetHeader>
-                  <SheetTitle className="sr-only">{currentLabels.mobileMenuTitle}</SheetTitle>
-                  <SheetDescription className="sr-only">{currentLabels.mobileMenuDescription}</SheetDescription>
-                  <Link href="/" className="flex items-center gap-2 font-bold text-lg font-headline mb-6">
-                    <Image src={appIconUrl} alt="App Icon" width={32} height={32} className="h-8 w-8" />
-                    <span>{currentLabels.appName}</span>
-                  </Link>
-                </SheetHeader>
-                <div className="flex flex-col gap-4">
-                  {isAdmin && (
-                      <Link
-                          href="/admin"
-                          onClick={() => setSheetOpen(false)}
-                          className={cn(
-                          'font-medium transition-colors hover:text-primary',
-                          pathname === '/admin' ? 'text-primary' : 'text-muted-foreground'
-                          )}
-                      >
-                          {currentLabels.adminDashboard}
-                      </Link>
-                  )}
-                   <Link
-                      href="/pricing"
-                      onClick={() => setSheetOpen(false)}
-                      className={cn(
-                      'font-medium transition-colors hover:text-primary',
-                      pathname === '/pricing' ? 'text-primary' : 'text-muted-foreground'
-                      )}
-                  >
-                      {currentLabels.pricing}
-                  </Link>
-
-
-                  <Link
-                      href="/landing-sections"
-                      onClick={() => setSheetOpen(false)}
-                      className={cn(
-                      'font-medium transition-colors hover:text-primary',
-                      pathname === '/landing-sections' ? 'text-primary' : 'text-muted-foreground'
-                      )}
-                  >
-                      أقسام صفحات الهبوط
-                  </Link>
-
-                  <Separator />
-                  <AppDownloadButton variant="default" className="w-full justify-center" onClick={() => setSheetOpen(false)} />
-                  <Button onClick={(e) => { setSheetOpen(false); handleAddAdClick(e); }} className="w-full justify-center font-bold">
-                    <PlusCircle className={direction === 'rtl' ? 'ml-2 h-4 w-4' : 'mr-2 h-4 w-4'} />
-                    {currentLabels.submitAd}
-                  </Button>
-                </div>
-              </SheetContent>
-            </Sheet>
           </div>
         </div>
       </header>

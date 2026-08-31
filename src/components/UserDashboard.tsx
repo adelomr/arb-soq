@@ -28,7 +28,6 @@ import {
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { 
-  MoreHorizontal, 
   Pencil, 
   Trash2, 
   Loader2, 
@@ -56,13 +55,6 @@ import {
   Layers,
   Copy
 } from 'lucide-react';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-  DropdownMenuSeparator,
-} from '@/components/ui/dropdown-menu';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useLanguage } from '@/context/LanguageContext';
 import { useMarket } from '@/context/MarketContext';
@@ -421,14 +413,14 @@ const AdTable = ({ ads, isLoading, isAdmin, noItemsMessage, isStoreProduct = fal
                         {ad.price ? currencyFormatter.format(ad.price) : 'حسب الاتفاق'}
                       </div>
                       
-                      {/* Metric pills */}
-                      <div className="flex items-center gap-2 text-2xs text-muted-foreground font-medium">
-                        <span className="flex items-center gap-1 bg-muted/60 px-1.5 py-0.5 rounded-md">
-                          <Eye className="w-3 h-3 text-blue-500" />
+                      {/* Metric pills: Compact Views and Clicks without extra text */}
+                      <div className="flex items-center gap-1.5 text-2xs text-muted-foreground font-medium">
+                        <span className="flex items-center gap-1 bg-muted/70 px-2 py-0.5 rounded-md font-semibold" title={t.views}>
+                          <Eye className="w-3.5 h-3.5 text-blue-500" />
                           <span>{ad.views || 0}</span>
                         </span>
-                        <span className="flex items-center gap-1 bg-muted/60 px-1.5 py-0.5 rounded-md">
-                          <MousePointerClick className="w-3 h-3 text-violet-500" />
+                        <span className="flex items-center gap-1 bg-muted/70 px-2 py-0.5 rounded-md font-semibold" title={t.clicks}>
+                          <MousePointerClick className="w-3.5 h-3.5 text-violet-500" />
                           <span>{ad.clicks || 0}</span>
                         </span>
                       </div>
@@ -446,51 +438,46 @@ const AdTable = ({ ads, isLoading, isAdmin, noItemsMessage, isStoreProduct = fal
                   </div>
                 )}
 
-                {/* Bottom Action Bar (Touch-Optimized) */}
-                <div className="flex items-center gap-2 pt-2 border-t border-border/60">
-                  <Button asChild size="sm" variant="default" className="flex-1 h-9 rounded-xl text-xs font-bold gap-1.5 shadow-sm">
+                {/* Bottom Action Bar (Touch-Optimized for Mobile) */}
+                <div className="flex items-center gap-2 pt-2.5 border-t border-border/60">
+                  {/* زر التعديل */}
+                  <Button 
+                    asChild 
+                    variant="outline" 
+                    className={cn(
+                      "flex-1 h-10 px-3 rounded-xl text-xs font-bold gap-1.5 border-border/80 hover:bg-muted/80 shadow-xs",
+                      needsCatUpdate && "border-amber-500 text-amber-600 bg-amber-500/5 hover:bg-amber-500/10"
+                    )}
+                  >
                     <Link href={editLink}>
-                      <Pencil className="h-3.5 w-3.5" />
+                      <Pencil className="h-4 w-4 text-muted-foreground" />
                       <span>{needsCatUpdate ? 'تحديث الفئة' : t.edit}</span>
                     </Link>
                   </Button>
 
-                  <Button asChild size="sm" variant="outline" className="h-9 px-3 rounded-xl text-xs font-semibold gap-1 border-border/80">
+                  {/* زر السجل المباشر */}
+                  <Button 
+                    asChild 
+                    variant="outline" 
+                    className="flex-1 h-10 px-3 rounded-xl text-xs font-bold gap-1.5 text-primary border-primary/30 hover:bg-primary/10 hover:text-primary shadow-xs"
+                  >
                     <Link href={`/ad/${ad.userId || 'owner'}/${ad.id}/log`}>
-                      <Activity className="h-3.5 w-3.5 text-primary" />
-                      <span className="hidden xs:inline">{t.adLog}</span>
+                      <Activity className="h-4 w-4" />
+                      <span>{t.adLog}</span>
                     </Link>
                   </Button>
 
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button size="sm" variant="outline" className="h-9 w-9 p-0 rounded-xl border-border/80 shrink-0">
-                        <MoreHorizontal className="h-4 w-4" />
-                        <span className="sr-only">{t.toggleMenu}</span>
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end" className="w-48 rounded-xl p-1.5 shadow-lg">
-                      <DropdownMenuItem asChild className="rounded-lg text-xs gap-2 py-2 cursor-pointer">
-                        <Link href={viewLink}>
-                          <ExternalLink className="h-3.5 w-3.5 text-muted-foreground" />
-                          <span>{t.viewAd}</span>
-                        </Link>
-                      </DropdownMenuItem>
-                      <DropdownMenuItem onClick={() => handleCopyAdLink(ad)} className="rounded-lg text-xs gap-2 py-2 cursor-pointer">
-                        <Copy className="h-3.5 w-3.5 text-muted-foreground" />
-                        <span>{t.shareLink}</span>
-                      </DropdownMenuItem>
-                      <DropdownMenuItem onClick={() => openDialog(ad, 'reset')} className="rounded-lg text-xs gap-2 py-2 cursor-pointer">
-                        <RotateCcw className="h-3.5 w-3.5 text-muted-foreground" />
-                        <span>{t.resetCounters}</span>
-                      </DropdownMenuItem>
-                      <DropdownMenuSeparator />
-                      <DropdownMenuItem onClick={() => openDialog(ad, 'delete')} className="rounded-lg text-xs gap-2 py-2 text-destructive focus:text-destructive focus:bg-destructive/10 cursor-pointer">
-                        <Trash2 className="h-3.5 w-3.5" />
-                        <span>{t.delete}</span>
-                      </DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
+                  {/* زر الحذف المباشر بالأيقونة */}
+                  <Button 
+                    type="button"
+                    variant="outline" 
+                    onClick={() => openDialog(ad, 'delete')}
+                    className="h-10 w-10 p-0 rounded-xl border-destructive/30 text-destructive hover:bg-destructive/10 hover:text-destructive shrink-0 shadow-xs"
+                    title={t.delete}
+                    aria-label={t.delete}
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
                 </div>
               </div>
             );
@@ -604,30 +591,18 @@ const AdTable = ({ ads, isLoading, isAdmin, noItemsMessage, isStoreProduct = fal
                                     </Link>
                                 </Button>
 
-                                {/* قائمة المزيد */}
-                                <DropdownMenu>
-                                  <DropdownMenuTrigger asChild>
-                                    <Button size="sm" variant="outline" className="h-8 w-8 p-0 rounded-lg">
-                                      <MoreHorizontal className="h-4 w-4" />
-                                      <span className="sr-only">{t.toggleMenu}</span>
-                                    </Button>
-                                  </DropdownMenuTrigger>
-                                  <DropdownMenuContent align="end" className="w-44 rounded-xl p-1.5 shadow-lg">
-                                    <DropdownMenuItem onClick={() => handleCopyAdLink(ad)} className="rounded-lg text-xs gap-2 py-2 cursor-pointer">
-                                      <Copy className="h-3.5 w-3.5 text-muted-foreground" />
-                                      <span>{t.shareLink}</span>
-                                    </DropdownMenuItem>
-                                    <DropdownMenuItem onClick={() => openDialog(ad, 'reset')} className="rounded-lg text-xs gap-2 py-2 cursor-pointer">
-                                      <RotateCcw className="h-3.5 w-3.5 text-muted-foreground" />
-                                      <span>{t.resetCounters}</span>
-                                    </DropdownMenuItem>
-                                    <DropdownMenuSeparator />
-                                    <DropdownMenuItem onClick={() => openDialog(ad, 'delete')} className="rounded-lg text-xs gap-2 py-2 text-destructive focus:text-destructive focus:bg-destructive/10 cursor-pointer">
-                                      <Trash2 className="h-3.5 w-3.5" />
-                                      <span>{t.delete}</span>
-                                    </DropdownMenuItem>
-                                  </DropdownMenuContent>
-                                </DropdownMenu>
+                                {/* زر الحذف المباشر بالأيقونة */}
+                                <Button 
+                                  type="button" 
+                                  size="sm" 
+                                  variant="outline" 
+                                  onClick={() => openDialog(ad, 'delete')} 
+                                  className="h-8 w-8 p-0 rounded-lg border-destructive/30 text-destructive hover:bg-destructive/10 hover:text-destructive shrink-0"
+                                  title={t.delete}
+                                  aria-label={t.delete}
+                                >
+                                  <Trash2 className="h-3.5 w-3.5" />
+                                </Button>
                             </div>
                             </TableCell>
                         </TableRow>
