@@ -122,7 +122,7 @@ export async function sendWhatsAppOTP(
 
   try {
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 9000);
+    const timeoutId = setTimeout(() => controller.abort(), 15000);
 
     const cloudRes = await fetch(`${CLOUD_RUN_GATEWAY_URL}/send-otp`, {
       method: 'POST',
@@ -187,7 +187,7 @@ export async function sendWhatsAppMessage(
 
   try {
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 9000);
+    const timeoutId = setTimeout(() => controller.abort(), 15000);
 
     const res = await fetch(`${CLOUD_RUN_GATEWAY_URL}/send-message`, {
       method: 'POST',

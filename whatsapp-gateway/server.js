@@ -5,198 +5,380 @@ const fs = require('fs');
 const pino = require('pino');
 const QRCode = require('qrcode');
 const qrcodeTerminal = require('qrcode-terminal');
+const { Firestore } = require('@google-cloud/firestore');
 require('dotenv').config();
 
 const {
   default: makeWASocket,
-  useMultiFileAuthState,
   DisconnectReason,
   fetchLatestBaileysVersion,
-  makeInMemoryStore,
+  initAuthCreds,
+  BufferJSON,
+  proto,
 } = require('@whiskeysockets/baileys');
 
 const app = express();
 const PORT = process.env.PORT || 5005;
 const AUTH_DIR = path.join(__dirname, 'auth_session');
+const FIRESTORE_COLLECTION = process.env.WHATSAPP_SESSION_COLLECTION || 'whatsapp_gateway_session';
 
 app.use(cors());
 app.use(express.json());
 
+// ── تهيئة Firestore للتخزين السحابي الدائم ──
+let firestore = null;
+try {
+  firestore = new Firestore({
+    projectId: process.env.GOOGLE_CLOUD_PROJECT || 'arb-soq',
+  });
+  console.log(`[Firestore Session] Firestore client initialized (Collection: ${FIRESTORE_COLLECTION})`);
+} catch (e) {
+  console.warn('[Firestore Session] Firestore init warning:', e.message);
+}
+
+// ذاكرة تخزين مؤقتة سريعة في الرام (In-Memory Cache)
+const memoryKeysCache = new Map();
+
+/**
+ * محول مصادقة مخصص متكامل مع Firestore (Direct Firestore Auth State)
+ * يقوم بحفظ واسترجاع كافة مفاتيح التشفير (creds, pre-keys, sessions, app-state)
+ * لحظياً لضمان عدم ضياع الجلسة نهائياً حتى مع إعادة تشغيل السيرفر أو النوم
+ */
+async function useFirestoreAuthState() {
+  const sessionCol = firestore ? firestore.collection(FIRESTORE_COLLECTION) : null;
+
+  // 1. استرجاع أو إنشاء بيانات الاعتماد الأساسية (creds)
+  let creds = null;
+  if (sessionCol) {
+    try {
+      const credsDoc = await sessionCol.doc('creds').get();
+      if (credsDoc.exists && credsDoc.data()?.value) {
+        creds = JSON.parse(credsDoc.data().value, BufferJSON.reviver);
+        console.log('[Firestore Auth] Restored primary credentials (creds) from Firestore.');
+      }
+    } catch (err) {
+      console.warn('[Firestore Auth] Failed to load creds from Firestore:', err.message);
+    }
+  }
+
+  // محاولة الاسترجاع من القرص المحلي كنسخة احتياطية إن لم توجد في Firestore
+  if (!creds && fs.existsSync(path.join(AUTH_DIR, 'creds.json'))) {
+    try {
+      const raw = fs.readFileSync(path.join(AUTH_DIR, 'creds.json'), 'utf8');
+      creds = JSON.parse(raw, BufferJSON.reviver);
+      console.log('[Firestore Auth] Loaded fallback creds from local disk.');
+    } catch (err) {
+      console.warn('[Firestore Auth] Failed to load fallback creds from disk:', err.message);
+    }
+  }
+
+  if (!creds) {
+    console.log('[Firestore Auth] No existing credentials found. Initializing fresh creds.');
+    creds = initAuthCreds();
+  }
+
+  // حفظ نسخة محلية احتياطية
+  const saveLocalCreds = (c) => {
+    try {
+      if (!fs.existsSync(AUTH_DIR)) fs.mkdirSync(AUTH_DIR, { recursive: true });
+      fs.writeFileSync(path.join(AUTH_DIR, 'creds.json'), JSON.stringify(c, BufferJSON.replacer, 2), 'utf8');
+    } catch (e) {}
+  };
+
+  const saveCreds = async () => {
+    saveLocalCreds(creds);
+    if (sessionCol) {
+      try {
+        const serialized = JSON.stringify(creds, BufferJSON.replacer);
+        await sessionCol.doc('creds').set({
+          value: serialized,
+          updatedAt: new Date(),
+        });
+        console.log('[Firestore Auth] Primary credentials saved to Firestore.');
+      } catch (err) {
+        console.error('[Firestore Auth] Failed to save creds to Firestore:', err.message);
+      }
+    }
+  };
+
+  return {
+    state: {
+      creds,
+      keys: {
+        get: async (type, ids) => {
+          const data = {};
+          const missing = [];
+
+          // فحص الكاش في الذاكرة أولاً
+          for (const id of ids) {
+            const key = `${type}-${id}`;
+            if (memoryKeysCache.has(key)) {
+              data[id] = memoryKeysCache.get(key);
+            } else {
+              missing.push({ id, key });
+            }
+          }
+
+          // جلب المفاتيح غير الموجودة في الذاكرة من Firestore أو القرص
+          if (missing.length > 0) {
+            await Promise.all(
+              missing.map(async ({ id, key }) => {
+                let value = null;
+                // من Firestore
+                if (sessionCol) {
+                  try {
+                    const docSnap = await sessionCol.doc(key).get();
+                    if (docSnap.exists && docSnap.data()?.value) {
+                      value = JSON.parse(docSnap.data().value, BufferJSON.reviver);
+                    }
+                  } catch (e) {}
+                }
+                // إن لم توجد، فحص القرص المحلي
+                if (!value && fs.existsSync(path.join(AUTH_DIR, `${key}.json`))) {
+                  try {
+                    const raw = fs.readFileSync(path.join(AUTH_DIR, `${key}.json`), 'utf8');
+                    value = JSON.parse(raw, BufferJSON.reviver);
+                  } catch (e) {}
+                }
+
+                if (value) {
+                  if (type === 'app-state-sync-key' && value) {
+                    value = proto.Message.AppStateSyncKeyData.fromObject(value);
+                  }
+                  memoryKeysCache.set(key, value);
+                  data[id] = value;
+                }
+              })
+            );
+          }
+
+          return data;
+        },
+        set: async (data) => {
+          const writePromises = [];
+
+          for (const category in data) {
+            for (const id in data[category]) {
+              const value = data[category][id];
+              const key = `${category}-${id}`;
+
+              if (value) {
+                memoryKeysCache.set(key, value);
+                const serialized = JSON.stringify(value, BufferJSON.replacer);
+
+                // حفظ محلي احتياطي
+                try {
+                  if (!fs.existsSync(AUTH_DIR)) fs.mkdirSync(AUTH_DIR, { recursive: true });
+                  fs.writeFileSync(path.join(AUTH_DIR, `${key}.json`), serialized, 'utf8');
+                } catch (e) {}
+
+                // حفظ في Firestore
+                if (sessionCol) {
+                  writePromises.push(
+                    sessionCol.doc(key).set({
+                      value: serialized,
+                      type: category,
+                      updatedAt: new Date(),
+                    }).catch((e) => console.warn(`[Firestore Auth] Set error (${key}):`, e.message))
+                  );
+                }
+              } else {
+                // حذف المفتاح عند استدعاء الحذف
+                memoryKeysCache.delete(key);
+                try {
+                  const p = path.join(AUTH_DIR, `${key}.json`);
+                  if (fs.existsSync(p)) fs.unlinkSync(p);
+                } catch (e) {}
+
+                if (sessionCol) {
+                  writePromises.push(
+                    sessionCol.doc(key).delete().catch((e) => console.warn(`[Firestore Auth] Delete error (${key}):`, e.message))
+                  );
+                }
+              }
+            }
+          }
+
+          if (writePromises.length > 0) {
+            await Promise.all(writePromises);
+          }
+        },
+      },
+    },
+    saveCreds,
+  };
+}
+
+async function clearAllSessionStorage() {
+  console.log('[WhatsApp Gateway] Clearing all local and cloud session data...');
+  memoryKeysCache.clear();
+
+  // تنظيف القرص المحلي
+  try {
+    if (fs.existsSync(AUTH_DIR)) {
+      fs.rmSync(AUTH_DIR, { recursive: true, force: true });
+      fs.mkdirSync(AUTH_DIR, { recursive: true });
+    }
+  } catch (e) {}
+
+  // تنظيف Firestore
+  if (firestore) {
+    try {
+      const snapshot = await firestore.collection(FIRESTORE_COLLECTION).get();
+      if (!snapshot.empty) {
+        const batch = firestore.batch();
+        snapshot.docs.forEach((doc) => batch.delete(doc.ref));
+        await batch.commit();
+        console.log(`[Firestore Session] Cleared ${snapshot.size} session docs from Firestore.`);
+      }
+    } catch (err) {
+      console.warn('[Firestore Session] Clear warning:', err.message);
+    }
+  }
+}
+
 // ── حالة الاتصال والـ QR الحالية ──
 let sock = null;
 let currentQR = null;
-let connectionStatus = 'connecting'; // 'connecting' | 'connected' | 'qr_ready' | 'disconnected'
+let connectionStatus = 'disconnected'; // 'connecting' | 'connected' | 'qr_ready' | 'disconnected'
 let connectedNumber = null;
+let isConnecting = false;
+let reconnectAttempts = 0;
 
 // دالة تنسيق رقم الهاتف ليصبح JID صالح لواتساب
 function formatPhoneToJid(phone) {
   let cleaned = String(phone).replace(/[^\d]/g, '');
 
-  // إذا بدأ بـ 00 نستبدلها
   if (cleaned.startsWith('00')) {
     cleaned = cleaned.substring(2);
   }
 
-  // أرقام مصر (تبدأ بـ 01)
   if (/^01[0125]\d{8}$/.test(cleaned)) {
     cleaned = '2' + cleaned;
-  }
-  // أرقام السعودية (تبدأ بـ 05)
-  else if (/^05\d{8}$/.test(cleaned)) {
+  } else if (/^05\d{8}$/.test(cleaned)) {
     cleaned = '966' + cleaned.substring(1);
-  }
-  // أرقام الإمارات (تبدأ بـ 05)
-  else if (/^05[024568]\d{7}$/.test(cleaned)) {
+  } else if (/^05[024568]\d{7}$/.test(cleaned)) {
     cleaned = '971' + cleaned.substring(1);
   }
 
   return cleaned + '@s.whatsapp.net';
 }
 
-const { Firestore } = require('@google-cloud/firestore');
+/**
+ * دالة الانتظار الذكي لجاهزية الاتصال
+ * تتيح إرسال الرسائل فوراً بمجرد استيقاظ السيرفر دون إرجاع خطأ 503
+ */
+async function waitForConnection(timeoutMs = 12000) {
+  if (connectionStatus === 'connected' && sock) return true;
 
-// Initialize Firestore for permanent session persistence across restarts and redeploys
-let firestore = null;
-try {
-  firestore = new Firestore({ projectId: process.env.GOOGLE_CLOUD_PROJECT || 'arb-soq' });
-} catch (e) {
-  console.log('[Firestore Session] Init info:', e.message);
-}
-
-const FIRESTORE_COLLECTION = 'whatsapp_gateway_session';
-
-async function restoreSessionFromFirestore() {
-  if (!firestore) return;
-  try {
-    const snapshot = await firestore.collection(FIRESTORE_COLLECTION).get();
-    if (snapshot.empty) {
-      console.log('[Firestore Session] No existing session found in Firestore.');
-      return;
-    }
-    if (!fs.existsSync(AUTH_DIR)) fs.mkdirSync(AUTH_DIR, { recursive: true });
-    for (const doc of snapshot.docs) {
-      const data = doc.data();
-      if (data && data.content) {
-        fs.writeFileSync(path.join(AUTH_DIR, doc.id), data.content, 'utf8');
-      }
-    }
-    console.log(`[Firestore Session] Restored ${snapshot.size} session files from Firestore successfully.`);
-  } catch (err) {
-    console.warn('[Firestore Session] Restore warning:', err.message);
+  if (!isConnecting && connectionStatus !== 'connected') {
+    connectToWhatsApp().catch((err) => console.error('[WhatsApp Gateway] Auto-connect trigger error:', err));
   }
-}
 
-async function saveSessionToFirestore() {
-  if (!firestore || !fs.existsSync(AUTH_DIR)) return;
-  try {
-    const files = fs.readdirSync(AUTH_DIR);
-    if (files.length === 0) return;
-    const batch = firestore.batch();
-    for (const file of files) {
-      const filePath = path.join(AUTH_DIR, file);
-      if (fs.statSync(filePath).isFile()) {
-        const content = fs.readFileSync(filePath, 'utf8');
-        const docRef = firestore.collection(FIRESTORE_COLLECTION).doc(file);
-        batch.set(docRef, { content, updatedAt: new Date() });
-      }
+  const start = Date.now();
+  while (Date.now() - start < timeoutMs) {
+    if (connectionStatus === 'connected' && sock) {
+      return true;
     }
-    await batch.commit();
-    console.log(`[Firestore Session] Saved ${files.length} session files to Firestore.`);
-  } catch (err) {
-    console.warn('[Firestore Session] Save warning:', err.message);
+    await new Promise((r) => setTimeout(r, 400));
   }
-}
-
-async function clearSessionFromFirestore() {
-  if (!firestore) return;
-  try {
-    const snapshot = await firestore.collection(FIRESTORE_COLLECTION).get();
-    if (snapshot.empty) return;
-    const batch = firestore.batch();
-    snapshot.docs.forEach((doc) => batch.delete(doc.ref));
-    await batch.commit();
-    console.log('[Firestore Session] Cleared session from Firestore.');
-  } catch (err) {
-    console.warn('[Firestore Session] Clear warning:', err.message);
-  }
+  return connectionStatus === 'connected' && !!sock;
 }
 
 // ── بدء وتشغيل اتصال واتساب ──
 async function connectToWhatsApp() {
-  if (!fs.existsSync(AUTH_DIR)) {
-    fs.mkdirSync(AUTH_DIR, { recursive: true });
+  if (isConnecting) {
+    console.log('[WhatsApp Gateway] Connection attempt already in progress. Skipping duplicate.');
+    return;
   }
 
-  // استعادة الجلسة الدائمة من Firestore إن وجدت
-  await restoreSessionFromFirestore();
+  isConnecting = true;
+  connectionStatus = 'connecting';
 
-  const { state, saveCreds } = await useMultiFileAuthState(AUTH_DIR);
-  const { version, isLatest } = await fetchLatestBaileysVersion().catch(() => ({ version: [2, 3000, 1015901307], isLatest: true }));
+  try {
+    const { state, saveCreds } = await useFirestoreAuthState();
+    const { version, isLatest } = await fetchLatestBaileysVersion().catch(() => ({
+      version: [2, 3000, 1015901307],
+      isLatest: true,
+    }));
 
-  console.log(`[WhatsApp Gateway] Using Baileys version: ${version.join('.')} (isLatest: ${isLatest})`);
+    console.log(`[WhatsApp Gateway] Connecting with Baileys v${version.join('.')} (isLatest: ${isLatest})...`);
 
-  sock = makeWASocket({
-    version,
-    auth: state,
-    logger: pino({ level: 'silent' }),
-    printQRInTerminal: false,
-    browser: ['Arb-Soq Gateway', 'Chrome', '1.0.0'],
-    connectTimeoutMs: 60000,
-    defaultQueryTimeoutMs: 60000,
-    keepAliveIntervalMs: 10000,
-  });
+    sock = makeWASocket({
+      version,
+      auth: state,
+      logger: pino({ level: 'silent' }),
+      printQRInTerminal: false,
+      browser: ['Arb-Soq Gateway', 'Chrome', '1.0.0'],
+      connectTimeoutMs: 60000,
+      defaultQueryTimeoutMs: 60000,
+      keepAliveIntervalMs: 15000,
+      retryRequestDelayMs: 2000,
+      emitOwnEvents: false,
+    });
 
-  sock.ev.on('creds.update', async () => {
-    await saveCreds();
-    await saveSessionToFirestore();
-  });
+    sock.ev.on('creds.update', async () => {
+      await saveCreds();
+    });
 
-  sock.ev.on('connection.update', async (update) => {
-    const { connection, lastDisconnect, qr } = update;
+    sock.ev.on('connection.update', async (update) => {
+      const { connection, lastDisconnect, qr } = update;
 
-    if (qr) {
-      currentQR = qr;
-      connectionStatus = 'qr_ready';
-      console.log('\n========================================');
-      console.log('📱 [WhatsApp Gateway] SCAN THIS QR CODE WITH YOUR PHONE:');
-      console.log('Or open in browser: http://localhost:' + PORT + '/qr');
-      console.log('========================================\n');
-      qrcodeTerminal.generate(qr, { small: true });
-    }
-
-    if (connection === 'close') {
-      const statusCode = lastDisconnect?.error?.output?.statusCode;
-      const shouldReconnect = statusCode !== DisconnectReason.loggedOut;
-
-      console.log(`[WhatsApp Gateway] Connection closed. Reason: ${statusCode}, shouldReconnect: ${shouldReconnect}`);
-      connectionStatus = 'disconnected';
-      currentQR = null;
-      connectedNumber = null;
-
-      if (shouldReconnect) {
-        console.log('[WhatsApp Gateway] Reconnecting in 5 seconds...');
-        setTimeout(connectToWhatsApp, 5000);
-      } else {
-        console.log('[WhatsApp Gateway] Logged out. Clearing session and regenerating QR...');
-        try {
-          fs.rmSync(AUTH_DIR, { recursive: true, force: true });
-        } catch (e) {}
-        await clearSessionFromFirestore();
-        setTimeout(connectToWhatsApp, 2000);
+      if (qr) {
+        currentQR = qr;
+        connectionStatus = 'qr_ready';
+        console.log('\n========================================');
+        console.log('📱 [WhatsApp Gateway] SCAN THIS QR CODE WITH YOUR PHONE:');
+        console.log('Or open in browser: http://localhost:' + PORT + '/qr');
+        console.log('========================================\n');
+        qrcodeTerminal.generate(qr, { small: true });
       }
-    } else if (connection === 'open') {
-      connectionStatus = 'connected';
-      currentQR = null;
-      connectedNumber = sock?.user?.id?.split(':')[0] || sock?.user?.id?.split('@')[0] || 'Unknown';
-      console.log('\n🎉 ========================================');
-      console.log(`✅ [WhatsApp Gateway] CONNECTED SUCCESSFULLY!`);
-      console.log(`📱 Logged in as: +${connectedNumber}`);
-      console.log(`🚀 Gateway API ready on http://localhost:${PORT}`);
-      console.log('========================================\n');
-      // حفظ الجلسة فوراً في Firestore
-      await saveSessionToFirestore();
-    }
-  });
+
+      if (connection === 'close') {
+        isConnecting = false;
+        const statusCode = lastDisconnect?.error?.output?.statusCode;
+        const isExplicitLogout = statusCode === DisconnectReason.loggedOut;
+
+        console.log(`[WhatsApp Gateway] Connection closed. StatusCode: ${statusCode}, isExplicitLogout: ${isExplicitLogout}`);
+        connectionStatus = 'disconnected';
+        currentQR = null;
+        connectedNumber = null;
+
+        if (isExplicitLogout) {
+          console.log('[WhatsApp Gateway] ⚠️ Device was unlinked from phone. Clearing session for fresh QR scan...');
+          await clearAllSessionStorage();
+          reconnectAttempts = 0;
+          setTimeout(connectToWhatsApp, 2000);
+        } else {
+          // إعادة الاتصال التلقائي الدائم (مع الحفاظ الكامل على الجلسة)
+          reconnectAttempts++;
+          const delay = statusCode === DisconnectReason.restartRequired ? 1000 : Math.min(reconnectAttempts * 3000, 15000);
+          console.log(`[WhatsApp Gateway] 🔄 Auto-reconnecting in ${delay / 1000}s (Attempt #${reconnectAttempts}, Session preserved)...`);
+          setTimeout(connectToWhatsApp, delay);
+        }
+      } else if (connection === 'open') {
+        isConnecting = false;
+        reconnectAttempts = 0;
+        connectionStatus = 'connected';
+        currentQR = null;
+        connectedNumber = sock?.user?.id?.split(':')[0] || sock?.user?.id?.split('@')[0] || 'Unknown';
+
+        console.log('\n🎉 ========================================');
+        console.log(`✅ [WhatsApp Gateway] CONNECTED SUCCESSFULLY!`);
+        console.log(`📱 Logged in as: +${connectedNumber}`);
+        console.log(`🚀 Gateway API ready on port ${PORT}`);
+        console.log('========================================\n');
+
+        // حفظ بيانات الاعتماد فوراً لتثبيت الجلسة
+        await saveCreds();
+      }
+    });
+  } catch (err) {
+    isConnecting = false;
+    connectionStatus = 'disconnected';
+    console.error('[WhatsApp Gateway] Init connection error:', err);
+    setTimeout(connectToWhatsApp, 5000);
+  }
 }
 
 // ── مسارات الـ REST API ──
@@ -208,11 +390,50 @@ app.get('/status', (req, res) => {
     status: connectionStatus,
     connected: connectionStatus === 'connected',
     phone: connectedNumber,
+    reconnectAttempts,
     timestamp: new Date().toISOString(),
   });
 });
 
-// 2. صفحة ويب لمسح الـ QR Code من المتصفح
+// 2. نقطة فحص خفيفة (Health Check)
+app.get('/health', (req, res) => {
+  res.status(200).json({ status: 'ok', connected: connectionStatus === 'connected' });
+});
+
+// 3. إعادة الربط اليدوي عند الحاجة
+app.post('/reconnect', async (req, res) => {
+  console.log('[WhatsApp Gateway] Manual reconnect requested via API');
+  if (sock) {
+    try {
+      sock.end(undefined);
+    } catch (e) {}
+  }
+  isConnecting = false;
+  connectToWhatsApp().catch((err) => console.error(err));
+  res.json({ success: true, message: 'Reconnection triggered' });
+});
+
+// 4. تسجيل خروج يدوي وتنظيف الجلسة
+app.post('/logout', async (req, res) => {
+  console.log('[WhatsApp Gateway] Manual logout requested via API');
+  if (sock) {
+    try {
+      await sock.logout();
+    } catch (e) {}
+    try {
+      sock.end(undefined);
+    } catch (e) {}
+  }
+  await clearAllSessionStorage();
+  isConnecting = false;
+  connectionStatus = 'disconnected';
+  currentQR = null;
+  connectedNumber = null;
+  setTimeout(connectToWhatsApp, 1000);
+  res.json({ success: true, message: 'Logged out and session cleared. New QR will generate.' });
+});
+
+// 5. صفحة ويب لمسح الـ QR Code من المتصفح
 app.get('/qr', async (req, res) => {
   if (connectionStatus === 'connected') {
     return res.send(`
@@ -234,7 +455,7 @@ app.get('/qr', async (req, res) => {
           <div class="card">
             <div class="badge">✅ متصل بنجاح</div>
             <h1>بوابة واتساب سوق العرب جاهزة</h1>
-            <p>تم ربط السيرفر بنجاح بحساب واتساب الخاص بك ويعمل الآن لاستقبال وإرسال الرسائل والأكواد تلقائياً.</p>
+            <p>تم ربط السيرفر بنجاح بحساب واتساب الخاص بك والجلسة محفوظة سحابياً بشكل دائم.</p>
             <div class="phone">+${connectedNumber}</div>
           </div>
         </body>
@@ -258,7 +479,7 @@ app.get('/qr', async (req, res) => {
         <body>
           <div class="card">
             <h2>⏳ جارٍ تجهيز رمز الاستجابة السريعة (QR)...</h2>
-            <p style="color:#94a3b8;">سيتم تحديث الصفحة تلقائياً خلال ثوانٍ.</p>
+            <p style="color:#94a3b8;">الحالة الحالية: ${connectionStatus} (سيتم التحديث تلقائياً خلال ثوانٍ)</p>
           </div>
         </body>
       </html>
@@ -288,7 +509,7 @@ app.get('/qr', async (req, res) => {
         <body>
           <div class="card">
             <h1>امسح الرمز لربط واتساب سوق العرب</h1>
-            <p style="color:#94a3b8; font-size: 13px; margin: 0;">يتم الربط مرة واحدة فقط لتمكين إرسال أكواد التفعيل والإشعارات</p>
+            <p style="color:#94a3b8; font-size: 13px; margin: 0;">يتم الربط مرة واحدة وتُحفظ الجلسة سحابياً بشكل دائم</p>
             
             <div class="qr-box">
               <img src="${qrDataUrl}" alt="WhatsApp QR Code" />
@@ -313,7 +534,7 @@ app.get('/qr', async (req, res) => {
   }
 });
 
-// 3. مسار إرسال رسالة نصية عامة
+// 6. مسار إرسال رسالة نصية عامة
 app.post('/send-message', async (req, res) => {
   try {
     const { phone, message } = req.body;
@@ -322,7 +543,9 @@ app.post('/send-message', async (req, res) => {
       return res.status(400).json({ success: false, error: 'Phone and message are required' });
     }
 
-    if (connectionStatus !== 'connected' || !sock) {
+    // الانتظار الذكي حتى يتصل السيرفر إذا كان مستيقظاً للتو
+    const isReady = await waitForConnection(12000);
+    if (!isReady || !sock) {
       return res.status(503).json({
         success: false,
         error: 'WhatsApp Gateway is not connected yet. Please scan the QR code first.',
@@ -335,7 +558,7 @@ app.post('/send-message', async (req, res) => {
 
     return res.json({
       success: true,
-      messageId: sent.key.id,
+      messageId: sent?.key?.id,
       to: jid,
       timestamp: new Date().toISOString(),
     });
@@ -345,7 +568,7 @@ app.post('/send-message', async (req, res) => {
   }
 });
 
-// 4. مسار إرسال كود التفعيل المنسق (OTP)
+// 7. مسار إرسال كود التفعيل المنسق (OTP)
 app.post('/send-otp', async (req, res) => {
   try {
     const { phone, code, appName = 'سوق العرب' } = req.body;
@@ -354,7 +577,9 @@ app.post('/send-otp', async (req, res) => {
       return res.status(400).json({ success: false, error: 'Phone and code are required' });
     }
 
-    if (connectionStatus !== 'connected' || !sock) {
+    // الانتظار الذكي حتى يتصل السيرفر إذا كان مستيقظاً للتو
+    const isReady = await waitForConnection(12000);
+    if (!isReady || !sock) {
       return res.status(503).json({
         success: false,
         error: 'WhatsApp Gateway is not connected yet. Please scan the QR code first.',
@@ -369,7 +594,7 @@ app.post('/send-otp', async (req, res) => {
 
     return res.json({
       success: true,
-      messageId: sent.key.id,
+      messageId: sent?.key?.id,
       to: jid,
       timestamp: new Date().toISOString(),
     });
