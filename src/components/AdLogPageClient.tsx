@@ -35,6 +35,7 @@ import { formatDistanceToNow, parseISO } from 'date-fns';
 import { ar } from 'date-fns/locale';
 import Image from 'next/image';
 import Link from 'next/link';
+import { useSearchParams } from 'next/navigation';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import { useMarket } from '@/context/MarketContext';
@@ -51,15 +52,21 @@ const WhatsappIcon = ({ className = "h-4 w-4" }: { className?: string }) => (
 );
 
 export default function AdLogPageClient({ initialAd }: { initialAd: Ad }) {
+  const searchParams = useSearchParams();
   const { toast } = useToast();
   const { market } = useMarket();
-  const { categories } = useAuth();
+  const { userProfile, categories } = useAuth();
   const [ad, setAd] = useState<Ad>(initialAd);
   const [timeframe, setTimeframe] = useState<AdTimeframe>('all');
   const [stats, setStats] = useState<AdActivityStats | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [refreshing, setRefreshing] = useState<boolean>(false);
   const [isResetting, setIsResetting] = useState<boolean>(false);
+
+  // تحديد ما إذا كان المستخدم قادماً من مراجعة الإعلانات في لوحة تحكم المسؤول
+  const isFromAdmin = searchParams.get('from') === 'admin' || userProfile?.role === 'admin';
+  const backUrl = isFromAdmin ? '/admin?tab=ads' : '/dashboard';
+  const backLabel = isFromAdmin ? 'مراجعة الإعلانات' : 'لوحة التحكم';
 
   const fetchStats = useCallback(async (selectedTf: AdTimeframe, isManualRefresh = false) => {
     if (!ad?.id) return;
@@ -95,17 +102,46 @@ export default function AdLogPageClient({ initialAd }: { initialAd: Ad }) {
 
   const handleResetLogs = async () => {
     if (!ad?.id) return;
-    const confirmed = window.confirm('هل أنت متأكد من رغبتك في إعادة تعيين وتصفير سجل هذا الإعلان؟ سيتم تصفير العدادات نهائياً.');
+    const confirmed = window.confirm('هل أنت متأكد من رغبتك في إعادة تعيين وتصفير سجل هذا الإعلان؟ سيتم تصفير جميع العدادات إلى صفر.');
     if (!confirmed) return;
 
     setIsResetting(true);
     try {
-      await resetAdActivityLogs(ad.id);
+      await resetAdActivityLogs(ad.id, ad.userId);
+
+      const zeroedAd = {
+        ...ad,
+        views: 0,
+        clicks: 0,
+        callClicks: 0,
+        whatsappClicks: 0,
+      };
+      setAd(zeroedAd);
+
+      setStats((prev) => prev ? {
+        ...prev,
+        views: 0,
+        callClicks: 0,
+        whatsappClicks: 0,
+        totalInteractions: 0,
+        interactionRate: 0,
+        dailyBreakdown: prev.dailyBreakdown.map((d) => ({
+          ...d,
+          views: 0,
+          callClicks: 0,
+          whatsappClicks: 0,
+          total: 0,
+        })),
+        recentEvents: [],
+      } : null);
+
       toast({
         title: 'تم التصفير بنجاح',
-        description: 'تم إعادة تعيين عدادات وسجل الإعلان.',
+        description: 'تمت إعادة تعيين جميع عدادات وسجل الإعلان إلى صفر.',
       });
-      await fetchStats(timeframe);
+
+      const refreshed = await getAdActivityStats(ad.id, timeframe, zeroedAd);
+      setStats(refreshed);
     } catch (error) {
       toast({
         title: 'خطأ',
@@ -180,17 +216,27 @@ export default function AdLogPageClient({ initialAd }: { initialAd: Ad }) {
             <div className="flex items-center gap-2 text-muted-foreground">
               <Link href="/" className="hover:text-primary transition-colors">الرئيسية</Link>
               <ChevronLeft className="h-4 w-4" />
-              <Link href="/dashboard" className="hover:text-primary transition-colors">لوحة التحكم</Link>
+              <Link href={backUrl} className="hover:text-primary transition-colors font-medium">
+                {backLabel}
+              </Link>
               <ChevronLeft className="h-4 w-4" />
               <span className="text-foreground font-semibold">السجل</span>
             </div>
 
-            <Button asChild variant="outline" size="sm" className="gap-1.5 text-xs">
-              <Link href={adUrl}>
-                <ArrowRight className="h-3.5 w-3.5" />
-                <span>الرجوع إلى صفحة الإعلان</span>
-              </Link>
-            </Button>
+            <div className="flex items-center gap-2">
+              <Button asChild variant="outline" size="sm" className="gap-1.5 text-xs font-semibold">
+                <Link href={backUrl}>
+                  <ArrowRight className="h-3.5 w-3.5" />
+                  <span>الرجوع إلى {backLabel}</span>
+                </Link>
+              </Button>
+              <Button asChild variant="ghost" size="sm" className="gap-1.5 text-xs text-muted-foreground hover:text-foreground">
+                <Link href={adUrl} target="_blank">
+                  <ExternalLink className="h-3.5 w-3.5" />
+                  <span>عرض الإعلان</span>
+                </Link>
+              </Button>
+            </div>
           </div>
 
           {/* Main Page Title Header */}

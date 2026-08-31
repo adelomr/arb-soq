@@ -95,7 +95,7 @@ const translations = {
         saving: "جارٍ الحفظ...",
         adTypeRequired: "الرجاء تحديد نوع الإجراء.",
         titleMin: "يجب أن يكون العنوان 5 أحرف على الأقل.",
-        titleMax: "يجب ألا يتجاوز العنوان 50 حرفاً.",
+        titleMax: "يجب ألا يتجاوز العنوان 100 حرفاً.",
         categoryRequired: "الرجاء اختيار فئة.",
         subcategoryRequired: "الرجاء اختيار فئة فرعية.",
         descriptionMin: "يجب أن يكون الوصف 20 حرفًا على الأقل.",
@@ -193,7 +193,7 @@ const getAdFormSchema = (t: typeof translations.ar, isStoreProduct: boolean) => 
   adType: z.enum(['sell-item', 'sell-service', 'request-service', 'video', 'image'], {
     required_error: t.adTypeRequired
   }).default('sell-item'),
-  title: z.string().min(5, t.titleMin).max(50, t.titleMax),
+  title: z.string().min(5, t.titleMin).max(100, t.titleMax),
   category: z.string().optional(),
   subcategory: z.string().optional(),
   description: z.string().min(10, 'يرجى كتابة وصف مناسب للإعلان').max(2000, 'الحد الأقصى للوصف هو 2000 حرف'),
@@ -1049,24 +1049,24 @@ function AdFormContent({ adId, userId, isEditMode, onSuccess }: { adId?: string 
                     </FormLabel>
                     <span className={cn(
                       "text-xs font-mono px-2 py-0.5 rounded-full font-bold transition-colors",
-                      (field.value?.length || 0) >= 50
+                      (field.value?.length || 0) >= 100
                         ? "bg-destructive/15 text-destructive"
-                        : (field.value?.length || 0) >= 40
+                        : (field.value?.length || 0) >= 80
                         ? "bg-amber-500/15 text-amber-600 dark:text-amber-400"
                         : "bg-secondary text-muted-foreground"
                     )}>
-                      {field.value?.length || 0} / 50
+                      {field.value?.length || 0} / 100
                     </span>
                   </div>
                   <FormControl>
                     <Input
                       placeholder={t.adTitlePlaceholder}
-                      maxLength={50}
+                      maxLength={100}
                       {...field}
                     />
                   </FormControl>
                   <FormDescription className="text-xs text-muted-foreground">
-                    اختر عنواناً مركزاً ومختصراً بحد أقصى 50 حرفاً (حوالي 6-8 كلمات) لضمان ظهوره كاملاً في سطرين دون قطع.
+                    اختر عنواناً واضحاً ومميزاً بحد أقصى 100 حرف لجذب المشترين بدقة.
                   </FormDescription>
                   <FormMessage />
                 </FormItem>

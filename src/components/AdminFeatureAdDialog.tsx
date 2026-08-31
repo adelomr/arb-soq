@@ -34,6 +34,7 @@ import {
 import { cn } from '@/lib/utils';
 import type { Ad } from '@/lib/types';
 import AdPlaceholder from '@/components/AdPlaceholder';
+import { FeaturedCountdownBadge } from '@/components/AdModerationList';
 
 interface AdminFeatureAdDialogProps {
   ad: (Ad & { id: string }) | null;
@@ -183,29 +184,34 @@ export default function AdminFeatureAdDialog({
           <div className="text-left sm:text-right w-full sm:w-auto border-t sm:border-t-0 pt-2 sm:pt-0 border-border/40">
             <span className="text-2xs text-muted-foreground block mb-1 font-medium">الحالة الحالية:</span>
             {isBoostActive ? (
-              <Badge 
-                className={cn(
-                  "font-bold text-xs px-2.5 py-1 gap-1.5 shadow-sm",
-                  currentTier === 'gold' 
-                    ? "bg-amber-500/15 text-amber-700 dark:text-amber-300 border border-amber-500/40 hover:bg-amber-500/20" 
-                    : "bg-blue-500/15 text-blue-700 dark:text-blue-300 border border-blue-500/40 hover:bg-blue-500/20"
+              <div className="flex flex-col items-start gap-1.5">
+                <Badge 
+                  className={cn(
+                    "font-bold text-xs px-2.5 py-1 gap-1.5 shadow-sm",
+                    currentTier === 'gold' 
+                      ? "bg-amber-500/15 text-amber-700 dark:text-amber-300 border border-amber-500/40 hover:bg-amber-500/20" 
+                      : "bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 border border-slate-300 dark:border-slate-600 hover:bg-slate-200/50"
+                  )}
+                >
+                  {currentTier === 'gold' ? (
+                    <>
+                      <Crown className="h-3.5 w-3.5 text-amber-500" />
+                      <span>باقة ذهبية 🥇</span>
+                    </>
+                  ) : (
+                    <>
+                      <Sparkles className="h-3.5 w-3.5 text-slate-500 dark:text-slate-300" />
+                      <span>باقة فضية 🥈</span>
+                    </>
+                  )}
+                </Badge>
+                {ad.featuredUntil && (
+                  <FeaturedCountdownBadge
+                    featuredUntil={ad.featuredUntil}
+                    tier={ad.featuredTier as any}
+                  />
                 )}
-              >
-                {currentTier === 'gold' ? (
-                  <>
-                    <Crown className="h-3.5 w-3.5 text-amber-500" />
-                    <span>باقة ذهبية 🥇</span>
-                  </>
-                ) : (
-                  <>
-                    <Sparkles className="h-3.5 w-3.5 text-blue-500" />
-                    <span>باقة فضية 🥈</span>
-                  </>
-                )}
-                {remainingDays !== null && (
-                  <span className="text-2xs opacity-80 mr-1 font-mono">({remainingDays} يوم متبقي)</span>
-                )}
-              </Badge>
+              </div>
             ) : (
               <Badge variant="outline" className="text-xs text-muted-foreground bg-background">
                 إعلان عادي غير مميز

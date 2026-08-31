@@ -2,7 +2,7 @@
 import Footer from "@/components/Footer";
 import Header from "@/components/Header";
 import { useAuth } from "@/context/AuthContext";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import { 
   Shield, 
@@ -17,9 +17,11 @@ import {
   MessageSquare,
   FileText,
   NotebookPen,
-  CreditCard
+  CreditCard,
+  ArrowRight
 } from "lucide-react";
 import { Card, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 import { firestore } from "@/lib/firebase";
 import { collection, getCountFromServer } from "firebase/firestore";
 
@@ -36,7 +38,6 @@ import TopicManager from "@/components/TopicManager";
 import GoogleAdsSettings from "@/components/GoogleAdsSettings";
 import AdPlacementManager from "@/components/AdPlacementManager";
 import PaymentGatewayManager from "@/components/PaymentGatewayManager";
-import VerificationRequestsManager from "@/components/VerificationRequestsManager";
 import VodafoneCashManager from "@/components/VodafoneCashManager";
 import { Smartphone } from "lucide-react";
 
@@ -48,8 +49,6 @@ const t = {
     backToHome: "العودة إلى الرئيسية",
     vodafoneCash: "طلبات دفع فودافون كاش 📱",
     vodafoneCashDesc: "مراجعة إيصالات التحويل وتفعيل باقات المشتركين فورياً.",
-    verificationRequests: "طلبات توثيق الحسابات (العلامة الزرقاء 🛡️)",
-    verificationRequestsDesc: "مراجعة وتأكيد طلبات التوثيق الواردة من المستخدمين عبر واتساب.",
     userManagement: "إدارة المستخدمين",
     userManagementDesc: "عرض، إيقاف، وحذف المستخدمين.",
     paymentGateway: "بوابة الدفع (Paymob)",
@@ -79,15 +78,25 @@ const t = {
     googleAdsSettingsDesc: "التحكم في بنرات الموقع وإعلانات جوجل أدسنس والمساحات المخصصة وإحصائياتها.",
 };
 
-type AdminView = 'dashboard' | 'vodafone-cash' | 'verification-requests' | 'users' | 'notifications' | 'settings' | 'announcement' | 'pricing' | 'categories' | 'messages' | 'pages' | 'topics' | 'create-topic' | 'ads-settings' | 'payment-gateway';
+type AdminView = 'dashboard' | 'vodafone-cash' | 'users' | 'notifications' | 'settings' | 'announcement' | 'pricing' | 'categories' | 'messages' | 'pages' | 'topics' | 'create-topic' | 'ads-settings' | 'payment-gateway';
 
 export default function AdminPage() {
     const { userProfile, loading } = useAuth();
-
     const router = useRouter();
+    const searchParams = useSearchParams();
+    const tabParam = searchParams?.get('tab') || searchParams?.get('view');
+
     const [view, setView] = useState<AdminView>('dashboard');
     const [topicInitialView, setTopicInitialView] = useState<'list' | 'create'>('list');
     const [userCount, setUserCount] = useState<number | null>(null);
+
+    useEffect(() => {
+        if (tabParam === 'ads' || tabParam === 'settings' || tabParam === 'moderation') {
+            setView('settings');
+        } else if (tabParam && ['vodafone-cash', 'users', 'notifications', 'announcement', 'pricing', 'categories', 'messages', 'pages', 'topics', 'create-topic', 'ads-settings', 'payment-gateway'].includes(tabParam)) {
+            setView(tabParam as AdminView);
+        }
+    }, [tabParam]);
 
     useEffect(() => {
         // جلب عدد المستخدمين الكلي من Firestore
@@ -139,8 +148,6 @@ export default function AdminPage() {
         switch (view) {
             case 'vodafone-cash':
                 return <VodafoneCashManager />;
-            case 'verification-requests':
-                return <VerificationRequestsManager />;
             case 'users':
                 return <AdminDashboard />;
             case 'notifications':
@@ -167,141 +174,56 @@ export default function AdminPage() {
             case 'payment-gateway':
                 return <PaymentGatewayManager />;
             case 'dashboard':
-            default:
-                return (
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-                        <Card onClick={() => setView('vodafone-cash')} className="cursor-pointer hover:border-emerald-500 hover:shadow-lg transition-all bg-emerald-500/10 border-emerald-500/30 shadow-sm">
-                            <CardHeader>
-                                <CardTitle className="flex items-center gap-3 text-emerald-800 dark:text-emerald-300">
-                                    <Smartphone className="h-6 w-6 text-emerald-600 dark:text-emerald-400"/>
-                                    {t.vodafoneCash}
-                                </CardTitle>
-                                <CardDescription>{t.vodafoneCashDesc}</CardDescription>
-                            </CardHeader>
-                        </Card>
-                        <Card onClick={() => setView('verification-requests')} className="cursor-pointer hover:border-blue-500 hover:shadow-lg transition-all bg-blue-500/10 border-blue-500/30 shadow-sm">
-                            <CardHeader>
-                                <CardTitle className="flex items-center gap-3">
-                                    <ShieldCheck className="h-6 w-6 text-blue-500"/>
-                                    {t.verificationRequests}
-                                </CardTitle>
-                                <CardDescription>{t.verificationRequestsDesc}</CardDescription>
-                            </CardHeader>
-                        </Card>
-                        <Card onClick={() => setView('users')} className="cursor-pointer hover:border-primary hover:shadow-lg transition-all bg-secondary/50 border-primary/20">
-                            <CardHeader>
-                                <CardTitle className="flex items-center gap-3 justify-between">
-                                    <div className="flex items-center gap-3">
-                                        <Users className="h-6 w-6 text-primary"/>
-                                        {t.userManagement}
-                                    </div>
-                                    {/* عداد عدد المستخدمين */}
-                                    {userCount !== null ? (
-                                        <span className="inline-flex items-center justify-center min-w-[2rem] h-8 px-2 rounded-full bg-primary text-primary-foreground text-sm font-bold shadow-md">
-                                            {userCount.toLocaleString('ar-EG')}
-                                        </span>
-                                    ) : (
-                                        <span className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-muted">
-                                            <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
-                                        </span>
-                                    )}
-                                </CardTitle>
-                                <CardDescription>{t.userManagementDesc}</CardDescription>
-                            </CardHeader>
-                        </Card>
-                        <Card onClick={() => setView('payment-gateway')} className="cursor-pointer hover:border-primary hover:shadow-lg transition-all bg-primary/10 border-primary/40 shadow-sm">
-                            <CardHeader>
-                                <CardTitle className="flex items-center gap-3">
-                                    <CreditCard className="h-6 w-6 text-primary"/>
-                                    {t.paymentGateway}
-                                </CardTitle>
-                                <CardDescription>{t.paymentGatewayDesc}</CardDescription>
-                            </CardHeader>
-                        </Card>
-                        <Card onClick={() => setView('settings')} className="cursor-pointer hover:border-primary hover:shadow-lg transition-all bg-secondary/50 border-primary/20">
-                            <CardHeader>
-                                <CardTitle className="flex items-center gap-3">
-                                    <ShieldCheck className="h-6 w-6 text-primary"/>
-                                    {t.adSettings}
-                                </CardTitle>
-                                <CardDescription>{t.adSettingsDesc}</CardDescription>
-                            </CardHeader>
-                        </Card>
-                        <Card onClick={() => setView('notifications')} className="cursor-pointer hover:border-primary hover:shadow-lg transition-all bg-secondary/50 border-primary/20">
-                            <CardHeader>
-                                <CardTitle className="flex items-center gap-3">
-                                    <Bell className="h-6 w-6 text-primary"/>
-                                    {t.notifications}
-                                </CardTitle>
-                                <CardDescription>{t.notificationsDesc}</CardDescription>
-                            </CardHeader>
-                        </Card>
-                         <Card onClick={() => setView('announcement')} className="cursor-pointer hover:border-primary hover:shadow-lg transition-all bg-secondary/50 border-primary/20">
-                            <CardHeader>
-                                <CardTitle className="flex items-center gap-3">
-                                    <Megaphone className="h-6 w-6 text-primary"/>
-                                    {t.announcementBar}
-                                </CardTitle>
-                                <CardDescription>{t.announcementBarDesc}</CardDescription>
-                            </CardHeader>
-                        </Card>
-                         <Card onClick={() => setView('pricing')} className="cursor-pointer hover:border-primary hover:shadow-lg transition-all bg-secondary/50 border-primary/20">
-                            <CardHeader>
-                                <CardTitle className="flex items-center gap-3">
-                                    <BadgeDollarSign className="h-6 w-6 text-primary"/>
-                                    {t.pricingManagement}
-                                </CardTitle>
-                                <CardDescription>{t.pricingManagementDesc}</CardDescription>
-                            </CardHeader>
-                        </Card>
-                         <Card onClick={() => setView('categories')} className="cursor-pointer hover:border-primary hover:shadow-lg transition-all bg-secondary/50 border-primary/20">
-                            <CardHeader>
-                                <CardTitle className="flex items-center gap-3">
-                                    <Shapes className="h-6 w-6 text-primary"/>
-                                    {t.categoryManagement}
-                                </CardTitle>
-                                <CardDescription>{t.categoryManagementDesc}</CardDescription>
-                            </CardHeader>
-                        </Card>
+            default: {
+                const adminNavItems: {
+                    id: AdminView;
+                    title: string;
+                    desc: string;
+                    icon: React.ComponentType<{ className?: string }>;
+                }[] = [
+                    { id: 'settings', title: t.adSettings, desc: t.adSettingsDesc, icon: ShieldCheck },
+                    { id: 'users', title: t.userManagement, desc: t.userManagementDesc, icon: Users },
+                    { id: 'vodafone-cash', title: t.vodafoneCash, desc: t.vodafoneCashDesc, icon: Smartphone },
+                    { id: 'payment-gateway', title: t.paymentGateway, desc: t.paymentGatewayDesc, icon: CreditCard },
+                    { id: 'notifications', title: t.notifications, desc: t.notificationsDesc, icon: Bell },
+                    { id: 'announcement', title: t.announcementBar, desc: t.announcementBarDesc, icon: Megaphone },
+                    { id: 'pricing', title: t.pricingManagement, desc: t.pricingManagementDesc, icon: BadgeDollarSign },
+                    { id: 'categories', title: t.categoryManagement, desc: t.categoryManagementDesc, icon: Shapes },
+                    { id: 'messages', title: t.contactMessages, desc: t.contactMessagesDesc, icon: MessageSquare },
+                    { id: 'pages', title: t.pageManagement, desc: t.pageManagementDesc, icon: FileText },
+                    { id: 'topics', title: t.topicManagement, desc: t.topicManagementDesc, icon: NotebookPen },
+                    { id: 'ads-settings', title: t.googleAdsSettings, desc: t.googleAdsSettingsDesc, icon: Settings },
+                ];
 
-                         <Card onClick={() => setView('messages')} className="cursor-pointer hover:border-primary hover:shadow-lg transition-all bg-secondary/50 border-primary/20">
-                            <CardHeader>
-                                <CardTitle className="flex items-center gap-3">
-                                    <MessageSquare className="h-6 w-6 text-primary"/>
-                                    {t.contactMessages}
-                                </CardTitle>
-                                <CardDescription>{t.contactMessagesDesc}</CardDescription>
-                            </CardHeader>
-                        </Card>
-                         <Card onClick={() => setView('pages')} className="cursor-pointer hover:border-primary hover:shadow-lg transition-all bg-secondary/50 border-primary/20">
-                            <CardHeader>
-                                <CardTitle className="flex items-center gap-3">
-                                    <FileText className="h-6 w-6 text-primary"/>
-                                    {t.pageManagement}
-                                </CardTitle>
-                                <CardDescription>{t.pageManagementDesc}</CardDescription>
-                            </CardHeader>
-                        </Card>
-                         <Card onClick={() => setView('topics')} className="cursor-pointer hover:border-primary hover:shadow-lg transition-all bg-secondary/50 border-primary/20">
-                            <CardHeader>
-                                <CardTitle className="flex items-center gap-3">
-                                    <NotebookPen className="h-6 w-6 text-primary"/>
-                                    {t.topicManagement}
-                                </CardTitle>
-                                <CardDescription>{t.topicManagementDesc}</CardDescription>
-                            </CardHeader>
-                        </Card>
-                        <Card onClick={() => setView('ads-settings')} className="cursor-pointer hover:border-primary hover:shadow-lg transition-all bg-secondary/50 border-primary/20">
-                            <CardHeader>
-                                <CardTitle className="flex items-center gap-3">
-                                    <Settings className="h-6 w-6 text-primary"/>
-                                    {t.googleAdsSettings}
-                                </CardTitle>
-                                <CardDescription>{t.googleAdsSettingsDesc}</CardDescription>
-                            </CardHeader>
-                        </Card>
+                return (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5 sm:gap-6">
+                        {adminNavItems.map((item) => {
+                            const Icon = item.icon;
+                            return (
+                                <Card 
+                                    key={item.id}
+                                    onClick={() => setView(item.id)} 
+                                    className="group cursor-pointer rounded-2xl border border-border/70 hover:border-primary/50 hover:shadow-md transition-all duration-200 bg-card hover:bg-card/90 flex flex-col justify-between overflow-hidden"
+                                >
+                                    <CardHeader className="p-5 sm:p-6 space-y-3">
+                                        <div className="flex items-center gap-3.5">
+                                            <div className="p-2.5 rounded-xl bg-primary/10 text-primary group-hover:scale-105 group-hover:bg-primary group-hover:text-primary-foreground transition-all duration-200 flex-shrink-0">
+                                                <Icon className="h-6 w-6" />
+                                            </div>
+                                            <CardTitle className="text-base sm:text-lg font-bold font-headline text-foreground group-hover:text-primary transition-colors leading-snug">
+                                                {item.title}
+                                            </CardTitle>
+                                        </div>
+                                        <CardDescription className="text-xs sm:text-sm text-muted-foreground leading-relaxed">
+                                            {item.desc}
+                                        </CardDescription>
+                                    </CardHeader>
+                                </Card>
+                            );
+                        })}
                     </div>
                 );
+            }
         }
     }
 
@@ -309,20 +231,26 @@ export default function AdminPage() {
     <div className="flex flex-col min-h-screen">
       <Header />
       <main className="flex-grow bg-background py-8 md:py-12">
-        <div className="container mx-auto px-4">
+        <div className="container mx-auto px-4 max-w-7xl">
             <div className="mb-8">
-                <h1 className="text-3xl md:text-4xl font-bold font-headline flex items-center gap-4">
+                <h1 className="text-3xl md:text-4xl font-black font-headline flex items-center gap-3.5 text-foreground">
                     <Shield className="h-8 w-8 md:h-10 md:w-10 text-primary" />
-                    {t.adminDashboard}
+                    <span>{t.adminDashboard}</span>
                 </h1>
             </div>
             
             {view !== 'dashboard' && (
-                 <button onClick={() => {
-                          setView('dashboard');
-                 }} className="mb-8 px-4 py-2 bg-secondary text-secondary-foreground rounded-md">
-                    &larr; {t.backToDashboard}
-                 </button>
+                 <Button 
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                        setView('dashboard');
+                    }} 
+                    className="mb-8 rounded-xl font-bold gap-2 text-xs sm:text-sm border-border/80 hover:border-primary/40 shadow-xs"
+                 >
+                    <ArrowRight className="h-4 w-4" />
+                    <span>{t.backToDashboard}</span>
+                 </Button>
             )}
 
             {renderView()}

@@ -12,6 +12,7 @@ import { useRouter, usePathname } from 'next/navigation';
 import type { Ad, AdSenseSettings, AdStatus, AdType, Notification, Announcement, UserProfile, PricingPlan, PricingStructure, Category, SubCategory, Review, Store, SiteStats, Profession, Specialization, PortfolioImage, AdImageMeta, PageData } from '@/lib/types';
 import { markets } from '@/lib/markets';
 import { uploadFileAndReturnInfo, deleteMultipleEntries, deleteStorageEntry } from '@/lib/firebase-storage-helpers';
+import { logAdActivity } from '@/lib/ad-log-service';
 
 
 interface AuthContextType {
@@ -1619,23 +1620,25 @@ const getAds = useCallback((
 
   const incrementAdView = useCallback(async (ad: Ad) => {
       try {
-        if (!ad || !ad.userId || !ad.id) return;
+        if (!ad || !ad.id) return;
         const adRef = await getAdRef(ad);
         await updateDoc(adRef, { views: increment(1) });
+        logAdActivity(ad.id, 'view', { userId: user?.uid, sellerUserId: ad.userId }).catch(() => {});
       } catch (e) {
         console.warn("Could not increment ad view:", e);
       }
-  }, [getAdRef]);
+  }, [getAdRef, user?.uid]);
   
   const incrementAdClick = useCallback(async (ad: Ad) => {
       try {
-        if (!ad || !ad.userId || !ad.id) return;
+        if (!ad || !ad.id) return;
         const adRef = await getAdRef(ad);
         await updateDoc(adRef, { clicks: increment(1) });
+        logAdActivity(ad.id, 'view', { userId: user?.uid, sellerUserId: ad.userId }).catch(() => {});
       } catch (e) {
         console.warn("Could not increment ad click:", e);
       }
-  }, [getAdRef]);
+  }, [getAdRef, user?.uid]);
 
   const incrementSiteVisit = useCallback(async () => {
     try {

@@ -78,8 +78,6 @@ import StoreCard from './StoreCard';
 import { useSearchParams } from 'next/navigation';
 import dynamic from 'next/dynamic';
 
-const VodafoneCashManager = dynamic(() => import('@/components/VodafoneCashManager'), { ssr: false });
-
 const translations = {
     ar: {
         dashboardTitle: "إدارة الإعلانات",
@@ -803,27 +801,15 @@ export default function UserDashboard() {
   const t = translations.ar;
 
   const urlUserId = searchParams.get('userId');
-  const urlTab = searchParams.get('tab');
   const targetUserId = urlUserId || user?.uid;
 
   const [regularAds, setRegularAds] = useState<Ad[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [externalProfile, setExternalProfile] = useState<UserProfile | null>(null);
-  const [vodafonePendingCount, setVodafonePendingCount] = useState(0);
 
   const isAdmin = userProfile?.role === 'admin';
   const isSelf = user?.uid && targetUserId === user.uid;
   const hasStore = !!userProfile?.store || !!externalProfile?.store;
-
-  // جلب عدد طلبات فودافون المعلقة للأدمن
-  useEffect(() => {
-    if (isAdmin) {
-      import('@/lib/vodafone-cash-service')
-        .then(({ getPendingVodafoneCashCount }) => getPendingVodafoneCashCount())
-        .then(setVodafonePendingCount)
-        .catch(() => {});
-    }
-  }, [isAdmin]);
   
   useEffect(() => {
     if (urlUserId && !user) {
@@ -895,24 +881,10 @@ export default function UserDashboard() {
           )}
         </CardHeader>
         <CardContent className="p-4 sm:p-6">
-            <Tabs defaultValue={urlTab === 'vodafone-cash' && isAdmin ? 'vodafone-cash' : 'ads'} className="w-full">
-                <TabsList className={cn("grid w-full rounded-2xl p-1 bg-muted/60", isAdmin && isSelf ? (hasStore ? 'grid-cols-3' : 'grid-cols-2') : (hasStore ? 'grid-cols-2' : 'grid-cols-1'))}>
+            <Tabs defaultValue="ads" className="w-full">
+                <TabsList className={cn("grid w-full rounded-2xl p-1 bg-muted/60", hasStore ? 'grid-cols-2' : 'grid-cols-1')}>
                     <TabsTrigger value="ads" className="gap-2 rounded-xl text-xs sm:text-sm font-bold data-[state=active]:shadow-sm"><LayoutDashboard className="h-4 w-4" />{t.myAds}</TabsTrigger>
                     {hasStore && <TabsTrigger value="store" className="gap-2 rounded-xl text-xs sm:text-sm font-bold data-[state=active]:shadow-sm"><Store className="h-4 w-4" />{t.myStore}</TabsTrigger>}
-                    {isAdmin && isSelf && (
-                      <TabsTrigger value="vodafone-cash" className="gap-1.5 relative rounded-xl text-xs sm:text-sm font-bold data-[state=active]:shadow-sm">
-                        <Smartphone className="h-4 w-4" />
-                        <span>فودافون كاش</span>
-                        {vodafonePendingCount > 0 && (
-                          <span
-                            className="absolute -top-1 -right-1 w-4 h-4 rounded-full text-white text-[10px] font-black flex items-center justify-center"
-                            style={{ background: '#e60000' }}
-                          >
-                            {vodafonePendingCount}
-                          </span>
-                        )}
-                      </TabsTrigger>
-                    )}
                 </TabsList>
                 <TabsContent value="ads" className="mt-6">
                     <AdTable ads={regularAds} isLoading={isLoading} isAdmin={isAdmin} noItemsMessage={t.noAds} />
@@ -920,11 +892,6 @@ export default function UserDashboard() {
                 {hasStore && (
                   <TabsContent value="store" className="mt-6">
                       <StoreTab user={user} userProfile={userProfile} targetUserId={targetUserId} effectiveProfile={effectiveProfile} />
-                  </TabsContent>
-                )}
-                {isAdmin && isSelf && (
-                  <TabsContent value="vodafone-cash" className="mt-6">
-                    <VodafoneCashManager />
                   </TabsContent>
                 )}
             </Tabs>

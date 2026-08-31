@@ -6,6 +6,7 @@ import {
   getDoc,
   getDocs,
   updateDoc,
+  deleteDoc,
   serverTimestamp,
   Timestamp,
 } from 'firebase/firestore';
@@ -61,9 +62,11 @@ export async function getVodafoneCashPayments(
     
     let list = snapshot.docs.map((d) => {
       const data = d.data();
+      const note = data.rejectionNote === 'نعن' ? 'نعم' : data.rejectionNote;
       return {
         id: d.id,
         ...data,
+        rejectionNote: note,
       } as VodafoneCashPayment;
     });
 
@@ -190,4 +193,10 @@ export async function getPendingVodafoneCashCount(): Promise<number> {
   } catch {
     return 0;
   }
+}
+
+// ─── 7. حذف طلب دفع من السجل ────────────────
+export async function deleteVodafoneCashPayment(paymentId: string): Promise<void> {
+  const docRef = doc(firestore, COLLECTION, paymentId);
+  await deleteDoc(docRef);
 }

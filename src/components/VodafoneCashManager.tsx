@@ -33,6 +33,7 @@ import {
   getVodafoneCashPayments,
   approveVodafoneCashPayment,
   rejectVodafoneCashPayment,
+  deleteVodafoneCashPayment,
   type VodafoneCashPayment,
   type VodafoneCashStatus,
 } from '@/lib/vodafone-cash-service';
@@ -53,6 +54,7 @@ import {
   ImageIcon,
   ShieldCheck,
   ExternalLink,
+  Trash2,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -77,16 +79,16 @@ function formatDate(ts: any): string {
 function StatusBadge({ status }: { status: VodafoneCashStatus }) {
   const map: Record<VodafoneCashStatus, { label: string; className: string }> = {
     pending: {
-      label: '⏳ قيد المراجعة',
-      className: 'bg-amber-500/10 text-amber-700 border-amber-500/20 dark:text-amber-400',
+      label: 'قيد المراجعة',
+      className: 'bg-amber-500/10 text-amber-700 border-amber-500/20 dark:text-amber-400 font-bold',
     },
     approved: {
-      label: '✅ تم التفعيل',
-      className: 'bg-emerald-500/10 text-emerald-700 border-emerald-500/20 dark:text-emerald-400',
+      label: 'مفعلة',
+      className: 'bg-emerald-500/10 text-emerald-700 border-emerald-500/20 dark:text-emerald-400 font-bold',
     },
     rejected: {
-      label: '❌ مرفوض',
-      className: 'bg-destructive/10 text-destructive border-destructive/20',
+      label: 'مرفوضة',
+      className: 'bg-destructive/10 text-destructive border-destructive/20 font-bold',
     },
   };
   const cfg = map[status] || map.pending;
@@ -175,13 +177,29 @@ export default function VodafoneCashManager() {
     }
   };
 
+  const handleDeletePayment = async (paymentId: string) => {
+    const confirmed = window.confirm('هل أنت متأكد من حذف هذا السجل نهائياً؟');
+    if (!confirmed) return;
+
+    setActionLoading(paymentId);
+    try {
+      await deleteVodafoneCashPayment(paymentId);
+      toast({ title: '🗑️ تم حذف السجل بنجاح' });
+      setPayments((prev) => prev.filter((p) => p.id !== paymentId));
+    } catch (e: any) {
+      toast({ title: 'خطأ أثناء الحذف', description: e.message, variant: 'destructive' });
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
   const pendingCount = payments.filter((p) => p.status === 'pending').length;
 
   const filterButtons: { label: string; value: FilterStatus }[] = [
+    { label: 'الكل', value: 'all' },
     { label: 'المعلقة', value: 'pending' },
     { label: 'المُفعَّلة', value: 'approved' },
     { label: 'المرفوضة', value: 'rejected' },
-    { label: 'الكل', value: 'all' },
   ];
 
   return (
@@ -349,11 +367,6 @@ export default function VodafoneCashManager() {
                       {/* الحالة */}
                       <TableCell>
                         <StatusBadge status={payment.status} />
-                        {payment.rejectionNote && (
-                          <p className="text-2xs text-muted-foreground mt-1 max-w-[130px] truncate" title={payment.rejectionNote}>
-                            {payment.rejectionNote}
-                          </p>
-                        )}
                       </TableCell>
 
                       {/* الإجراء */}
@@ -391,9 +404,21 @@ export default function VodafoneCashManager() {
                             </Button>
                           </div>
                         ) : (
-                          <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                            <Clock className="w-3 h-3" />
-                            <span>{payment.reviewedBy || 'تمت المراجعة'}</span>
+                          <div className="flex items-center justify-between gap-2">
+                            <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                              <Clock className="w-3 h-3" />
+                              <span>{payment.reviewedBy || 'تمت المراجعة'}</span>
+                            </div>
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              onClick={() => handleDeletePayment(payment.id)}
+                              disabled={actionLoading === payment.id}
+                              className="h-7 w-7 p-0 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-lg"
+                              title="حذف هذا السجل نهائياً"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </Button>
                           </div>
                         )}
                       </TableCell>
@@ -464,13 +489,32 @@ export default function VodafoneCashManager() {
               أدخل سبب الرفض — سيُرسَل للمستخدم كإشعار توضيحي داخل حسابه.
             </DialogDescription>
           </DialogHeader>
-          <Textarea
-            placeholder="مثال: رقم العملية غير مطابق، أو لم يتم استلام التحويل في المحفظة..."
-            value={rejectDialog.note}
-            onChange={(e) => setRejectDialog((s) => ({ ...s, note: e.target.value }))}
-            rows={4}
-            className="resize-none rounded-2xl text-sm"
-          />
+          <div className="space-y-2">
+            <Textarea
+              placeholder="مثال: رقم العملية غير مطابق، أو لم يتم استلام التحويل في المحفظة..."
+              value={rejectDialog.note}
+              onChange={(e) => setRejectDialog((s) => ({ ...s, note: e.target.value }))}
+              rows={3}
+              className="resize-none rounded-2xl text-sm"
+            />
+            <div className="flex flex-wrap gap-1.5 pt-1">
+              {[
+                'رقم العملية غير مطابق',
+                'لم يتم استلام التحويل في المحفظة',
+                'صورة الإيصال غير واضحة',
+                'المبلغ المحول غير كافٍ للباقة',
+              ].map((reason) => (
+                <button
+                  key={reason}
+                  type="button"
+                  onClick={() => setRejectDialog((s) => ({ ...s, note: reason }))}
+                  className="text-3xs px-2.5 py-1 rounded-lg bg-secondary hover:bg-primary/10 hover:text-primary transition-colors border border-border/60 font-medium"
+                >
+                  {reason}
+                </button>
+              ))}
+            </div>
+          </div>
           <DialogFooter className="gap-2">
             <Button
               variant="outline"

@@ -27,7 +27,9 @@ import {
   Sparkles,
   Zap,
   Clock,
-  Tag
+  Tag,
+  Eye,
+  MousePointerClick
 } from 'lucide-react';
 import { useLanguage } from '@/context/LanguageContext';
 import { useToast } from '@/hooks/use-toast';
@@ -160,8 +162,105 @@ const checkNeedsCategoryUpdate = (ad: Ad, categoriesList: Category[] = []): bool
   return true;
 };
 
+// مكون العداد التنازلي اليومي للتمييز
+export function FeaturedCountdownBadge({
+  featuredUntil,
+  tier,
+  onExpire,
+}: {
+  featuredUntil?: string | null;
+  tier?: 'gold' | 'silver' | null;
+  onExpire?: () => void;
+}) {
+  const [timeLeft, setTimeLeft] = useState<{
+    days: number;
+    hours: number;
+    minutes: number;
+    seconds: number;
+    isExpired: boolean;
+  } | null>(null);
+
+  useEffect(() => {
+    if (!featuredUntil) return;
+
+    let hasExpiredTriggered = false;
+
+    const calculate = () => {
+      const targetTime = new Date(featuredUntil).getTime();
+      const now = Date.now();
+      const diff = targetTime - now;
+
+      if (diff <= 0) {
+        setTimeLeft({ days: 0, hours: 0, minutes: 0, seconds: 0, isExpired: true });
+        if (!hasExpiredTriggered && onExpire) {
+          hasExpiredTriggered = true;
+          onExpire();
+        }
+        return;
+      }
+
+      const days = Math.ceil(diff / (1000 * 60 * 60 * 24));
+      const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+      const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+      const seconds = Math.floor((diff % (1000 * 60)) / 1000);
+
+      setTimeLeft({ days, hours, minutes, seconds, isExpired: false });
+    };
+
+    calculate();
+    const interval = setInterval(calculate, 60000); // تحديث دوري
+    return () => clearInterval(interval);
+  }, [featuredUntil, onExpire]);
+
+  if (!featuredUntil || !timeLeft) return null;
+
+  if (timeLeft.isExpired) {
+    return (
+      <Badge variant="outline" className="text-2xs text-muted-foreground border-border bg-muted/40 px-1.5 py-0.5">
+        انتهى التمييز (عادي)
+      </Badge>
+    );
+  }
+
+  // صياغة النص بالأيام
+  let displayDaysText = '';
+  if (timeLeft.days === 1) {
+    displayDaysText = 'متبقي يوم واحد';
+  } else if (timeLeft.days === 2) {
+    displayDaysText = 'متبقي يومان';
+  } else if (timeLeft.days >= 3 && timeLeft.days <= 10) {
+    displayDaysText = `متبقي ${timeLeft.days} أيام`;
+  } else if (timeLeft.days > 10) {
+    displayDaysText = `متبقي ${timeLeft.days} يوم`;
+  } else {
+    displayDaysText = 'متبقي أقل من يوم';
+  }
+
+  const isSilver = tier === 'silver';
+
+  return (
+    <div
+      className={cn(
+        "inline-flex items-center gap-1.5 rounded-md font-medium text-xs px-2 py-1 transition-all shadow-xs border select-none",
+        isSilver
+          ? "bg-slate-100 dark:bg-slate-800/80 text-slate-700 dark:text-slate-200 border-slate-300 dark:border-slate-600"
+          : "bg-amber-500/15 text-amber-800 dark:text-amber-300 border-amber-500/40"
+      )}
+      title={`تاريخ انتهاء التمييز: ${new Date(featuredUntil).toLocaleDateString('ar-EG')}`}
+    >
+      <Clock
+        className={cn(
+          "h-3.5 w-3.5 flex-shrink-0",
+          isSilver ? "text-slate-500 dark:text-slate-400" : "text-amber-600 dark:text-amber-400"
+        )}
+      />
+      <span className="font-semibold">{displayDaysText}</span>
+    </div>
+  );
+}
+
 export default function AdModerationList() {
-  const { getAdsForModeration, updateAdStatus, deleteAd, categories } = useAuth();
+  const { getAdsForModeration, updateAdStatus, deleteAd, updateAdFeatureTier, categories } = useAuth();
   const { market } = useMarket();
   const [ads, setAds] = useState<AdWithId[]>([]);
   const [loading, setLoading] = useState(true);
@@ -171,10 +270,46 @@ export default function AdModerationList() {
   const [editTarget, setEditTarget] = useState<AdWithId | null>(null);
   const [featureTarget, setFeatureTarget] = useState<AdWithId | null>(null);
 
-  // Filter and Search States
-  const [selectedCategory, setSelectedCategory] = useState<string>('all');
-  const [selectedStatus, setSelectedStatus] = useState<string>('all');
-  const [searchQuery, setSearchQuery] = useState<string>('');
+  // Filter and Search States with Session Persistence (حفظ واستعادة الفلاتر تلقائياً)
+  const [selectedCategory, setSelectedCategory] = useState<string>(() => {
+    if (typeof window !== 'undefined') {
+      return sessionStorage.getItem('admin_mod_category') || 'all';
+    }
+    return 'all';
+  });
+
+  const [selectedStatus, setSelectedStatus] = useState<string>(() => {
+    if (typeof window !== 'undefined') {
+      return sessionStorage.getItem('admin_mod_status') || 'all';
+    }
+    return 'all';
+  });
+
+  const [searchQuery, setSearchQuery] = useState<string>(() => {
+    if (typeof window !== 'undefined') {
+      return sessionStorage.getItem('admin_mod_search') || '';
+    }
+    return '';
+  });
+
+  // حفظ الفلاتر المختارة تلقائياً أثناء التنقل
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      sessionStorage.setItem('admin_mod_category', selectedCategory);
+    }
+  }, [selectedCategory]);
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      sessionStorage.setItem('admin_mod_status', selectedStatus);
+    }
+  }, [selectedStatus]);
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      sessionStorage.setItem('admin_mod_search', searchQuery);
+    }
+  }, [searchQuery]);
 
   const { language, direction } = useLanguage();
   const { toast } = useToast();
@@ -192,6 +327,26 @@ export default function AdModerationList() {
     const unsubscribe = getAdsForModeration(setAds, setLoading);
     return () => unsubscribe();
   }, [getAdsForModeration]);
+
+  // إرجاع الإعلان تلقائياً للحالة المجانية عند انتهاء العداد التنازلي
+  const handleExpireFeatured = async (ad: AdWithId) => {
+    try {
+      await updateAdFeatureTier(ad, null, 0, false);
+      setAds((prev) =>
+        prev.map((item) =>
+          item.id === ad.id
+            ? { ...item, isFeatured: false, isPromoted: false, featuredTier: null, featuredUntil: null }
+            : item
+        )
+      );
+      toast({
+        title: 'انتهت مدة التمييز',
+        description: `تم إرجاع الإعلان "${ad.title}" تلقائياً إلى الحالة المجانية العادية.`,
+      });
+    } catch (err) {
+      console.error('Failed to auto-revert expired featured ad:', err);
+    }
+  };
 
   const handleUpdateStatus = async (ad: AdWithId, status: 'active' | 'rejected') => {
     setUpdatingId(ad.id);
@@ -314,8 +469,17 @@ export default function AdModerationList() {
     if (selectedStatus !== 'all') {
       if (selectedStatus === 'needs_update') {
         if (!checkNeedsCategoryUpdate(ad, categories)) return false;
+      } else if (selectedStatus === 'gold') {
+        const isGoldActive = ad.featuredTier === 'gold' && (!ad.featuredUntil || new Date(ad.featuredUntil) > new Date());
+        if (!isGoldActive) return false;
+      } else if (selectedStatus === 'silver') {
+        const isSilverActive = ad.featuredTier === 'silver' && (!ad.featuredUntil || new Date(ad.featuredUntil) > new Date());
+        if (!isSilverActive) return false;
+      } else if (selectedStatus === 'regular') {
+        const isFeaturedActive = (ad.featuredTier === 'gold' || ad.featuredTier === 'silver') && (!ad.featuredUntil || new Date(ad.featuredUntil) > new Date());
+        if (isFeaturedActive) return false;
       } else if (selectedStatus === 'featured') {
-        const isBoostActive = (ad.isFeatured || ad.isPromoted) && (!ad.featuredUntil || new Date(ad.featuredUntil) > new Date());
+        const isBoostActive = (ad.isFeatured || ad.isPromoted || ad.featuredTier === 'gold' || ad.featuredTier === 'silver') && (!ad.featuredUntil || new Date(ad.featuredUntil) > new Date());
         if (!isBoostActive) return false;
       } else if (ad.status !== selectedStatus) {
         return false;
@@ -355,6 +519,11 @@ export default function AdModerationList() {
     setSelectedCategory('all');
     setSelectedStatus('all');
     setSearchQuery('');
+    if (typeof window !== 'undefined') {
+      sessionStorage.removeItem('admin_mod_category');
+      sessionStorage.removeItem('admin_mod_status');
+      sessionStorage.removeItem('admin_mod_search');
+    }
   };
 
   return (
@@ -461,7 +630,9 @@ export default function AdModerationList() {
               </span>
               {[
                 { id: 'all', label: 'الكل', count: ads.length },
-                { id: 'featured', label: 'المميزة ⭐', count: ads.filter(a => (a.isFeatured || a.isPromoted) && (!a.featuredUntil || new Date(a.featuredUntil) > new Date())).length },
+                { id: 'gold', label: 'ذهبية 🥇', count: ads.filter(a => a.featuredTier === 'gold' && (!a.featuredUntil || new Date(a.featuredUntil) > new Date())).length },
+                { id: 'silver', label: 'فضية 🥈', count: ads.filter(a => a.featuredTier === 'silver' && (!a.featuredUntil || new Date(a.featuredUntil) > new Date())).length },
+                { id: 'regular', label: 'عادية 📄', count: ads.filter(a => !((a.featuredTier === 'gold' || a.featuredTier === 'silver') && (!a.featuredUntil || new Date(a.featuredUntil) > new Date()))).length },
                 { id: 'active', label: 'نشط', count: ads.filter(a => a.status === 'active').length },
                 { id: 'pending', label: 'قيد المراجعة', count: ads.filter(a => a.status === 'pending').length },
                 { id: 'rejected', label: 'موقوف', count: ads.filter(a => a.status === 'rejected').length },
@@ -524,6 +695,11 @@ export default function AdModerationList() {
                       const imageSrc = (ad.imageUrls && ad.imageUrls.length > 0) ? ad.imageUrls[0] : (ad as any).imageUrl;
                       const needsCatUpdate = checkNeedsCategoryUpdate(ad, categories);
 
+                      const isBoostActive = Boolean(
+                        (ad.featuredTier === 'gold' || ad.featuredTier === 'silver') &&
+                        (!ad.featuredUntil || new Date(ad.featuredUntil) > new Date())
+                      );
+
                       return (
                         <TableRow key={ad.id} className={needsCatUpdate ? 'bg-amber-500/5' : undefined}>
                           {/* Image Cell */}
@@ -543,17 +719,22 @@ export default function AdModerationList() {
                             )}
                           </TableCell>
 
-                          {/* Title Cell */}
+                          {/* Title Cell مع عداد الوقت أسفل العنوان */}
                           <TableCell className="font-medium">
-                            <div>
-                              <span>{ad.title}</span>
+                            <div className="flex flex-col gap-1.5 items-start">
+                              <span className="font-semibold text-foreground">{ad.title}</span>
+                              {isBoostActive && ad.featuredUntil && (
+                                <FeaturedCountdownBadge
+                                  featuredUntil={ad.featuredUntil}
+                                  tier={ad.featuredTier as any}
+                                  onExpire={() => handleExpireFeatured(ad)}
+                                />
+                              )}
                               {needsCatUpdate && (
-                                <div className="mt-1">
-                                  <Badge variant="outline" className="bg-amber-500/10 text-amber-600 border-amber-400 text-[10px] font-bold gap-1 py-0.5 px-2">
-                                    <AlertTriangle className="h-3 w-3 text-amber-500" />
-                                    يحتاج تحديث الفئة
-                                  </Badge>
-                                </div>
+                                <Badge variant="outline" className="bg-amber-500/10 text-amber-600 border-amber-400 text-[10px] font-bold gap-1 py-0.5 px-2">
+                                  <AlertTriangle className="h-3 w-3 text-amber-500" />
+                                  يحتاج تحديث الفئة
+                                </Badge>
                               )}
                             </div>
                           </TableCell>
@@ -576,35 +757,6 @@ export default function AdModerationList() {
                           <TableCell className="hidden sm:table-cell">
                             <div className="flex flex-col gap-1.5 items-start">
                               {getStatusBadge(ad.status)}
-                              {((ad.featuredTier === 'gold' || ad.featuredTier === 'silver') && (!ad.featuredUntil || new Date(ad.featuredUntil) > new Date())) ? (
-                                <Badge 
-                                  variant="secondary" 
-                                  className={cn(
-                                    "text-2xs font-bold gap-1 px-1.5 py-0.5 shadow-sm",
-                                    ad.featuredTier === 'gold'
-                                      ? "bg-amber-500/15 text-amber-700 dark:text-amber-300 border border-amber-500/40"
-                                      : "bg-blue-500/15 text-blue-700 dark:text-blue-300 border border-blue-500/40"
-                                  )}
-                                >
-                                  {ad.featuredTier === 'gold' ? (
-                                    <>
-                                      <Crown className="h-3 w-3 text-amber-500" />
-                                      <span>باقة ذهبية 🥇</span>
-                                    </>
-                                  ) : (
-                                    <>
-                                      <Sparkles className="h-3 w-3 text-blue-500" />
-                                      <span>باقة فضية 🥈</span>
-                                    </>
-                                  )}
-                                </Badge>
-                              ) : null}
-                              {ad.featuredUntil && new Date(ad.featuredUntil) > new Date() && (ad.featuredTier === 'gold' || ad.featuredTier === 'silver') && (
-                                <span className="text-[10px] text-muted-foreground flex items-center gap-0.5">
-                                  <Clock className="h-2.5 w-2.5" />
-                                  <span>متبقي {Math.max(0, Math.ceil((new Date(ad.featuredUntil).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24)))} يوم</span>
-                                </span>
-                              )}
                             </div>
                           </TableCell>
 
@@ -623,28 +775,53 @@ export default function AdModerationList() {
                                 onClick={() => setFeatureTarget(ad)}
                                 disabled={updatingId === ad.id}
                                 className={cn(
-                                  "h-8 px-2.5 text-xs font-bold gap-1 transition-all",
-                                  ((ad.featuredTier === 'gold' || ad.featuredTier === 'silver') && (!ad.featuredUntil || new Date(ad.featuredUntil) > new Date()))
+                                  "h-8 px-2.5 text-xs transition-all",
+                                  isBoostActive
                                     ? (ad.featuredTier === 'gold'
-                                        ? "bg-amber-500/15 text-amber-700 dark:text-amber-300 border-amber-500/50 hover:bg-amber-500/25"
-                                        : "bg-blue-500/15 text-blue-700 dark:text-blue-300 border-blue-500/50 hover:bg-blue-500/25")
-                                    : "text-amber-600 dark:text-amber-400 border-amber-500/40 hover:bg-amber-500/10"
+                                        ? "bg-amber-500/15 text-amber-600 dark:text-amber-400 border-amber-500/60 hover:bg-amber-500/25 font-bold shadow-xs"
+                                        : "bg-slate-200/70 dark:bg-slate-800/80 text-slate-700 dark:text-slate-200 border-slate-300 dark:border-slate-600 hover:bg-slate-200 dark:hover:bg-slate-700 font-bold shadow-xs")
+                                    : "text-muted-foreground border-border/80 hover:bg-muted hover:text-foreground font-medium"
                                 )}
-                                title="ترقية وتمييز الإعلان (الباقة الذهبية / الفضية)"
+                                title="إدارة تمييز وترقية الإعلان"
                               >
-                                {ad.featuredTier === 'gold' ? (
-                                  <Crown className="h-3.5 w-3.5 text-amber-500" />
+                                {isBoostActive ? (
+                                  ad.featuredTier === 'gold' ? (
+                                    <>
+                                      <Crown className="h-3.5 w-3.5 text-amber-500" />
+                                      <span>مميز</span>
+                                    </>
+                                  ) : (
+                                    <>
+                                      <Sparkles className="h-3.5 w-3.5 text-slate-500 dark:text-slate-300" />
+                                      <span>مميز</span>
+                                    </>
+                                  )
                                 ) : (
-                                  <Sparkles className="h-3.5 w-3.5 text-amber-500" />
+                                  <>
+                                    <Sparkles className="h-3.5 w-3.5 text-muted-foreground" />
+                                    <span>تمييز</span>
+                                  </>
                                 )}
-                                <span>تمييز</span>
                               </Button>
 
-                              {/* زر السجل المباشر */}
-                              <Button asChild size="sm" variant="outline" className="h-8 px-2.5 text-xs font-semibold gap-1 text-primary border-primary/30 hover:bg-primary/10 hover:text-primary">
-                                <Link href={`/ad/${ad.userId || 'owner'}/${ad.id}/log`}>
-                                  <Activity className="h-3.5 w-3.5" />
-                                  <span>{t.adLog}</span>
+                              {/* زر السجل مدمج بداخله أيقونات المشاهدات والنقرات */}
+                              <Button
+                                asChild
+                                size="sm"
+                                variant="outline"
+                                className="h-8 px-2.5 text-xs font-mono font-semibold gap-2 border-border/80 hover:bg-primary/10 hover:border-primary/40 transition-all shadow-xs"
+                                title="سجل النشاط: المشاهدات والنقرات"
+                              >
+                                <Link href={`/ad/${ad.userId || 'owner'}/${ad.id}/log?from=admin`}>
+                                  <span className="flex items-center gap-1 text-blue-600 dark:text-blue-400" title="المشاهدات">
+                                    <Eye className="h-3.5 w-3.5" />
+                                    <span>{(ad.views || 0).toLocaleString('en-US')}</span>
+                                  </span>
+                                  <span className="text-border font-normal">/</span>
+                                  <span className="flex items-center gap-1 text-violet-600 dark:text-violet-400" title="النقرات">
+                                    <MousePointerClick className="h-3.5 w-3.5" />
+                                    <span>{(ad.clicks || 0).toLocaleString('en-US')}</span>
+                                  </span>
                                 </Link>
                               </Button>
 
@@ -679,7 +856,7 @@ export default function AdModerationList() {
                                   variant="outline"
                                   onClick={() => handleActivateAd(ad)}
                                   disabled={updatingId === ad.id}
-                                  className="h-8 px-2.5 text-xs font-semibold gap-1 text-green-600 border-green-600/30 hover:bg-green-500/10 hover:text-green-700"
+                                  className="h-8 px-2.5 text-xs gap-1 text-green-600 border-green-600/30 hover:bg-green-500/10 hover:text-green-700"
                                   title="تفعيل الإعلان"
                                 >
                                   {isLoadingAction(ad.id, 'activate') ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Play className="h-3.5 w-3.5" />}
@@ -691,7 +868,7 @@ export default function AdModerationList() {
                                   variant="outline"
                                   onClick={() => handleStopAd(ad)}
                                   disabled={updatingId === ad.id}
-                                  className="h-8 px-2.5 text-xs font-semibold gap-1 text-amber-600 border-amber-500/30 hover:bg-amber-500/10 hover:text-amber-700"
+                                  className="h-8 px-2.5 text-xs gap-1"
                                   title="إيقاف الإعلان"
                                 >
                                   {isLoadingAction(ad.id, 'stop') ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Pause className="h-3.5 w-3.5" />}
@@ -712,13 +889,13 @@ export default function AdModerationList() {
                                 <span className="hidden md:inline">{needsCatUpdate ? 'تحديث الفئة' : t.edit}</span>
                               </Button>
 
-                              {/* أيقونة الحذف المباشر */}
+                              {/* أيقونة الحذف المباشر بجانب التعديل مباشرة */}
                               <Button
                                 size="sm"
                                 variant="outline"
                                 onClick={() => setDeleteTarget(ad)}
                                 disabled={updatingId === ad.id}
-                                className="h-8 px-2 text-xs text-destructive border-destructive/30 hover:bg-destructive/10 hover:text-destructive"
+                                className="h-8 px-2.5 text-xs text-destructive border-destructive/30 hover:bg-destructive/10 hover:text-destructive"
                                 title={t.delete}
                               >
                                 {isLoadingAction(ad.id, 'delete') ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Trash2 className="h-3.5 w-3.5" />}

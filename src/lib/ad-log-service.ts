@@ -222,10 +222,18 @@ export async function getAdActivityStats(
   });
 
   // Fallback if no subcollection events found (e.g. legacy ads)
-  if (filteredLogs.length === 0 && timeframe === 'all' && fallbackAd) {
-    views = fallbackAd.views || 0;
-    callClicks = fallbackAd.callClicks || 0;
-    whatsappClicks = fallbackAd.whatsappClicks || 0;
+  if (filteredLogs.length === 0 && timeframe === 'all') {
+    views = typeof liveAdData.views === 'number' ? liveAdData.views : (fallbackAd?.views ?? 0);
+    callClicks = typeof liveAdData.callClicks === 'number' ? liveAdData.callClicks : (fallbackAd?.callClicks ?? 0);
+    whatsappClicks = typeof liveAdData.whatsappClicks === 'number' ? liveAdData.whatsappClicks : (fallbackAd?.whatsappClicks ?? 0);
+
+    const todayKey = format(now, 'yyyy-MM-dd');
+    if (dailyMap[todayKey]) {
+      dailyMap[todayKey].views = views;
+      dailyMap[todayKey].callClicks = callClicks;
+      dailyMap[todayKey].whatsappClicks = whatsappClicks;
+      dailyMap[todayKey].total = views + callClicks + whatsappClicks;
+    }
   }
 
   const totalInteractions = callClicks + whatsappClicks + shares;
@@ -273,19 +281,28 @@ export async function getAdActivityStats(
 /**
  * Resets counters and clears activity logs for an ad.
  */
-export async function resetAdActivityLogs(adId: string): Promise<void> {
+export async function resetAdActivityLogs(adId: string, sellerUserId?: string): Promise<void> {
   if (!adId) return;
 
   try {
-    const adRef = doc(firestore, 'ads', adId);
-    await updateDoc(adRef, {
+    const zeroPayload = {
       views: 0,
       clicks: 0,
       callClicks: 0,
       whatsappClicks: 0,
-    });
+    };
 
-    // Delete subcollection docs in batch
+    // 1. Reset top-level ad document
+    const adRef = doc(firestore, 'ads', adId);
+    await updateDoc(adRef, zeroPayload).catch(() => {});
+
+    // 2. Reset user subcollection if sellerUserId is provided
+    if (sellerUserId && sellerUserId !== 'owner' && sellerUserId !== 'undefined') {
+      const userAdRef = doc(firestore, 'users', sellerUserId, 'ads', adId);
+      await updateDoc(userAdRef, zeroPayload).catch(() => {});
+    }
+
+    // 3. Delete all events in activity_logs subcollection
     const logsCol = collection(firestore, 'ads', adId, 'activity_logs');
     const snapshot = await getDocs(logsCol);
     if (!snapshot.empty) {
