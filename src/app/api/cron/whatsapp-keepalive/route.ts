@@ -23,7 +23,7 @@ export async function GET() {
         ? 'سيرفر واتساب السحابي نشط وجلسة واتساب متصلة بنجاح 🟢'
         : 'سيرفر واتساب مستيقظ ونشط ولكن يحتاج مسح QR Code لربط الحساب 🟡',
       qrUrl: `${pingResult.url}/qr`,
-    });
+    }, { status: 200 });
   } catch (error: any) {
     return NextResponse.json(
       {
@@ -31,7 +31,7 @@ export async function GET() {
         error: error?.message || 'Failed to keep-alive whatsapp gateway',
         timestamp: new Date().toISOString(),
       },
-      { status: 500 }
+      { status: 200 }
     );
   }
 }
