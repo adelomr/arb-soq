@@ -157,19 +157,9 @@ export default function ProfileForm() {
   const [cooldown, setCooldown] = useState(0);
   const cooldownTimer = useRef<NodeJS.Timeout | null>(null);
   const [isClient, setIsClient] = useState(false);
-  // ── لوحة التشخيص ──
-  const [diagLogs, setDiagLogs] = useState<string[]>([]);
-  const [showDiag, setShowDiag] = useState(false);
-  const [diagCopied, setDiagCopied] = useState(false);
   
   const COOLDOWN_SECONDS = 60;
   const COOLDOWN_STORAGE_KEY = 'phoneVerificationCooldown';
-
-  const addDiagLog = (msg: string) => {
-    const ts = new Date().toLocaleTimeString('ar-EG', { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' });
-    setDiagLogs(prev => [...prev, `[${ts}] ${msg}`]);
-  };
-  const clearDiagLogs = () => { setDiagLogs([]); setDiagCopied(false); };
 
   const form = useForm<ProfileFormValues>({
     resolver: zodResolver(profileFormSchema),
@@ -279,27 +269,16 @@ export default function ProfileForm() {
       const phoneCountry = markets.find(m => m.id === form.getValues('phoneCountryCode')) || market || markets[0];
       const phoneCountryCode = phoneCountry?.phoneCode;
 
-      // بدء التشخيص (فقط على السيرفر المحلي localhost)
       const isLocal = typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
-      if (isLocal) {
-        clearDiagLogs();
-        setShowDiag(true);
-        addDiagLog(`🔵 بدء محاولة الإرسال`);
-        addDiagLog(`📱 الرقم المدخل: "${phoneNumberInput}"`);
-        addDiagLog(`🌍 كود الدولة: ${phoneCountryCode || 'غير محدد'}`);
-      }
 
       if (!phoneNumberInput || !phoneCountryCode) {
-          addDiagLog(`❌ فشل: رقم الهاتف أو كود الدولة فارغ`);
           toast({ title: t.invalidPhoneNumber, description: t.invalidPhoneNumberDesc, variant: 'destructive' });
           return;
       }
       
       const fullPhoneNumber = `${phoneCountryCode}${phoneNumberInput.replace(/^0+/, '')}`;
-      addDiagLog(`📞 الرقم الكامل: ${fullPhoneNumber}`);
 
       if (!/^\+[1-9]\d{1,14}$/.test(fullPhoneNumber)) {
-          addDiagLog(`❌ فشل: صيغة الرقم غير صحيحة (يجب أن يبدأ بـ +)`);
           toast({ title: t.invalidPhoneNumber, description: t.invalidPhoneNumberDesc, variant: 'destructive' });
           return;
       }
@@ -307,11 +286,12 @@ export default function ProfileForm() {
       setIsSendingCode(true);
       const t0 = Date.now();
       try {
-          addDiagLog(`➡️ POST إلى: /api/auth/whatsapp-otp/send`);
-          addDiagLog(`   userId: ${user?.uid?.substring(0, 12)}...`);
+          if (isLocal) {
+            console.log(`[WhatsApp OTP] Sending request for ${fullPhoneNumber} (userId: ${user?.uid})`);
+          }
 
           const controller = new AbortController();
-          const timeoutId = setTimeout(() => controller.abort(), 10000);
+          const timeoutId = setTimeout(() => controller.abort(), 25000);
 
           const res = await fetch('/api/auth/whatsapp-otp/send', {
               method: 'POST',
@@ -322,13 +302,12 @@ export default function ProfileForm() {
           clearTimeout(timeoutId);
 
           const elapsed = Date.now() - t0;
-          addDiagLog(`⬅️ API: HTTP ${res.status} ${res.statusText} (${elapsed}ms)`);
-
           const data = await res.json().catch(() => ({ success: false, error: 'استجابة غير صالحة من الخادم.' }));
-          addDiagLog(`   JSON: ${JSON.stringify(data)}`);
 
           if (data.success) {
-              addDiagLog(`✅ نجح! OTP أُرسل عبر البوابة`);
+              if (isLocal) {
+                console.log(`[WhatsApp OTP] ✅ Success in ${elapsed}ms:`, data);
+              }
               setCodeSent(true);
               const cooldownEndTime = Date.now() + COOLDOWN_SECONDS * 1000;
               localStorage.setItem(COOLDOWN_STORAGE_KEY, cooldownEndTime.toString());
@@ -340,30 +319,33 @@ export default function ProfileForm() {
               return;
           }
 
-          addDiagLog(`❌ فشل API: ${data.error || 'خطأ مجهول'}`);
+          if (isLocal) {
+            console.error(`[WhatsApp OTP] ❌ Failed in ${elapsed}ms:`, data);
+          }
+
+          const userFriendlyError = isLocal
+            ? (data.error || 'يرجى التأكد من تشغيل خادم بوابة واتساب والاتصال بالحساب.')
+            : (data.error || 'يرجى الانتظار بعض الوقت ثم إعادة المحاولة، يتم الآن تحديث السيرفر، يرجى المحاولة بعد قليل.');
+
           toast({
               title: 'تعذر إرسال الرمز عبر واتساب',
-              description: data.error || 'يرجى التأكد من تشغيل خادم بوابة واتساب والاتصال بالحساب.',
+              description: userFriendlyError,
               variant: 'destructive',
           });
       } catch (error: any) {
           const elapsed = Date.now() - t0;
-          console.error("Error sending WhatsApp OTP: ", error);
-          let errorMsg = error.message || 'حدث خطأ أثناء إرسال كود التحقق عبر واتساب.';
-          if (error.name === 'AbortError') {
-              errorMsg = 'استغرقت عملية الإرسال وقتاً طويلاً. يرجى التأكد من تشغيل بوابة واتساب والاتصال بالإنترنت.';
-              addDiagLog(`❌ Timeout بعد ${elapsed}ms`);
-          } else {
-              addDiagLog(`❌ خطأ JS: [${error.name}] ${error.message} (بعد ${elapsed}ms)`);
-          }
+          console.error('[WhatsApp OTP] Exception:', error);
+          const errorMsg = isLocal
+            ? (error.name === 'AbortError' ? 'استغرقت عملية الإرسال وقتاً طويلاً (Timeout).' : error.message)
+            : 'يرجى الانتظار بعض الوقت ثم إعادة المحاولة، يتم الآن تحديث السيرفر، يرجى المحاولة بعد قليل.';
+
           toast({ 
-              title: 'خطأ في إرسال الرمز', 
+              title: 'تعذر إرسال الرمز', 
               description: errorMsg, 
               variant: 'destructive' 
           });
       } finally {
           setIsSendingCode(false);
-          addDiagLog(`─── انتهى الطلب (${Date.now() - t0}ms إجمالاً) ───`);
       }
   };
 
@@ -821,75 +803,6 @@ export default function ProfileForm() {
                 </FormItem>
             )}
             />
-        )}
-       
-        {/* ── لوحة التشخيص (تظهر فقط عند الاستخدام على السيرفر المحلي localhost) ── */}
-        {showDiag && typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') && (
-          <div className="rounded-xl border border-amber-400/40 bg-amber-50/80 dark:bg-amber-950/30 dark:border-amber-500/30 p-3 space-y-2 text-xs font-mono">
-            <div className="flex items-center justify-between gap-2 flex-wrap">
-              <span className="font-bold text-amber-700 dark:text-amber-400 flex items-center gap-1.5">
-                <span className="animate-pulse inline-block w-2 h-2 rounded-full bg-amber-500" />
-                🔍 سجل التشخيص
-              </span>
-              <div className="flex gap-1.5">
-                <button
-                  type="button"
-                  onClick={async () => {
-                    try {
-                      await navigator.clipboard.writeText(diagLogs.join('\n'));
-                      setDiagCopied(true);
-                      setTimeout(() => setDiagCopied(false), 2500);
-                    } catch {
-                      // fallback
-                      const el = document.createElement('textarea');
-                      el.value = diagLogs.join('\n');
-                      document.body.appendChild(el);
-                      el.select();
-                      document.execCommand('copy');
-                      document.body.removeChild(el);
-                      setDiagCopied(true);
-                      setTimeout(() => setDiagCopied(false), 2500);
-                    }
-                  }}
-                  className="px-2.5 py-1 rounded-lg bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold transition-colors"
-                >
-                  {diagCopied ? '✅ تم النسخ!' : '📋 نسخ الكل'}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setShowDiag(false)}
-                  className="px-2.5 py-1 rounded-lg bg-slate-200 hover:bg-slate-300 dark:bg-slate-700 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200 text-xs font-bold transition-colors"
-                >
-                  ✕ إغلاق
-                </button>
-              </div>
-            </div>
-            <div
-              dir="ltr"
-              className="max-h-52 overflow-y-auto rounded-lg bg-slate-900 text-green-300 p-2.5 space-y-0.5 text-[11px] leading-relaxed select-all"
-            >
-              {diagLogs.length === 0 ? (
-                <div className="text-slate-500 italic">جارٍ التحميل...</div>
-              ) : (
-                diagLogs.map((log, i) => (
-                  <div key={i} className={
-                    log.includes('✅') ? 'text-green-400' :
-                    log.includes('❌') ? 'text-red-400' :
-                    log.includes('🔵') ? 'text-blue-400' :
-                    log.includes('➡️') ? 'text-yellow-300' :
-                    log.includes('⬅️') ? 'text-cyan-300' :
-                    log.includes('───') ? 'text-slate-500' :
-                    'text-green-300'
-                  }>
-                    {log}
-                  </div>
-                ))
-              )}
-            </div>
-            <p className="text-amber-600 dark:text-amber-400 text-[10px]">
-              💡 اضغط على "نسخ الكل" وأرسل النص للدعم الفني لتشخيص المشكلة
-            </p>
-          </div>
         )}
 
         <Button type="submit" className="w-full" size="lg" disabled={isSaving}>

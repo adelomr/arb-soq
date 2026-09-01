@@ -29,7 +29,9 @@ import {
   PlusCircle,
   CarFront,
   Grid,
-  List
+  List,
+  FolderTree,
+  X
 } from 'lucide-react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import RequireAuthModal from '@/components/RequireAuthModal';
@@ -81,6 +83,23 @@ export default function AdPageClient({ page }: AdPageClientProps) {
   const [sortOrder, setSortOrder] = useState<'recent' | 'price_low' | 'price_high' | 'top_rated'>('recent');
   const [isSubcategoriesOpen, setIsSubcategoriesOpen] = useState<boolean>(false);
   const [isLocationOpen, setIsLocationOpen] = useState<boolean>(false);
+
+  // Dedicated Category In-Page Search state
+  const [inPageSearch, setInPageSearch] = useState<string>('');
+  const [isSearchOpen, setIsSearchOpen] = useState<boolean>(false);
+  const searchContainerRef = useRef<HTMLDivElement>(null);
+  const searchInputRef = useRef<HTMLInputElement>(null);
+
+  // Close search suggestions on click outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (searchContainerRef.current && !searchContainerRef.current.contains(event.target as Node)) {
+        setIsSearchOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   useEffect(() => {
     if (subQuery) {
@@ -300,11 +319,102 @@ export default function AdPageClient({ page }: AdPageClientProps) {
     }
   };
 
+  // Normalizer helper for Arabic fuzzy matching
+  const normalizeArabic = (text: string): string => {
+    if (!text) return '';
+    return text
+      .trim()
+      .toLowerCase()
+      .replace(/[\u064B-\u065F\u0670]/g, '')
+      .replace(/[أإآا]/g, 'ا')
+      .replace(/ة/g, 'ه')
+      .replace(/[ىي]/g, 'ي')
+      .replace(/ؤ/g, 'و')
+      .replace(/ئ/g, 'ي');
+  };
+
+  // Subcategories in this category matching search query
+  const matchingSubcategories = useMemo(() => {
+    if (!inPageSearch.trim()) return [];
+    const norm = normalizeArabic(inPageSearch);
+    return sidebarSubcategories.filter((sub) => normalizeArabic(sub.name).includes(norm));
+  }, [inPageSearch, sidebarSubcategories]);
+
+  // Brands in this category matching search query
+  const matchingBrands = useMemo(() => {
+    if (!inPageSearch.trim() || brands.length === 0) return [];
+    const norm = normalizeArabic(inPageSearch);
+    return brands
+      .filter((b) => b.id !== 'b_all' && b.id !== 'all' && (b.name || '').trim() !== 'الكل')
+      .filter((b) => normalizeArabic(b.name || '').includes(norm));
+  }, [inPageSearch, brands]);
+
+  // Matching live ads inside this category
+  const matchingAds = useMemo(() => {
+    if (!inPageSearch.trim()) return [];
+    const norm = normalizeArabic(inPageSearch);
+    return categoryMatchedAds
+      .filter((ad) => {
+        const titleNorm = normalizeArabic(ad.title || '');
+        const descNorm = normalizeArabic(ad.description || '');
+        const subNorm = normalizeArabic(ad.subcategory || '');
+        const brandNorm = normalizeArabic(ad.brand || '');
+        const locNorm = normalizeArabic(ad.location || '');
+        return (
+          titleNorm.includes(norm) ||
+          descNorm.includes(norm) ||
+          subNorm.includes(norm) ||
+          brandNorm.includes(norm) ||
+          locNorm.includes(norm)
+        );
+      })
+      .slice(0, 4);
+  }, [inPageSearch, categoryMatchedAds]);
+
+  // Total count of matching ads
+  const totalMatchingAdsCount = useMemo(() => {
+    if (!inPageSearch.trim()) return categoryMatchedAds.length;
+    const norm = normalizeArabic(inPageSearch);
+    return categoryMatchedAds.filter((ad) => {
+      const titleNorm = normalizeArabic(ad.title || '');
+      const descNorm = normalizeArabic(ad.description || '');
+      const subNorm = normalizeArabic(ad.subcategory || '');
+      const brandNorm = normalizeArabic(ad.brand || '');
+      const locNorm = normalizeArabic(ad.location || '');
+      return (
+        titleNorm.includes(norm) ||
+        descNorm.includes(norm) ||
+        subNorm.includes(norm) ||
+        brandNorm.includes(norm) ||
+        locNorm.includes(norm)
+      );
+    }).length;
+  }, [inPageSearch, categoryMatchedAds]);
+
   const displayedAds = useMemo(() => {
     let list = categoryMatchedAds.filter(ad => {
       // Market / Country filter using unified helper
       if (market?.id && !isAdInMarket(ad, market.id, market.name.ar)) {
         return false;
+      }
+
+      // In-page search filter
+      if (inPageSearch.trim()) {
+        const norm = normalizeArabic(inPageSearch);
+        const titleNorm = normalizeArabic(ad.title || '');
+        const descNorm = normalizeArabic(ad.description || '');
+        const subNorm = normalizeArabic(ad.subcategory || '');
+        const brandNorm = normalizeArabic(ad.brand || '');
+        const locNorm = normalizeArabic(ad.location || '');
+        if (
+          !titleNorm.includes(norm) &&
+          !descNorm.includes(norm) &&
+          !subNorm.includes(norm) &&
+          !brandNorm.includes(norm) &&
+          !locNorm.includes(norm)
+        ) {
+          return false;
+        }
       }
 
       // Subcategory filter
@@ -385,17 +495,17 @@ export default function AdPageClient({ page }: AdPageClientProps) {
     }
 
     return list;
-  }, [categoryMatchedAds, selectedSub, selectedGov, selectedBrand, selectedConditionFilter, sortOrder, query, sidebarSubcategories, conditionFilters]);
+  }, [categoryMatchedAds, inPageSearch, selectedSub, selectedGov, selectedBrand, selectedConditionFilter, sortOrder, query, sidebarSubcategories, conditionFilters]);
 
   return (
     <div className="flex flex-col min-h-screen bg-slate-50/50 dark:bg-background text-right" dir="rtl">
       <Header />
 
       <main className="flex-1">
-        {/* Custom Hero Banner */}
-        <section className="relative overflow-hidden bg-gradient-to-b from-primary/10 via-accent/5 to-background pt-8 pb-10 px-4 md:px-8 border-b border-border/40">
+        {/* Custom Hero Banner with Category Search Box */}
+        <section className="relative overflow-visible bg-gradient-to-b from-primary/10 via-accent/5 to-background pt-8 pb-10 px-4 md:px-8 border-b border-border/40">
           {page.adpageCoverImage && (
-            <div className="absolute inset-0 z-0 opacity-20">
+            <div className="absolute inset-0 z-0 opacity-20 pointer-events-none">
               <Image 
                 src={page.adpageCoverImage} 
                 alt={page.title} 
@@ -407,10 +517,176 @@ export default function AdPageClient({ page }: AdPageClientProps) {
             </div>
           )}
 
-          <div className="max-w-5xl mx-auto relative z-10 text-center space-y-3">
-            <h1 className="text-3xl md:text-5xl font-extrabold text-foreground tracking-tight leading-tight font-headline">
+          <div className="max-w-4xl mx-auto relative z-20 text-center space-y-4">
+            <div className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full bg-primary/10 text-primary border border-primary/20 text-xs font-bold shadow-xs">
+              <Sparkles className="h-3.5 w-3.5" />
+              <span>قسم {categoryName}</span>
+            </div>
+
+            <h1 className="text-2xl sm:text-3xl md:text-5xl font-extrabold text-foreground tracking-tight leading-tight font-headline">
               {page.title}
             </h1>
+
+            {/* Dedicated Professional Category Search Box */}
+            <div ref={searchContainerRef} className="relative max-w-2xl mx-auto w-full pt-1">
+              <div className="relative flex items-center shadow-md hover:shadow-lg rounded-2xl bg-white dark:bg-card border-2 border-border/80 focus-within:border-primary focus-within:ring-4 focus-within:ring-primary/15 transition-all">
+                <div className="absolute right-3.5 top-1/2 -translate-y-1/2 text-primary pointer-events-none">
+                  <Search className="h-5 w-5" />
+                </div>
+                <input
+                  ref={searchInputRef}
+                  type="text"
+                  value={inPageSearch}
+                  onChange={(e) => {
+                    setInPageSearch(e.target.value);
+                    setIsSearchOpen(true);
+                  }}
+                  onFocus={() => {
+                    if (inPageSearch.trim()) setIsSearchOpen(true);
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === 'Escape') {
+                      setIsSearchOpen(false);
+                    }
+                  }}
+                  placeholder={`ابحث داخل قسم ${categoryName}... (مثال: ماركة، نوع، مواصفات)`}
+                  className="w-full h-12 md:h-14 pr-11 pl-10 text-xs sm:text-sm md:text-base font-medium bg-transparent border-none outline-none focus:outline-none placeholder:text-muted-foreground rounded-2xl text-foreground"
+                />
+                {inPageSearch && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setInPageSearch('');
+                      setIsSearchOpen(false);
+                      searchInputRef.current?.focus();
+                    }}
+                    className="absolute left-3.5 top-1/2 -translate-y-1/2 p-1.5 text-muted-foreground hover:text-foreground rounded-full hover:bg-muted transition-colors cursor-pointer"
+                    aria-label="مسح البحث"
+                  >
+                    <X className="h-4 w-4" />
+                  </button>
+                )}
+              </div>
+
+              {/* Suggestions Dropdown for Category Page */}
+              {isSearchOpen && inPageSearch.trim().length > 0 && (
+                <div className="absolute top-full right-0 left-0 mt-2 z-[100] bg-white dark:bg-card border-2 border-border/80 rounded-2xl shadow-2xl overflow-hidden text-right animate-in fade-in-50 zoom-in-95 duration-150 isolate divide-y divide-border/40">
+                  {/* Matching Subcategories in this Category */}
+                  {matchingSubcategories.length > 0 && (
+                    <div className="p-3 bg-secondary/20">
+                      <div className="flex items-center gap-1.5 text-xs font-bold text-muted-foreground mb-2 px-1">
+                        <FolderTree className="h-3.5 w-3.5 text-primary" />
+                        <span>فئات فرعية في {categoryName}</span>
+                      </div>
+                      <div className="flex flex-wrap gap-1.5">
+                        {matchingSubcategories.map((sub) => (
+                          <button
+                            key={sub.id}
+                            type="button"
+                            onClick={() => {
+                              setSelectedSub(sub.id);
+                              setInPageSearch('');
+                              setIsSearchOpen(false);
+                            }}
+                            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold bg-primary/10 hover:bg-primary text-primary hover:text-primary-foreground transition-all cursor-pointer border border-primary/20"
+                          >
+                            <span>{sub.name}</span>
+                            <span className="text-[10px] opacity-75">({sub.count})</span>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Matching Brands in this Category */}
+                  {matchingBrands.length > 0 && (
+                    <div className="p-3 bg-secondary/10">
+                      <div className="flex items-center gap-1.5 text-xs font-bold text-muted-foreground mb-2 px-1">
+                        <CarFront className="h-3.5 w-3.5 text-primary" />
+                        <span>الماركات المتطابقة</span>
+                      </div>
+                      <div className="flex flex-wrap gap-1.5">
+                        {matchingBrands.map((brand) => (
+                          <button
+                            key={brand.id}
+                            type="button"
+                            onClick={() => {
+                              setSelectedBrand(brand.name);
+                              setInPageSearch('');
+                              setIsSearchOpen(false);
+                            }}
+                            className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-bold bg-muted hover:bg-primary hover:text-primary-foreground transition-all cursor-pointer border border-border"
+                          >
+                            <span>{brand.name}</span>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Top Matching Live Ads in this Category */}
+                  {matchingAds.length > 0 && (
+                    <div className="p-2 space-y-1">
+                      <div className="flex items-center justify-between text-xs font-bold text-muted-foreground px-2 py-1">
+                        <span className="flex items-center gap-1.5">
+                          <Sparkles className="h-3.5 w-3.5 text-amber-500" />
+                          <span>إعلانات مقترحة في {categoryName}</span>
+                        </span>
+                        <span className="text-[11px] font-normal">({totalMatchingAdsCount} إعلان متاح)</span>
+                      </div>
+                      {matchingAds.map((ad) => {
+                        const img = ad.imageUrls && ad.imageUrls.length > 0 ? ad.imageUrls[0] : null;
+                        const adHref = `/ad/${ad.userId}/${ad.id}`;
+                        return (
+                          <Link
+                            key={ad.id}
+                            href={adHref}
+                            onClick={() => setIsSearchOpen(false)}
+                            className="flex items-center gap-3 p-2 rounded-xl hover:bg-muted/70 transition-colors group"
+                          >
+                            <div className="w-12 h-12 rounded-lg bg-secondary/80 overflow-hidden relative shrink-0 border border-border/50">
+                              {img ? (
+                                <Image src={img} alt={ad.title} fill className="object-cover group-hover:scale-105 transition-transform" />
+                              ) : (
+                                <PackageSearch className="h-5 w-5 m-auto text-muted-foreground/60" />
+                              )}
+                            </div>
+                            <div className="flex-1 min-w-0 text-right">
+                              <h4 className="text-xs sm:text-sm font-bold text-foreground truncate group-hover:text-primary transition-colors">
+                                {ad.title}
+                              </h4>
+                              <div className="flex items-center gap-2 mt-0.5 text-[11px] text-muted-foreground">
+                                {ad.price ? (
+                                  <span className="font-bold text-primary">
+                                    {ad.price.toLocaleString()} {ad.currency || market.currency}
+                                  </span>
+                                ) : (
+                                  <span>السعر عند الاتصال</span>
+                                )}
+                                {ad.location && <span>• {ad.location}</span>}
+                              </div>
+                            </div>
+                            <ChevronLeft className="h-4 w-4 text-muted-foreground group-hover:text-primary group-hover:-translate-x-1 transition-transform" />
+                          </Link>
+                        );
+                      })}
+                    </div>
+                  )}
+
+                  {/* Instant Filter Button Footer */}
+                  <div className="p-2.5 bg-muted/40">
+                    <button
+                      type="button"
+                      onClick={() => setIsSearchOpen(false)}
+                      className="w-full py-2 px-3 rounded-xl bg-primary text-primary-foreground hover:bg-primary/90 text-xs sm:text-sm font-bold flex items-center justify-center gap-2 transition-all shadow-xs cursor-pointer"
+                    >
+                      <Search className="h-4 w-4" />
+                      <span>تصفية إعلانات القسم ({totalMatchingAdsCount} إعلان متطابق)</span>
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
         </section>
 
@@ -872,6 +1148,20 @@ export default function AdPageClient({ page }: AdPageClientProps) {
                           </button>
                         );
                       })}
+                      {inPageSearch.trim() && (
+                        <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold bg-primary text-primary-foreground shadow-xs animate-in fade-in-50">
+                          <Search className="h-3.5 w-3.5" />
+                          <span>بحث: &quot;{inPageSearch}&quot;</span>
+                          <button
+                            type="button"
+                            onClick={() => setInPageSearch('')}
+                            className="p-0.5 hover:bg-black/20 rounded-full transition-colors cursor-pointer mr-1"
+                            title="إلغاء تصفية البحث"
+                          >
+                            <X className="h-3 w-3" />
+                          </button>
+                        </div>
+                      )}
                     </div>
                   </div>
                 );

@@ -9,6 +9,15 @@ export interface WhatsAppSendResult {
   error?: string;
   status?: string;
   provider?: 'cloud_run';
+  technicalDetails?: {
+    httpStatus?: number;
+    gatewayStatus?: string;
+    rawError?: string;
+    targetPhone?: string;
+    endpoint?: string;
+    errorType?: string;
+    timestamp?: string;
+  };
 }
 
 export const CLOUD_RUN_GATEWAY_URL = 'https://whatsapp-gateway-264703833176.europe-west1.run.app';
@@ -22,10 +31,11 @@ export async function checkWhatsAppGatewayStatus(): Promise<{
   status: string;
   serverUrl: string;
   error?: string;
+  technicalDetails?: any;
 }> {
   try {
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 5000);
+    const timeoutId = setTimeout(() => controller.abort(), 6000);
 
     const res = await fetch(`${CLOUD_RUN_GATEWAY_URL}/status`, {
       method: 'GET',
@@ -49,18 +59,26 @@ export async function checkWhatsAppGatewayStatus(): Promise<{
         status: data.status || 'disconnected',
         serverUrl: CLOUD_RUN_GATEWAY_URL,
         error: 'سيرفر واتساب السحابي مستيقظ ولكنه يحتاج لمسح رمز QR لربط الحساب.',
+        technicalDetails: { data, httpStatus: res.status },
       };
     }
+    return {
+      connected: false,
+      status: `HTTP_${res.status}`,
+      serverUrl: CLOUD_RUN_GATEWAY_URL,
+      error: `استجاب السيرفر برمز خطأ HTTP ${res.status}`,
+      technicalDetails: { httpStatus: res.status },
+    };
   } catch (err: any) {
     console.warn('[WhatsApp Client] Cloud Run status check error:', err?.message);
+    return {
+      connected: false,
+      status: 'offline',
+      serverUrl: CLOUD_RUN_GATEWAY_URL,
+      error: 'تعذر الاتصال بسيرفر واتساب السحابي. يرجى التأكد من تشغيل السيرفر أو مسح رمز QR.',
+      technicalDetails: { message: err?.message, name: err?.name },
+    };
   }
-
-  return {
-    connected: false,
-    status: 'offline',
-    serverUrl: CLOUD_RUN_GATEWAY_URL,
-    error: 'تعذر الاتصال بسيرفر واتساب السحابي. يرجى التأكد من تشغيل السيرفر أو مسح رمز QR.',
-  };
 }
 
 /**
@@ -75,7 +93,7 @@ export async function pingWhatsAppGatewayKeepAlive(): Promise<{
   const start = Date.now();
   try {
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 4000);
+    const timeoutId = setTimeout(() => controller.abort(), 8000);
 
     const res = await fetch(`${CLOUD_RUN_GATEWAY_URL}/status`, {
       method: 'GET',
@@ -122,7 +140,7 @@ export async function sendWhatsAppOTP(
 
   try {
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 15000);
+    const timeoutId = setTimeout(() => controller.abort(), 20000);
 
     const cloudRes = await fetch(`${CLOUD_RUN_GATEWAY_URL}/send-otp`, {
       method: 'POST',
@@ -143,7 +161,7 @@ export async function sendWhatsAppOTP(
     const cloudData = await cloudRes.json().catch(() => ({}));
 
     if (cloudRes.ok && cloudData.success) {
-      console.log(`[WhatsApp Client] OTP sent successfully to ${cleanPhone} via Cloud Run`);
+      console.log(`[WhatsApp Client] ✅ OTP sent successfully to ${cleanPhone} via Cloud Run`);
       return {
         success: true,
         messageId: cloudData.messageId || 'cloud_sent',
@@ -158,20 +176,46 @@ export async function sendWhatsAppOTP(
         ? 'سيرفر واتساب السحابي غير مرتبط حالياً. يرجى مسح رمز QR لربط الحساب.'
         : 'تعذر إرسال كود التفعيل عبر واتساب السحابي.');
 
+    console.error(`[WhatsApp Client] ❌ Cloud Run send error:`, {
+      httpStatus: cloudRes.status,
+      cloudData,
+      cleanPhone,
+    });
+
     return {
       success: false,
       error: errorMessage,
-      status: cloudData.status,
+      status: cloudData.status || `HTTP_${cloudRes.status}`,
+      technicalDetails: {
+        httpStatus: cloudRes.status,
+        gatewayStatus: cloudData.status,
+        rawError: cloudData.error || JSON.stringify(cloudData),
+        targetPhone: cleanPhone,
+        endpoint: `${CLOUD_RUN_GATEWAY_URL}/send-otp`,
+        timestamp: new Date().toISOString(),
+      },
     };
   } catch (err: any) {
-    console.error(`[WhatsApp Client] Cloud Run send failed:`, err);
+    console.error(`[WhatsApp Client] 💥 Cloud Run fetch exception:`, {
+      name: err?.name,
+      message: err?.message,
+      stack: err?.stack,
+      cleanPhone,
+    });
     let errMsg = 'تعذر الاتصال بسيرفر واتساب السحابي على Google Cloud.';
     if (err.name === 'AbortError') {
-      errMsg = 'استغرقت عملية الإرسال السحابية وقتاً طويلاً. يرجى المحاولة مرة أخرى.';
+      errMsg = 'استغرقت عملية الإرسال السحابية وقتاً طويلاً (Timeout 15s).';
     }
     return {
       success: false,
       error: errMsg,
+      technicalDetails: {
+        errorType: err?.name || 'FetchError',
+        rawError: err?.message,
+        targetPhone: cleanPhone,
+        endpoint: `${CLOUD_RUN_GATEWAY_URL}/send-otp`,
+        timestamp: new Date().toISOString(),
+      },
     };
   }
 }

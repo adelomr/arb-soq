@@ -168,6 +168,7 @@ interface SortableCategoryCardProps {
   onInlineInputChange: (catId: string, val: string) => void;
   onInlineAddSubcategory: (catId: string) => void;
   onInlineRemoveSubcategory: (catId: string, subId: string) => void;
+  onEditSubcategory: (catId: string, sub: SubCategory) => void;
   onEditCategory: (cat: Category) => void;
   onDeleteCategory: (catId: string) => void;
 }
@@ -179,6 +180,7 @@ function SortableCategoryCard({
   onInlineInputChange,
   onInlineAddSubcategory,
   onInlineRemoveSubcategory,
+  onEditSubcategory,
   onEditCategory,
   onDeleteCategory,
 }: SortableCategoryCardProps) {
@@ -265,21 +267,35 @@ function SortableCategoryCard({
           <CardContent className="pt-4">
             <div className="flex flex-wrap gap-1.5 min-h-[52px]">
               {cat.subcategories && cat.subcategories.length > 0 ? (
-                cat.subcategories.map((sub) => (
-                  <span
-                    key={sub.id}
-                    className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-medium bg-secondary text-foreground border border-border/50 hover:bg-secondary/70 transition-colors"
-                  >
-                    <span>{sub.name.ar}</span>
-                    <button
-                      onClick={() => onInlineRemoveSubcategory(cat.id, sub.id)}
-                      className="text-muted-foreground hover:text-destructive transition-colors ml-0.5"
-                      title="حذف الفئة الفرعية"
+                cat.subcategories.map((sub) => {
+                  const subName = typeof sub.name === 'string' ? sub.name : sub.name?.ar || sub.id;
+                  return (
+                    <span
+                      key={sub.id}
+                      className="inline-flex items-center gap-1.5 px-2 py-1 rounded-md text-xs font-medium bg-secondary text-foreground border border-border/50 hover:bg-secondary/70 transition-colors group/sub"
                     >
-                      &times;
-                    </button>
-                  </span>
-                ))
+                      <span className="font-semibold">{subName}</span>
+                      <div className="flex items-center gap-0.5 border-r border-border/60 pr-1 mr-0.5">
+                        <button
+                          type="button"
+                          onClick={() => onEditSubcategory(cat.id, sub)}
+                          className="p-0.5 text-muted-foreground hover:text-primary transition-colors rounded hover:bg-primary/10 cursor-pointer"
+                          title="تعديل اسم الفئة الفرعية"
+                        >
+                          <Pencil className="h-3 w-3" />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => onInlineRemoveSubcategory(cat.id, sub.id)}
+                          className="p-0.5 text-muted-foreground hover:text-destructive transition-colors rounded hover:bg-destructive/10 cursor-pointer"
+                          title="حذف الفئة الفرعية"
+                        >
+                          <Trash2 className="h-3 w-3" />
+                        </button>
+                      </div>
+                    </span>
+                  );
+                })
               ) : (
                 <p className="text-xs text-muted-foreground italic py-2">لا توجد فئات فرعية بعد.</p>
               )}
@@ -515,6 +531,46 @@ export default function CategoryManager() {
     );
   }, []);
 
+  // ── Subcategory Edit Dialog state & handlers ─────────────────────────────
+  const [editingSubcategory, setEditingSubcategory] = useState<{
+    catId: string;
+    subId: string;
+    nameAr: string;
+  } | null>(null);
+
+  const handleOpenEditSubcategory = useCallback((catId: string, sub: SubCategory) => {
+    const subName = typeof sub.name === 'string' ? sub.name : sub.name?.ar || '';
+    setEditingSubcategory({
+      catId,
+      subId: sub.id,
+      nameAr: subName,
+    });
+  }, []);
+
+  const handleSaveSubcategoryEdit = useCallback(() => {
+    if (!editingSubcategory) return;
+    const newName = editingSubcategory.nameAr.trim();
+    if (!newName) {
+      toast({ title: 'تنبيه', description: 'يرجى كتابة اسم الفئة الفرعية.', variant: 'destructive' });
+      return;
+    }
+
+    setCategories((prev) =>
+      prev.map((c) => {
+        if (c.id !== editingSubcategory.catId) return c;
+        return {
+          ...c,
+          subcategories: (c.subcategories || []).map((s) =>
+            s.id === editingSubcategory.subId ? { ...s, name: { ar: newName } } : s
+          ),
+        };
+      })
+    );
+
+    toast({ title: 'تم تعديل الفئة الفرعية', description: `تم تحديث الاسم إلى "${newName}".` });
+    setEditingSubcategory(null);
+  }, [editingSubcategory, toast]);
+
   const handleAddModalSubcategory = () => {
     setFormSubcategories((prev) => [
       ...prev,
@@ -669,6 +725,7 @@ export default function CategoryManager() {
                   onInlineInputChange={handleInlineInputChange}
                   onInlineAddSubcategory={handleInlineAddSubcategory}
                   onInlineRemoveSubcategory={handleInlineRemoveSubcategory}
+                  onEditSubcategory={handleOpenEditSubcategory}
                   onEditCategory={openEditDialog}
                   onDeleteCategory={handleDeleteCategory}
                 />
@@ -692,6 +749,7 @@ export default function CategoryManager() {
                 onInlineInputChange={() => {}}
                 onInlineAddSubcategory={() => {}}
                 onInlineRemoveSubcategory={() => {}}
+                onEditSubcategory={() => {}}
                 onEditCategory={() => {}}
                 onDeleteCategory={() => {}}
               />
@@ -713,21 +771,35 @@ export default function CategoryManager() {
             </DialogDescription>
           </DialogHeader>
 
-          <div className="space-y-5 py-3">
-            {/* Name */}
-            <div className="space-y-2">
-              <label className="text-xs font-bold text-foreground">اسم الفئة الرئيسية</label>
+          <div className="space-y-4 py-2">
+            {/* ID (only for create) */}
+            {dialogMode === 'create' && (
+              <div className="space-y-1.5">
+                <label className="text-xs font-bold text-foreground">معرف الفئة (ID بالإنجليزية)</label>
+                <Input
+                  placeholder="مثال: vehicles, realestate, phones..."
+                  value={formCatId}
+                  onChange={(e) => setFormCatId(e.target.value.toLowerCase().replace(/\s+/g, '_'))}
+                  className="text-xs"
+                />
+              </div>
+            )}
+
+            {/* Arabic Name */}
+            <div className="space-y-1.5">
+              <label className="text-xs font-bold text-foreground">الاسم بالعربية</label>
               <Input
-                placeholder="مثال: عقارات، سيارات، هواتف..."
+                placeholder="مثال: سيارات ومركبات"
                 value={formCatNameAr}
                 onChange={(e) => setFormCatNameAr(e.target.value)}
+                className="text-xs"
               />
             </div>
 
-            {/* Icon Selector */}
+            {/* Icon Picker */}
             <div className="space-y-2">
-              <label className="text-xs font-bold text-foreground">الأيقونة البصرية</label>
-              <div className="grid grid-cols-4 sm:grid-cols-6 gap-2 max-h-40 overflow-y-auto p-2 border rounded-lg bg-secondary/20">
+              <label className="text-xs font-bold text-foreground">الأيقونة</label>
+              <div className="grid grid-cols-6 sm:grid-cols-8 gap-1.5 max-h-44 overflow-y-auto p-2 border rounded-lg bg-secondary/10">
                 {AVAILABLE_ICONS.map((item) => {
                   const ItemIcon = item.icon;
                   const selected = formCatIcon === item.name;
@@ -736,7 +808,7 @@ export default function CategoryManager() {
                       key={item.name}
                       type="button"
                       onClick={() => setFormCatIcon(item.name)}
-                      className={`flex flex-col items-center justify-center p-2 rounded-lg border text-center transition-all ${
+                      className={`flex flex-col items-center justify-center p-2 rounded-lg border text-xs transition-all ${
                         selected
                           ? 'border-primary bg-primary/10 text-primary shadow-sm'
                           : 'border-border/60 hover:bg-muted text-muted-foreground'
@@ -804,6 +876,56 @@ export default function CategoryManager() {
             </Button>
             <Button onClick={handleSaveDialogCategory} className="bg-primary text-primary-foreground font-bold">
               حفظ الفئة
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* ── Subcategory Edit Modal Dialog ── */}
+      <Dialog
+        open={Boolean(editingSubcategory)}
+        onOpenChange={(open) => {
+          if (!open) setEditingSubcategory(null);
+        }}
+      >
+        <DialogContent className="max-w-md text-right" dir="rtl">
+          <DialogHeader>
+            <DialogTitle className="text-base font-bold font-headline flex items-center gap-2">
+              <Pencil className="h-4 w-4 text-primary" />
+              <span>تعديل الفئة الفرعية</span>
+            </DialogTitle>
+            <DialogDescription className="text-xs text-muted-foreground">
+              قم بتعديل اسم الفئة الفرعية واضغط على حفظ التعديل.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 py-2">
+            <div className="space-y-1.5">
+              <label className="text-xs font-bold text-foreground">اسم الفئة الفرعية بالعربية</label>
+              <Input
+                value={editingSubcategory?.nameAr || ''}
+                onChange={(e) =>
+                  setEditingSubcategory((prev) => (prev ? { ...prev, nameAr: e.target.value } : null))
+                }
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault();
+                    handleSaveSubcategoryEdit();
+                  }
+                }}
+                placeholder="مثال: أعمال البناء (بنّا / معلم مباني)..."
+                className="text-sm h-10"
+                autoFocus
+              />
+            </div>
+          </div>
+
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button variant="outline" onClick={() => setEditingSubcategory(null)}>
+              إلغاء
+            </Button>
+            <Button onClick={handleSaveSubcategoryEdit} className="bg-primary text-primary-foreground font-bold">
+              حفظ التعديل
             </Button>
           </DialogFooter>
         </DialogContent>
