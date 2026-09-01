@@ -8,6 +8,8 @@ import { useMarket } from '@/context/MarketContext';
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
 import AdCard from '@/components/AdCard';
+import AdRow from '@/components/AdRow';
+import { useView } from '@/context/ViewContext';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
@@ -25,7 +27,9 @@ import {
   Search,
   AlertTriangle,
   PlusCircle,
-  CarFront
+  CarFront,
+  Grid,
+  List
 } from 'lucide-react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import RequireAuthModal from '@/components/RequireAuthModal';
@@ -53,6 +57,7 @@ interface AdPageClientProps {
 export default function AdPageClient({ page }: AdPageClientProps) {
   const { getAds, getCategories, user } = useAuth();
   const { market } = useMarket();
+  const { view, setView } = useView();
   const router = useRouter();
   const searchParams = useSearchParams();
   const subQuery = searchParams?.get('sub');
@@ -820,7 +825,35 @@ export default function AdPageClient({ page }: AdPageClientProps) {
 
                 return (
                   <div className="space-y-2">
-                    <p className="text-sm font-bold text-muted-foreground px-1">فلتر</p>
+                    <div className="flex items-center justify-between gap-2 px-1">
+                      <p className="text-sm font-bold text-muted-foreground">فلتر</p>
+                      
+                      {/* Grid / List View Toggle */}
+                      <div className="flex items-center gap-1 bg-secondary/50 border border-border p-1 rounded-xl">
+                        <Button
+                          type="button"
+                          variant={view === 'grid' ? 'secondary' : 'ghost'}
+                          size="icon"
+                          onClick={() => setView('grid')}
+                          className="h-7 w-7 rounded-lg"
+                          aria-label="عرض الشبكة"
+                          title="عرض الشبكة"
+                        >
+                          <Grid className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          type="button"
+                          variant={view === 'list' ? 'secondary' : 'ghost'}
+                          size="icon"
+                          onClick={() => setView('list')}
+                          className="h-7 w-7 rounded-lg"
+                          aria-label="عرض القائمة"
+                          title="عرض القائمة"
+                        >
+                          <List className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </div>
                     <div className="flex flex-wrap items-center gap-2 bg-background p-3 rounded-2xl border border-border shadow-xs">
                       {activeButtons.map((btn, idx) => {
                         const isSelected = isBtnSelected(btn, idx);
@@ -829,7 +862,7 @@ export default function AdPageClient({ page }: AdPageClientProps) {
                             key={btn.id || btn.value || idx}
                             type="button"
                             onClick={() => handleBtnClick(btn)}
-                            className={`px-4 py-2 text-sm font-bold rounded-xl transition-all whitespace-nowrap ${
+                            className={`px-4 py-2 text-sm font-bold rounded-xl transition-all whitespace-nowrap cursor-pointer ${
                               isSelected
                                 ? 'bg-primary text-primary-foreground shadow-sm'
                                 : 'text-muted-foreground hover:text-foreground hover:bg-secondary/60'
@@ -844,7 +877,7 @@ export default function AdPageClient({ page }: AdPageClientProps) {
                 );
               })()}
 
-              {/* Live Ads Listing Grid */}
+              {/* Live Ads Listing Grid / List */}
               <section className="space-y-6">
                 {loading ? (
                   <div className="flex flex-col items-center justify-center p-16 gap-3">
@@ -863,10 +896,16 @@ export default function AdPageClient({ page }: AdPageClientProps) {
                       <span>إضافة إعلان جديد</span>
                     </Button>
                   </Card>
-                ) : (
+                ) : view === 'grid' ? (
                   <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
                     {displayedAds.map((ad) => (
                       <AdCard key={ad.id} ad={ad} />
+                    ))}
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    {displayedAds.map((ad) => (
+                      <AdRow key={ad.id} ad={ad} />
                     ))}
                   </div>
                 )}

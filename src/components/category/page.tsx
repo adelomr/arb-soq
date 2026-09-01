@@ -12,6 +12,7 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { PackageSearch, Grid, List } from 'lucide-react';
 import { useLanguage } from '@/context/LanguageContext';
 import { useMarket } from '@/context/MarketContext';
+import { useView } from '@/context/ViewContext';
 import React, { useEffect, useState, Fragment } from 'react';
 import type { Category, Ad } from '@/lib/types';
 import { useAuth } from '@/context/AuthContext';
@@ -58,7 +59,7 @@ export default function CategoryPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [adsInCategory, setAdsInCategory] = useState<Ad[]>([]);
   const [adsLoading, setAdsLoading] = useState(true);
-  const [view, setView] = useState<'grid' | 'list'>('list');
+  const { view, setView } = useView();
 
   useEffect(() => {
     if (!authLoading) {
