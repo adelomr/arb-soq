@@ -134,13 +134,24 @@ export default function StoreClient({ storeId }: { storeId: string }) {
 
   const [shareOpen, setShareOpen] = useState(false);
 
-  const getShareUrl = () => typeof window !== 'undefined' ? window.location.href : '';
+  const getShareUrl = () => {
+    if (typeof window !== 'undefined') {
+      const origin = window.location.origin && !window.location.origin.includes('localhost') && !window.location.origin.includes('127.0.0.1')
+        ? window.location.origin
+        : 'https://www.arb-soq.com';
+      return `${origin}${window.location.pathname}`;
+    }
+    return 'https://www.arb-soq.com';
+  };
 
   const getProductShareUrl = (product: Ad) => {
     if (typeof window !== 'undefined') {
-      return `${window.location.origin}/ad/${product.userId}/${product.id}`;
+      const origin = window.location.origin && !window.location.origin.includes('localhost') && !window.location.origin.includes('127.0.0.1')
+        ? window.location.origin
+        : 'https://www.arb-soq.com';
+      return `${origin}/ad/${product.userId || 'item'}/${product.id}`;
     }
-    return '';
+    return `https://www.arb-soq.com/ad/${product.userId || 'item'}/${product.id}`;
   };
 
   if (loading) {

@@ -80,8 +80,12 @@ function AdRow({ ad, priority = false }: AdRowProps) {
   const direction = 'rtl';
   const dateLocale = ar;
 
-  const adUrl = typeof window !== 'undefined' ? `${window.location.origin}/ad/${ad.userId}/${ad.id}` : '';
+  const origin = typeof window !== 'undefined' && window.location.origin && !window.location.origin.includes('localhost') && !window.location.origin.includes('127.0.0.1')
+    ? window.location.origin
+    : 'https://www.arb-soq.com';
+  const adUrl = `${origin}/ad/${ad.userId || 'item'}/${ad.id}`;
   const shareText = encodeURIComponent(ad.title);
+  const encodedAdUrl = encodeURIComponent(adUrl);
 
   const currencyFormatter = new Intl.NumberFormat('ar-SA', {
     style: 'currency',
@@ -235,19 +239,19 @@ function AdRow({ ad, priority = false }: AdRowProps) {
                 </DropdownMenuTrigger>
                 <DropdownMenuContent onClick={(e) => e.stopPropagation()}>
                   <DropdownMenuItem asChild>
-                    <a href={`https://www.facebook.com/sharer/sharer.php?u=${adUrl}`} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 cursor-pointer">
+                    <a href={`https://www.facebook.com/sharer/sharer.php?u=${encodedAdUrl}`} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 cursor-pointer">
                       <Facebook className="h-4 w-4 text-blue-600" />
                       {t.facebook}
                     </a>
                   </DropdownMenuItem>
                   <DropdownMenuItem asChild>
-                    <a href={`https://twitter.com/intent/tweet?url=${adUrl}&text=${shareText}`} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 cursor-pointer">
+                    <a href={`https://twitter.com/intent/tweet?url=${encodedAdUrl}&text=${shareText}`} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 cursor-pointer">
                       <Twitter className="h-4 w-4" />
                       {t.twitter}
                     </a>
                   </DropdownMenuItem>
                   <DropdownMenuItem asChild>
-                    <a href={`https://api.whatsapp.com/send?text=${shareText}%20${adUrl}`} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 cursor-pointer">
+                    <a href={`https://api.whatsapp.com/send?text=${shareText}%20${encodedAdUrl}`} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 cursor-pointer">
                       <WhatsappIcon />
                       {t.whatsapp}
                     </a>

@@ -84,7 +84,10 @@ export default function RegularVideoPlayer({ ad, onClose, relatedAds, onAdSelect
                       safeAd?.phoneNumber || safeAd?.phone || safeAd?.userPhone || safeAd?.mobile || null;
   const phoneNumber = rawPhoneNumber ? String(rawPhoneNumber) : null;
 
-  const shareUrl = typeof window !== 'undefined' ? window.location.origin + window.location.pathname + `?id=${ad.id}` : '';
+  const origin = typeof window !== 'undefined' && window.location.origin && !window.location.origin.includes('localhost') && !window.location.origin.includes('127.0.0.1')
+    ? window.location.origin
+    : 'https://www.arb-soq.com';
+  const shareUrl = typeof window !== 'undefined' ? `${origin}${window.location.pathname}?id=${ad.id}` : `https://www.arb-soq.com?id=${ad.id}`;
   const shareText = encodeURIComponent(`شاهد هذا الفيديو على سوق العرب: ${ad.title}`);
 
   const copyLink = async () => {
