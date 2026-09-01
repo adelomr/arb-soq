@@ -39,7 +39,8 @@ jobs:
               }
             }
             const cleanJson = JSON.stringify(parsed);
-            fs.appendFileSync(process.env.GITHUB_OUTPUT, `service_account=${cleanJson}\n`);
+            const delimiter = "EOF_" + Date.now();
+            fs.appendFileSync(process.env.GITHUB_OUTPUT, `service_account<<${delimiter}\n${cleanJson}\n${delimiter}\n`);
           '
       - uses: FirebaseExtended/action-hosting-deploy@v0
         with:
