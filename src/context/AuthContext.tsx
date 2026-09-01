@@ -1621,24 +1621,20 @@ const getAds = useCallback((
   const incrementAdView = useCallback(async (ad: Ad) => {
       try {
         if (!ad || !ad.id) return;
-        const adRef = await getAdRef(ad);
-        await updateDoc(adRef, { views: increment(1) });
-        logAdActivity(ad.id, 'view', { userId: user?.uid, sellerUserId: ad.userId }).catch(() => {});
+        await logAdActivity(ad.id, 'view', { userId: user?.uid, sellerUserId: ad.userId });
       } catch (e) {
         console.warn("Could not increment ad view:", e);
       }
-  }, [getAdRef, user?.uid]);
+  }, [user?.uid]);
   
   const incrementAdClick = useCallback(async (ad: Ad) => {
       try {
         if (!ad || !ad.id) return;
-        const adRef = await getAdRef(ad);
-        await updateDoc(adRef, { clicks: increment(1) });
-        logAdActivity(ad.id, 'click', { userId: user?.uid, sellerUserId: ad.userId }).catch(() => {});
+        await logAdActivity(ad.id, 'click', { userId: user?.uid, sellerUserId: ad.userId });
       } catch (e) {
         console.warn("Could not increment ad click:", e);
       }
-  }, [getAdRef, user?.uid]);
+  }, [user?.uid]);
 
   const incrementSiteVisit = useCallback(async () => {
     try {

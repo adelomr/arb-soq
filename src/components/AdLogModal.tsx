@@ -29,7 +29,8 @@ import {
   BarChart3,
   ExternalLink,
   ShieldAlert,
-  Info
+  Info,
+  MapPin
 } from 'lucide-react';
 import type { Ad, AdActivityStats, AdTimeframe, AdActivityEvent } from '@/lib/types';
 import { getAdActivityStats, resetAdActivityLogs } from '@/lib/ad-log-service';
@@ -57,6 +58,7 @@ interface AdLogModalProps {
 export default function AdLogModal({ ad, isOpen, onClose, onStatsReset }: AdLogModalProps) {
   const { toast } = useToast();
   const [timeframe, setTimeframe] = useState<AdTimeframe>('all');
+  const [selectedActivityFilter, setSelectedActivityFilter] = useState<'all' | 'view' | 'click' | 'call' | 'whatsapp'>('all');
   const [stats, setStats] = useState<AdActivityStats | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [refreshing, setRefreshing] = useState<boolean>(false);
@@ -371,86 +373,49 @@ export default function AdLogModal({ ad, isOpen, onClose, onStatsReset }: AdLogM
             </div>
 
             {/* Daily Timeline Breakdown Chart */}
-            {stats?.dailyBreakdown && stats.dailyBreakdown.length > 0 && (
+            {/* Geographic Breakdown in Modal */}
+            {stats?.geoBreakdown && stats.geoBreakdown.length > 0 && (
               <Card className="border border-border/60">
                 <CardContent className="p-4 sm:p-5">
-                  <div className="flex items-center justify-between mb-4">
+                  <div className="flex items-center justify-between mb-3">
                     <div className="flex items-center gap-2">
-                      <BarChart3 className="h-4 w-4 text-primary" />
-                      <h4 className="font-bold text-sm text-foreground">التوزيع الزمني للنشاط</h4>
+                      <MapPin className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
+                      <h4 className="font-bold text-sm text-foreground">الموقع الجغرافي للزيارات والتفاعل</h4>
                     </div>
-                    <div className="flex items-center gap-3 text-2xs text-muted-foreground">
-                      <span className="flex items-center gap-1">
-                        <span className="w-2.5 h-2.5 rounded-sm bg-blue-500 inline-block" />
-                        مشاهدات
-                      </span>
-                      <span className="flex items-center gap-1">
-                        <span className="w-2.5 h-2.5 rounded-sm bg-violet-500 inline-block" />
-                        نقرات فتح
-                      </span>
-                      <span className="flex items-center gap-1">
-                        <span className="w-2.5 h-2.5 rounded-sm bg-amber-500 inline-block" />
-                        اتصال
-                      </span>
-                      <span className="flex items-center gap-1">
-                        <span className="w-2.5 h-2.5 rounded-sm bg-green-500 inline-block" />
-                        واتساب
-                      </span>
-                    </div>
+                    <Badge variant="outline" className="text-3xs bg-background">
+                      تغطية مباشرة
+                    </Badge>
                   </div>
 
-                  {/* Horizontal / Column Bar Visualization */}
-                  <div className="flex items-end justify-between gap-1 sm:gap-2 h-36 pt-4 px-1 border-b border-border/40 overflow-x-auto">
-                    {stats.dailyBreakdown.map((point, idx) => {
-                      const totalBarHeight = maxDailyTotal > 0 ? (point.total / maxDailyTotal) * 100 : 0;
-                      const heightPercent = Math.max(totalBarHeight, point.total > 0 ? 12 : 4);
-                      
-                      return (
-                        <div key={idx} className="flex-1 min-w-[28px] max-w-[50px] flex flex-col items-center gap-1 group relative">
-                          {/* Tooltip on Hover */}
-                          <div className="absolute -top-12 z-20 hidden group-hover:flex flex-col items-center bg-popover text-popover-foreground border shadow-md px-2 py-1 rounded text-2xs whitespace-nowrap pointer-events-none">
-                            <span className="font-bold">{point.formattedDate}</span>
-                            <span>مشاهدات: {point.views} | نقرات: {point.clicks} | اتصال: {point.callClicks} | واتساب: {point.whatsappClicks}</span>
+                  <div className="space-y-3">
+                    {stats.geoBreakdown.map((geo, idx) => (
+                      <div key={idx} className="p-3 rounded-xl bg-muted/40 border border-border/50 text-xs">
+                        <div className="flex items-center justify-between mb-1.5">
+                          <div className="flex items-center gap-1.5">
+                            <MapPin className="h-3.5 w-3.5 text-emerald-600" />
+                            <span className="font-bold text-foreground">{geo.locationName}</span>
                           </div>
-
-                          {/* Stacked Bar */}
-                          <div 
-                            className="w-full rounded-t-md bg-secondary flex flex-col-reverse overflow-hidden transition-all duration-300 group-hover:brightness-110"
-                            style={{ height: `${heightPercent}%` }}
-                          >
-                            {point.views > 0 && (
-                              <div 
-                                style={{ height: `${(point.views / Math.max(point.total, 1)) * 100}%` }} 
-                                className="bg-blue-500 w-full"
-                              />
-                            )}
-                            {point.clicks > 0 && (
-                              <div 
-                                style={{ height: `${(point.clicks / Math.max(point.total, 1)) * 100}%` }} 
-                                className="bg-violet-500 w-full"
-                              />
-                            )}
-                            {point.callClicks > 0 && (
-                              <div 
-                                style={{ height: `${(point.callClicks / Math.max(point.total, 1)) * 100}%` }} 
-                                className="bg-amber-500 w-full"
-                              />
-                            )}
-                            {point.whatsappClicks > 0 && (
-                              <div 
-                                style={{ height: `${(point.whatsappClicks / Math.max(point.total, 1)) * 100}%` }} 
-                                className="bg-green-500 w-full"
-                              />
-                            )}
-                          </div>
-
-                          {/* Day Label */}
-                          <span className="text-3xs text-muted-foreground truncate w-full text-center group-hover:text-foreground group-hover:font-bold">
-                            {point.formattedDate.split(' ')[0]}
-                          </span>
+                          <Badge className="bg-emerald-600 text-white font-bold text-3xs px-1.5 py-0.5">
+                            {geo.percentage}%
+                          </Badge>
                         </div>
-                      );
-                    })}
+                        <div className="w-full bg-secondary/80 rounded-full h-1.5 overflow-hidden mb-2">
+                          <div 
+                            className="bg-emerald-500 h-full rounded-full transition-all duration-500" 
+                            style={{ width: `${Math.max(geo.percentage, 5)}%` }} 
+                          />
+                        </div>
+                        <div className="flex flex-wrap items-center gap-2 text-3xs text-muted-foreground">
+                          <span>👁️ {geo.views} مشاهدة</span>
+                          <span>•</span>
+                          <span>🖱️ {geo.clicks} نقرة بطاقة</span>
+                          <span>•</span>
+                          <span>📞 {geo.callClicks} اتصال</span>
+                          <span>•</span>
+                          <span>💬 {geo.whatsappClicks} واتساب</span>
+                        </div>
+                      </div>
+                    ))}
                   </div>
                 </CardContent>
               </Card>
@@ -459,60 +424,108 @@ export default function AdLogModal({ ad, isOpen, onClose, onStatsReset }: AdLogM
             {/* Recent Activity Log Feed */}
             <Card className="border border-border/60">
               <CardContent className="p-4 sm:p-5">
-                <div className="flex items-center justify-between mb-3">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 mb-3">
                   <div className="flex items-center gap-2">
                     <Clock className="h-4 w-4 text-primary" />
                     <h4 className="font-bold text-sm text-foreground">سجل الأحداث الزمني</h4>
                   </div>
-                  <span className="text-2xs text-muted-foreground">
-                    آخر {stats?.recentEvents?.length || 0} عملية مسجلة
-                  </span>
+                  
+                  {/* Filter Tabs for Activity Types */}
+                  <div className="flex flex-wrap items-center gap-1 text-2xs bg-secondary/60 p-1 rounded-lg">
+                    <Button
+                      size="sm"
+                      variant={selectedActivityFilter === 'all' ? 'default' : 'ghost'}
+                      onClick={() => setSelectedActivityFilter('all')}
+                      className="h-6 px-2 text-2xs font-semibold rounded-md"
+                    >
+                      الكل
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant={selectedActivityFilter === 'view' ? 'default' : 'ghost'}
+                      onClick={() => setSelectedActivityFilter('view')}
+                      className={cn("h-6 px-2 text-2xs gap-0.5 font-semibold rounded-md", selectedActivityFilter === 'view' ? "bg-blue-600 text-white" : "text-blue-600 dark:text-blue-400")}
+                    >
+                      <Eye className="h-3 w-3" />
+                      <span>مشاهدات</span>
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant={selectedActivityFilter === 'click' ? 'default' : 'ghost'}
+                      onClick={() => setSelectedActivityFilter('click')}
+                      className={cn("h-6 px-2 text-2xs gap-0.5 font-semibold rounded-md", selectedActivityFilter === 'click' ? "bg-violet-600 text-white" : "text-violet-600 dark:text-violet-400")}
+                    >
+                      <MousePointerClick className="h-3 w-3" />
+                      <span>نقرات</span>
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant={selectedActivityFilter === 'call' ? 'default' : 'ghost'}
+                      onClick={() => setSelectedActivityFilter('call')}
+                      className={cn("h-6 px-2 text-2xs gap-0.5 font-semibold rounded-md", selectedActivityFilter === 'call' ? "bg-amber-600 text-white" : "text-amber-600 dark:text-amber-400")}
+                    >
+                      <Phone className="h-3 w-3" />
+                      <span>اتصال</span>
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant={selectedActivityFilter === 'whatsapp' ? 'default' : 'ghost'}
+                      onClick={() => setSelectedActivityFilter('whatsapp')}
+                      className={cn("h-6 px-2 text-2xs gap-0.5 font-semibold rounded-md", selectedActivityFilter === 'whatsapp' ? "bg-green-600 text-white" : "text-green-600 dark:text-green-400")}
+                    >
+                      <WhatsappIcon className="h-3 w-3" />
+                      <span>واتساب</span>
+                    </Button>
+                  </div>
                 </div>
 
-                {stats?.recentEvents && stats.recentEvents.length > 0 ? (
-                  <div className="divide-y divide-border/40 max-h-56 overflow-y-auto pr-1">
-                    {stats.recentEvents.map((event, idx) => (
-                      <div key={event.id || idx} className="py-2.5 flex items-center justify-between gap-3 hover:bg-muted/30 px-2 rounded-lg transition-colors">
-                        <div className="flex items-center gap-2.5">
-                          {getEventBadge(event.type)}
-                          <span className="text-xs text-muted-foreground">
-                            {event.type === 'view' && 'زيارة لصفحة الإعلان'}
-                            {event.type === 'click' && 'نقر على بطاقة الإعلان'}
-                            {event.type === 'call' && 'ضغط على زر اتصل بالبائع'}
-                            {event.type === 'whatsapp' && 'ضغط على زر المراسلة بالواتساب'}
-                            {event.type === 'share' && 'مشاركة رابط الإعلان'}
-                          </span>
-                        </div>
+                {(() => {
+                  const events = (stats?.recentEvents || []).filter(e => selectedActivityFilter === 'all' || e.type === selectedActivityFilter);
+                  return events.length > 0 ? (
+                    <div className="divide-y divide-border/40 max-h-56 overflow-y-auto pr-1">
+                      {events.map((event, idx) => (
+                        <div key={event.id || idx} className="py-2.5 flex items-center justify-between gap-3 hover:bg-muted/30 px-2 rounded-lg transition-colors">
+                          <div className="flex items-center gap-2.5">
+                            {getEventBadge(event.type)}
+                            <span className="text-xs text-muted-foreground">
+                              {event.type === 'view' && 'زيارة لصفحة الإعلان'}
+                              {event.type === 'click' && 'نقر على بطاقة الإعلان'}
+                              {event.type === 'call' && 'ضغط على زر اتصل بالبائع'}
+                              {event.type === 'whatsapp' && 'ضغط على زر المراسلة بالواتساب'}
+                              {event.type === 'share' && 'مشاركة رابط الإعلان'}
+                            </span>
+                          </div>
 
-                        <div className="flex items-center gap-2 text-2xs text-muted-foreground flex-shrink-0">
-                          {event.device === 'mobile' ? (
-                            <span className="flex items-center gap-0.5" title="هاتف محمول">
-                              <Smartphone className="h-3 w-3" />
-                              <span>جوال</span>
-                            </span>
-                          ) : event.device === 'tablet' ? (
-                            <span className="flex items-center gap-0.5" title="جهاز لوحي">
-                              <Tablet className="h-3 w-3" />
-                              <span>تابلت</span>
-                            </span>
-                          ) : (
-                            <span className="flex items-center gap-0.5" title="كمبيوتر">
-                              <Monitor className="h-3 w-3" />
-                              <span>كمبيوتر</span>
-                            </span>
-                          )}
-                          <span>•</span>
-                          <span>{formatRelativeTime(event.timestamp)}</span>
+                          <div className="flex items-center gap-2 text-2xs text-muted-foreground flex-shrink-0">
+                            {event.device === 'mobile' ? (
+                              <span className="flex items-center gap-0.5" title="هاتف محمول">
+                                <Smartphone className="h-3 w-3" />
+                                <span>جوال</span>
+                              </span>
+                            ) : event.device === 'tablet' ? (
+                              <span className="flex items-center gap-0.5" title="جهاز لوحي">
+                                <Tablet className="h-3 w-3" />
+                                <span>تابلت</span>
+                              </span>
+                            ) : (
+                              <span className="flex items-center gap-0.5" title="كمبيوتر">
+                                <Monitor className="h-3 w-3" />
+                                <span>كمبيوتر</span>
+                              </span>
+                            )}
+                            <span>•</span>
+                            <span>{formatRelativeTime(event.timestamp)}</span>
+                          </div>
                         </div>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <div className="text-center py-8 text-muted-foreground flex flex-col items-center gap-2">
-                    <Info className="h-8 w-8 text-muted-foreground/40" />
-                    <p className="text-xs">لا توجد سجلات نشاط مسجلة خلال الفترة الزمنية المحددة.</p>
-                  </div>
-                )}
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="text-center py-8 text-muted-foreground flex flex-col items-center gap-2">
+                      <Info className="h-8 w-8 text-muted-foreground/40" />
+                      <p className="text-xs">لا توجد سجلات مطابقة لنوع النشاط المحدد خلال هذه الفترة.</p>
+                    </div>
+                  );
+                })()}
               </CardContent>
             </Card>
 

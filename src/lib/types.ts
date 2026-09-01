@@ -401,6 +401,17 @@ export interface AdActivityDailyPoint {
   total: number;
 }
 
+export interface AdActivityGeoPoint {
+  locationName: string;
+  country?: string;
+  views: number;
+  clicks: number;
+  callClicks: number;
+  whatsappClicks: number;
+  total: number;
+  percentage: number;
+}
+
 export interface AdActivityStats {
   adId: string;
   timeframe: AdTimeframe;
@@ -412,6 +423,7 @@ export interface AdActivityStats {
   totalInteractions: number;
   interactionRate: number; // percentage (e.g. 4.5%)
   dailyBreakdown: AdActivityDailyPoint[];
+  geoBreakdown?: AdActivityGeoPoint[];
   recentEvents: AdActivityEvent[];
   lastUpdated: string;
 }
