@@ -12,8 +12,7 @@ const {
   default: makeWASocket,
   DisconnectReason,
   fetchLatestBaileysVersion,
-  initAuthCreds,
-  BufferJSON,
+  useMultiFileAuthState,
   proto,
 } = require('@whiskeysockets/baileys');
 
@@ -42,178 +41,57 @@ const msgRetryCounterCache = new Map();
 const sentMessagesStore = new Map();
 
 /**
- * محول مصادقة مخصص متكامل مع Firestore (Direct Firestore Auth State)
- * يقوم بحفظ واسترجاع كافة مفاتيح التشفير (creds, pre-keys, sessions, app-state)
- * لحظياً لضمان عدم ضياع الجلسة نهائياً حتى مع إعادة تشغيل السيرفر أو النوم
+ * استرجاع النسخة الاحتياطية للجلسة من Firestore عند تشغيل حاوية سحابية جديدة
  */
-async function useFirestoreAuthState() {
-  const sessionCol = firestore ? firestore.collection(FIRESTORE_COLLECTION) : null;
-
-  // 1. استرجاع أو إنشاء بيانات الاعتماد الأساسية (creds)
-  let creds = null;
-  if (sessionCol) {
-    try {
-      const credsDoc = await sessionCol.doc('creds').get();
-      if (credsDoc.exists && credsDoc.data()?.value) {
-        creds = JSON.parse(credsDoc.data().value, BufferJSON.reviver);
-        console.log('[Firestore Auth] Restored primary credentials (creds) from Firestore.');
-      }
-    } catch (err) {
-      console.warn('[Firestore Auth] Failed to load creds from Firestore:', err.message);
-    }
-  }
-
-  // محاولة الاسترجاع من القرص المحلي كنسخة احتياطية إن لم توجد في Firestore
-  if (!creds && fs.existsSync(path.join(AUTH_DIR, 'creds.json'))) {
-    try {
-      const raw = fs.readFileSync(path.join(AUTH_DIR, 'creds.json'), 'utf8');
-      creds = JSON.parse(raw, BufferJSON.reviver);
-      console.log('[Firestore Auth] Loaded fallback creds from local disk.');
-    } catch (err) {
-      console.warn('[Firestore Auth] Failed to load fallback creds from disk:', err.message);
-    }
-  }
-
-  if (!creds) {
-    console.log('[Firestore Auth] No existing credentials found. Initializing fresh creds.');
-    creds = initAuthCreds();
-  }
-
-  // حفظ نسخة محلية احتياطية
-  const saveLocalCreds = (c) => {
-    try {
+async function restoreAuthFromFirestore() {
+  if (!firestore) return;
+  try {
+    const doc = await firestore.collection(FIRESTORE_COLLECTION).doc('session_backup').get();
+    if (doc.exists && doc.data()?.files) {
       if (!fs.existsSync(AUTH_DIR)) fs.mkdirSync(AUTH_DIR, { recursive: true });
-      fs.writeFileSync(path.join(AUTH_DIR, 'creds.json'), JSON.stringify(c, BufferJSON.replacer, 2), 'utf8');
-    } catch (e) {}
-  };
-
-  const saveCreds = async () => {
-    saveLocalCreds(creds);
-    if (sessionCol) {
-      try {
-        const serialized = JSON.stringify(creds, BufferJSON.replacer);
-        await sessionCol.doc('creds').set({
-          value: serialized,
-          updatedAt: new Date(),
-        });
-        console.log('[Firestore Auth] Primary credentials saved to Firestore.');
-      } catch (err) {
-        console.error('[Firestore Auth] Failed to save creds to Firestore:', err.message);
+      const files = doc.data().files;
+      for (const [filename, content] of Object.entries(files)) {
+        fs.writeFileSync(path.join(AUTH_DIR, filename), content, 'utf8');
       }
+      console.log(`[Firestore Auth] Restored ${Object.keys(files).length} session files from cloud backup.`);
     }
-  };
-
-  return {
-    state: {
-      creds,
-      keys: {
-        get: async (type, ids) => {
-          const data = {};
-          const missing = [];
-
-          // فحص الكاش في الذاكرة أولاً
-          for (const id of ids) {
-            const key = `${type}-${id}`;
-            if (memoryKeysCache.has(key)) {
-              data[id] = memoryKeysCache.get(key);
-            } else {
-              missing.push({ id, key });
-            }
-          }
-
-          // جلب المفاتيح غير الموجودة في الذاكرة من Firestore أو القرص
-          if (missing.length > 0) {
-            await Promise.all(
-              missing.map(async ({ id, key }) => {
-                let value = null;
-                // من Firestore
-                if (sessionCol) {
-                  try {
-                    const docSnap = await sessionCol.doc(key).get();
-                    if (docSnap.exists && docSnap.data()?.value) {
-                      value = JSON.parse(docSnap.data().value, BufferJSON.reviver);
-                    }
-                  } catch (e) {}
-                }
-                // إن لم توجد، فحص القرص المحلي
-                if (!value && fs.existsSync(path.join(AUTH_DIR, `${key}.json`))) {
-                  try {
-                    const raw = fs.readFileSync(path.join(AUTH_DIR, `${key}.json`), 'utf8');
-                    value = JSON.parse(raw, BufferJSON.reviver);
-                  } catch (e) {}
-                }
-
-                if (value) {
-                  if (type === 'app-state-sync-key' && value) {
-                    value = proto.Message.AppStateSyncKeyData.fromObject(value);
-                  }
-                  memoryKeysCache.set(key, value);
-                  data[id] = value;
-                }
-              })
-            );
-          }
-
-          return data;
-        },
-        set: async (data) => {
-          const writePromises = [];
-
-          for (const category in data) {
-            for (const id in data[category]) {
-              const value = data[category][id];
-              const key = `${category}-${id}`;
-
-              if (value) {
-                memoryKeysCache.set(key, value);
-                const serialized = JSON.stringify(value, BufferJSON.replacer);
-
-                // حفظ محلي احتياطي
-                try {
-                  if (!fs.existsSync(AUTH_DIR)) fs.mkdirSync(AUTH_DIR, { recursive: true });
-                  fs.writeFileSync(path.join(AUTH_DIR, `${key}.json`), serialized, 'utf8');
-                } catch (e) {}
-
-                // حفظ في Firestore
-                if (sessionCol) {
-                  writePromises.push(
-                    sessionCol.doc(key).set({
-                      value: serialized,
-                      type: category,
-                      updatedAt: new Date(),
-                    }).catch((e) => console.warn(`[Firestore Auth] Set error (${key}):`, e.message))
-                  );
-                }
-              } else {
-                // حذف المفتاح عند استدعاء الحذف
-                memoryKeysCache.delete(key);
-                try {
-                  const p = path.join(AUTH_DIR, `${key}.json`);
-                  if (fs.existsSync(p)) fs.unlinkSync(p);
-                } catch (e) {}
-
-                if (sessionCol) {
-                  writePromises.push(
-                    sessionCol.doc(key).delete().catch((e) => console.warn(`[Firestore Auth] Delete error (${key}):`, e.message))
-                  );
-                }
-              }
-            }
-          }
-
-          if (writePromises.length > 0) {
-            await Promise.all(writePromises);
-          }
-        },
-      },
-    },
-    saveCreds,
-  };
+  } catch (err) {
+    console.warn('[Firestore Auth] Restore warning:', err.message);
+  }
 }
 
+/**
+ * حفظ نسخة احتياطية من ملفات الجلسة في Firestore
+ */
+async function backupAuthToFirestore() {
+  if (!firestore || !fs.existsSync(AUTH_DIR)) return;
+  try {
+    const filenames = fs.readdirSync(AUTH_DIR);
+    const files = {};
+    for (const file of filenames) {
+      if (file.endsWith('.json')) {
+        files[file] = fs.readFileSync(path.join(AUTH_DIR, file), 'utf8');
+      }
+    }
+    if (Object.keys(files).length > 0) {
+      await firestore.collection(FIRESTORE_COLLECTION).doc('session_backup').set({
+        files,
+        updatedAt: new Date(),
+      });
+      console.log(`[Firestore Auth] Synced ${Object.keys(files).length} session files to Firestore.`);
+    }
+  } catch (err) {
+    console.warn('[Firestore Auth] Backup warning:', err.message);
+  }
+}
+
+/**
+ * مسح شامل لكافة ملفات الجلسات القديمة محلياً وسحابياً لإنشاء جلسة نظيفة 100%
+ */
 async function clearAllSessionStorage() {
   console.log('[WhatsApp Gateway] Clearing all local and cloud session data...');
-  memoryKeysCache.clear();
+  msgRetryCounterCache.clear();
+  sentMessagesStore.clear();
 
   // تنظيف القرص المحلي
   try {
@@ -231,10 +109,10 @@ async function clearAllSessionStorage() {
         const batch = firestore.batch();
         snapshot.docs.forEach((doc) => batch.delete(doc.ref));
         await batch.commit();
-        console.log(`[Firestore Session] Cleared ${snapshot.size} session docs from Firestore.`);
+        console.log(`[Firestore Auth] Cleared ${snapshot.size} session docs from Firestore.`);
       }
     } catch (err) {
-      console.warn('[Firestore Session] Clear warning:', err.message);
+      console.warn('[Firestore Auth] Clear warning:', err.message);
     }
   }
 }
@@ -298,7 +176,7 @@ async function waitForConnection(timeoutMs = 12000) {
   return connectionStatus === 'connected' && !!sock;
 }
 
-// ── بدء وتشغيل اتصال واتساب ──
+// ── بدء وتشغيل اتصال واتساب الرسمي بـ MultiFileAuth ──
 async function connectToWhatsApp() {
   if (isConnecting) {
     console.log('[WhatsApp Gateway] Connection attempt already in progress. Skipping duplicate.');
@@ -309,7 +187,16 @@ async function connectToWhatsApp() {
   connectionStatus = 'connecting';
 
   try {
-    const { state, saveCreds } = await useFirestoreAuthState();
+    if (!fs.existsSync(AUTH_DIR)) {
+      fs.mkdirSync(AUTH_DIR, { recursive: true });
+    }
+
+    // محاولة الاسترجاع السحابي إذا كان المجلد فارغاً
+    if (fs.readdirSync(AUTH_DIR).length === 0) {
+      await restoreAuthFromFirestore();
+    }
+
+    const { state, saveCreds } = await useMultiFileAuthState(AUTH_DIR);
     const { version, isLatest } = await fetchLatestBaileysVersion().catch(() => ({
       version: [2, 3000, 1015901307],
       isLatest: true,
@@ -341,6 +228,7 @@ async function connectToWhatsApp() {
 
     sock.ev.on('creds.update', async () => {
       await saveCreds();
+      await backupAuthToFirestore();
     });
 
     sock.ev.on('connection.update', async (update) => {
