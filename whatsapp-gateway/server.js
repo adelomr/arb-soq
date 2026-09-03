@@ -38,6 +38,8 @@ try {
 
 // ذاكرة تخزين مؤقتة سريعة في الرام (In-Memory Cache)
 const memoryKeysCache = new Map();
+const msgRetryCounterCache = new Map();
+const sentMessagesStore = new Map();
 
 /**
  * محول مصادقة مخصص متكامل مع Firestore (Direct Firestore Auth State)
@@ -320,12 +322,21 @@ async function connectToWhatsApp() {
       auth: state,
       logger: pino({ level: 'silent' }),
       printQRInTerminal: false,
-      browser: ['Arb-Soq Gateway', 'Chrome', '1.0.0'],
+      browser: ['Arb-Soq Gateway', 'Chrome', '120.0.0.0'],
       connectTimeoutMs: 60000,
       defaultQueryTimeoutMs: 60000,
       keepAliveIntervalMs: 15000,
       retryRequestDelayMs: 2000,
       emitOwnEvents: false,
+      markOnlineOnConnect: true,
+      syncFullHistory: false,
+      msgRetryCounterCache,
+      getMessage: async (key) => {
+        if (key?.id && sentMessagesStore.has(key.id)) {
+          return sentMessagesStore.get(key.id);
+        }
+        return { conversation: 'رمز تفعيل سوق العرب' };
+      },
     });
 
     sock.ev.on('creds.update', async () => {
@@ -584,6 +595,13 @@ app.post('/send-message', async (req, res) => {
     } catch (pErr) {}
 
     const sent = await sock.sendMessage(jid, { text: message });
+    if (sent?.key?.id && sent?.message) {
+      sentMessagesStore.set(sent.key.id, sent.message);
+      if (sentMessagesStore.size > 2000) {
+        const firstKey = sentMessagesStore.keys().next().value;
+        sentMessagesStore.delete(firstKey);
+      }
+    }
 
     return res.json({
       success: true,
@@ -638,6 +656,13 @@ app.post('/send-otp', async (req, res) => {
     const otpMessage = `رمز تفعيل ${appName} الخاص بك هو: \`\`\`${code}\`\`\``;
 
     const sent = await sock.sendMessage(jid, { text: otpMessage });
+    if (sent?.key?.id && sent?.message) {
+      sentMessagesStore.set(sent.key.id, sent.message);
+      if (sentMessagesStore.size > 2000) {
+        const firstKey = sentMessagesStore.keys().next().value;
+        sentMessagesStore.delete(firstKey);
+      }
+    }
 
     return res.json({
       success: true,
