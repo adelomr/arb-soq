@@ -253,6 +253,17 @@ function formatPhoneToJid(phone) {
     cleaned = cleaned.substring(2);
   }
 
+  // إزالة الصفر الزائد بعد كود الدولة تلقائياً (مثل 2001... أو 96605... أو 97105...)
+  if (cleaned.startsWith('2001') && cleaned.length === 13) {
+    cleaned = '20' + cleaned.substring(3);
+  } else if (cleaned.startsWith('96605') && cleaned.length === 14) {
+    cleaned = '966' + cleaned.substring(4);
+  } else if (cleaned.startsWith('97105') && cleaned.length === 14) {
+    cleaned = '971' + cleaned.substring(4);
+  } else if (cleaned.startsWith('9650') && cleaned.length === 12) {
+    cleaned = '965' + cleaned.substring(4);
+  }
+
   if (/^01[0125]\d{8}$/.test(cleaned)) {
     cleaned = '2' + cleaned;
   } else if (/^05\d{8}$/.test(cleaned)) {
@@ -553,7 +564,25 @@ app.post('/send-message', async (req, res) => {
       });
     }
 
-    const jid = formatPhoneToJid(phone);
+    let jid = formatPhoneToJid(phone);
+    const cleanDigits = String(jid).split('@')[0];
+
+    // فحص وتأكيد وجود الرقم على دليل خوادم واتساب وجلب الـ JID الدقيق
+    try {
+      const checkResults = await sock.onWhatsApp(cleanDigits);
+      if (checkResults && checkResults.length > 0 && checkResults[0]?.exists && checkResults[0]?.jid) {
+        jid = checkResults[0].jid;
+      }
+    } catch (checkErr) {
+      console.warn('[WhatsApp Gateway] onWhatsApp check warning:', checkErr?.message);
+    }
+
+    // تهيئة الجلسة والتواجد الفوري لتسريع التسليم
+    try {
+      await sock.presenceSubscribe(jid);
+      await sock.sendPresenceUpdate('composing', jid);
+    } catch (pErr) {}
+
     const sent = await sock.sendMessage(jid, { text: message });
 
     return res.json({
@@ -587,7 +616,25 @@ app.post('/send-otp', async (req, res) => {
       });
     }
 
-    const jid = formatPhoneToJid(phone);
+    let jid = formatPhoneToJid(phone);
+    const cleanDigits = String(jid).split('@')[0];
+
+    // فحص وتأكيد وجود الرقم على دليل خوادم واتساب وجلب الـ JID الدقيق
+    try {
+      const checkResults = await sock.onWhatsApp(cleanDigits);
+      if (checkResults && checkResults.length > 0 && checkResults[0]?.exists && checkResults[0]?.jid) {
+        jid = checkResults[0].jid;
+      }
+    } catch (checkErr) {
+      console.warn('[WhatsApp Gateway] onWhatsApp check warning:', checkErr?.message);
+    }
+
+    // تهيئة الجلسة والتواجد الفوري لتسريع التسليم وفك التشفير
+    try {
+      await sock.presenceSubscribe(jid);
+      await sock.sendPresenceUpdate('composing', jid);
+    } catch (pErr) {}
+
     const otpMessage = `رمز تفعيل ${appName} الخاص بك هو: \`\`\`${code}\`\`\``;
 
     const sent = await sock.sendMessage(jid, { text: otpMessage });
