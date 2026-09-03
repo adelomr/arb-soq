@@ -247,7 +247,7 @@ async function connectToWhatsApp() {
       if (connection === 'close') {
         isConnecting = false;
         const statusCode = lastDisconnect?.error?.output?.statusCode;
-        const isExplicitLogout = statusCode === DisconnectReason.loggedOut;
+        const isExplicitLogout = statusCode === DisconnectReason.loggedOut || statusCode === 401;
 
         console.log(`[WhatsApp Gateway] Connection closed. StatusCode: ${statusCode}, isExplicitLogout: ${isExplicitLogout}`);
         connectionStatus = 'disconnected';
@@ -255,12 +255,12 @@ async function connectToWhatsApp() {
         connectedNumber = null;
 
         if (isExplicitLogout) {
-          console.log('[WhatsApp Gateway] ⚠️ Device was unlinked from phone. Clearing session for fresh QR scan...');
+          console.log('[WhatsApp Gateway] ⚠️ Device was unlinked from phone. Clearing all old session storage for fresh QR scan...');
           await clearAllSessionStorage();
           reconnectAttempts = 0;
           setTimeout(connectToWhatsApp, 2000);
         } else {
-          // إعادة الاتصال التلقائي الدائم (مع الحفاظ الكامل على الجلسة)
+          // إعادة الاتصال التلقائي الدائم (مع الحفاظ الكامل على الجلسة الحالية)
           reconnectAttempts++;
           const delay = statusCode === DisconnectReason.restartRequired ? 1000 : Math.min(reconnectAttempts * 3000, 15000);
           console.log(`[WhatsApp Gateway] 🔄 Auto-reconnecting in ${delay / 1000}s (Attempt #${reconnectAttempts}, Session preserved)...`);
@@ -279,8 +279,9 @@ async function connectToWhatsApp() {
         console.log(`🚀 Gateway API ready on port ${PORT}`);
         console.log('========================================\n');
 
-        // حفظ بيانات الاعتماد فوراً لتثبيت الجلسة
+        // حفظ بيانات الاعتماد فوراً وتحديث النسخة السحابية المحفوظة
         await saveCreds();
+        await backupAuthToFirestore();
       }
     });
   } catch (err) {
