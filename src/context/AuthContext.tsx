@@ -29,7 +29,8 @@ interface AuthContextType {
   sendVerificationCode: (phoneNumber: string) => Promise<ConfirmationResult>;
   confirmVerificationCode: (confirmationResult: ConfirmationResult, code: string) => Promise<void>;
   signIn: (email:string,password:string) => Promise<any>;
-  signInWithGoogle: () => Promise<void>;
+  signInWithGoogle: (targetRedirectUrl?: string) => Promise<void>;
+  signInWithGoogleCredential: (idTokenOrCred: string | any, targetRedirectUrl?: string) => Promise<void>;
   signUp: (email: string, password: string) => Promise<any>;
   signOutUser: () => Promise<void>;
   sendPasswordReset: (email: string) => Promise<void>;
@@ -154,7 +155,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
               profileData.role = 'admin';
           }
       } catch (e) {
-          console.error("Failed to check admin status", e);
+          // Users without admin permissions will trigger a permission-denied error, which is expected for regular users.
       }
       
       if (profileData.status === 'suspended' || profileData.status === 'deleted') {
@@ -170,14 +171,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setUserProfile(fullProfile);
       return fullProfile;
     } else {
-      // New user: auto-create initial profile seamlessly without forcing signup form
+      // New user: create initial profile without setting location until user completes onboarding
       const finalAvatarUrl = firebaseUser.photoURL || `https://avatar.vercel.sh/${firebaseUser.uid}.png`;
       const newProfileData: Omit<UserProfile, 'id' | 'store'> = {
         name: firebaseUser.displayName || 'مستخدم جديد',
         email: firebaseUser.email || '',
         phoneNumber: firebaseUser.phoneNumber || '',
+        country: '',
+        province: '',
+        governorate: '',
+        city: '',
+        village: '',
         avatarUrl: finalAvatarUrl,
-        phoneVerified: !!firebaseUser.phoneNumber,
+        phoneVerified: false,
+        hasCompletedProfile: false,
+        isNewUser: true,
         role: 'user',
         status: 'active',
         walletBalance: 0,
@@ -194,7 +202,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         console.error("Failed to auto-create user profile", err);
       }
 
-      const fullProfile: UserProfile = { id: firebaseUser.uid, ...newProfileData };
+      const fullProfile: UserProfile = { id: firebaseUser.uid, ...newProfileData, isNewUser: true };
       setUserProfile(fullProfile);
       return fullProfile;
     }
@@ -384,11 +392,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [pages, categories]);
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (user) => {
+    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       setLoading(true);
-      if (user) {
-        setUser(user);
-        await fetchUserProfile(user);
+      if (firebaseUser) {
+        setUser(firebaseUser);
+        const profile = await fetchUserProfile(firebaseUser);
+        if (profile) {
+          const isComplete = Boolean(
+            !(profile as any).isNewUser &&
+            profile.hasCompletedProfile !== false &&
+            profile.country &&
+            (profile.city || profile.governorate || profile.province)
+          );
+
+          if (!isComplete) {
+            const currentPath = typeof window !== 'undefined' ? window.location.pathname : '';
+            if (currentPath === '/login' || currentPath === '/') {
+              router.push('/profile?mode=signup');
+            }
+          }
+        }
       } else {
         setUser(null);
         setUserProfile(null);
@@ -405,7 +428,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     });
 
     return () => unsubscribe();
-  }, [fetchUserProfile, getCategories, getAdSenseSettings, getProfessions, getSpecializations]);
+  }, [fetchUserProfile, getCategories, getAdSenseSettings, getProfessions, getSpecializations, router]);
   
   const refreshUserProfile = useCallback(async () => {
     if (user) {
@@ -565,7 +588,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return userCredential;
   }, [fetchUserProfile, router]);
 
-  const signInWithGoogle = useCallback(async () => {
+  const signInWithGoogle = useCallback(async (targetRedirectUrl?: string) => {
+    const isProfileComplete = (p: UserProfile | null) => {
+      if (!p) return false;
+      if ((p as any).isNewUser) return false;
+      if (p.hasCompletedProfile === false) return false;
+      return Boolean(p.country && (p.city || p.governorate || p.province));
+    };
+
+    const handleAuthRedirect = (profile: UserProfile | null) => {
+      const finalDest = targetRedirectUrl || '/';
+      if (!isProfileComplete(profile)) {
+        router.push(`/profile?mode=signup&redirectUrl=${encodeURIComponent(finalDest)}`);
+      } else {
+        router.push(finalDest);
+      }
+    };
+
     // 1. Check if running inside the Android Container app with native Google Play Services bridge
     if (typeof window !== 'undefined' && (window as any).AndroidAuth?.launchGoogleSignIn) {
       return new Promise<void>((resolve, reject) => {
@@ -573,10 +612,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           try {
             const credential = GoogleAuthProvider.credential(idToken);
             const userCredential = await signInWithCredential(auth, credential);
+            let profile: UserProfile | null = null;
             if (userCredential.user) {
-              await fetchUserProfile(userCredential.user);
+              profile = await fetchUserProfile(userCredential.user);
             }
-            router.push('/');
+            handleAuthRedirect(profile);
             resolve();
           } catch (err: any) {
             console.error("Native Google sign in Firebase Auth error:", err);
@@ -604,8 +644,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const result = await signInWithPopup(auth, provider);
       const googleUser = result.user;
       
-      await fetchUserProfile(googleUser);
-      router.push('/');
+      const profile = await fetchUserProfile(googleUser);
+      handleAuthRedirect(profile);
     } catch (error: any) {
       if (
         error.code === 'auth/popup-closed-by-user' ||
@@ -619,6 +659,37 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
       console.warn("خطأ في تسجيل الدخول عبر جوجل: ", error);
       throw error;
+    }
+  }, [fetchUserProfile, router]);
+
+  const signInWithGoogleCredential = useCallback(async (idTokenOrCred: string | any, targetRedirectUrl?: string) => {
+    const isProfileComplete = (p: UserProfile | null) => {
+      if (!p) return false;
+      if ((p as any).isNewUser) return false;
+      if (p.hasCompletedProfile === false) return false;
+      return Boolean(p.country && (p.city || p.governorate || p.province));
+    };
+
+    const handleAuthRedirect = (profile: UserProfile | null) => {
+      const finalDest = targetRedirectUrl || '/';
+      if (!isProfileComplete(profile)) {
+        router.push(`/profile?mode=signup&redirectUrl=${encodeURIComponent(finalDest)}`);
+      } else if (targetRedirectUrl) {
+        router.push(targetRedirectUrl);
+      }
+    };
+
+    try {
+      const credential = typeof idTokenOrCred === 'string' ? GoogleAuthProvider.credential(idTokenOrCred) : idTokenOrCred;
+      const userCredential = await signInWithCredential(auth, credential);
+      let profile: UserProfile | null = null;
+      if (userCredential.user) {
+        profile = await fetchUserProfile(userCredential.user);
+      }
+      handleAuthRedirect(profile);
+    } catch (err) {
+      console.warn("خطأ في تسجيل الدخول ببيانات اعتماد جوجل:", err);
+      throw err;
     }
   }, [fetchUserProfile, router]);
   
@@ -640,12 +711,41 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (!currentUser) {
         throw new Error("لا يوجد مستخدم مسجل الدخول حاليًا.");
     }
+    const uid = currentUser.uid;
     try {
-        await deleteUser(currentUser);
-        const userDocRef = doc(firestore, 'users', currentUser.uid);
+        // 1. Delete Firestore user document first
+        const userDocRef = doc(firestore, 'users', uid);
         await deleteDoc(userDocRef);
+
+        // 2. Attempt deleting the Firebase Auth user
+        try {
+            await deleteUser(currentUser);
+        } catch (authErr: any) {
+            if (authErr.code === 'auth/requires-recent-login') {
+                const isGoogleUser = currentUser.providerData.some(p => p.providerId === 'google.com');
+                if (isGoogleUser) {
+                    try {
+                        const { reauthenticateWithPopup, GoogleAuthProvider } = await import('firebase/auth');
+                        await reauthenticateWithPopup(currentUser, new GoogleAuthProvider());
+                        await deleteUser(currentUser);
+                    } catch (reauthErr) {
+                        console.warn("Could not reauthenticate to delete Auth user:", reauthErr);
+                        await signOut(auth);
+                    }
+                } else {
+                    await signOut(auth);
+                }
+            } else {
+                throw authErr;
+            }
+        }
+
         setUser(null);
         setUserProfile(null);
+        if (typeof window !== 'undefined') {
+          localStorage.removeItem('arb_soq_location_data');
+          localStorage.removeItem('arb_soq_baladna_location');
+        }
         router.push('/login');
     } catch (error: any) {
         console.error("خطأ في حذف المستخدم: ", error);
@@ -720,21 +820,40 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [getAllUsers]);
 
   const getUserNotifications = useCallback((userId: string, callback: (notifications: Notification[]) => void) => {
+    const parseDate = (val: any): Date => {
+      if (!val) return new Date(0);
+      if (typeof val.toDate === 'function') {
+        try { return val.toDate(); } catch { return new Date(0); }
+      }
+      if (val instanceof Date) return val;
+      if (typeof val === 'number') return new Date(val);
+      if (typeof val === 'string') return new Date(val);
+      if (val && typeof val.seconds === 'number') return new Date(val.seconds * 1000);
+      return new Date(0);
+    };
+
     const q = query(
       collection(firestore, 'notifications'), 
       where('userId', '==', userId)
     );
-    const unsubscribe = onSnapshot(q, (querySnapshot) => {
+    const unsubscribe = onSnapshot(
+      q, 
+      (querySnapshot) => {
         let notifications = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Notification));
         
         notifications.sort((a, b) => {
-            const dateA = a.createdAt?.toDate() || new Date(0);
-            const dateB = b.createdAt?.toDate() || new Date(0);
+            const dateA = parseDate(a.createdAt);
+            const dateB = parseDate(b.createdAt);
             return dateB.getTime() - dateA.getTime();
         });
 
         callback(notifications);
-    });
+      },
+      (err) => {
+        // Silently catch permission or index errors on notifications
+        callback([]);
+      }
+    );
     return unsubscribe;
   }, []);
 
@@ -1755,6 +1874,7 @@ const getAds = useCallback((
     confirmVerificationCode,
     signIn,
     signInWithGoogle,
+    signInWithGoogleCredential,
     signUp,
     signOutUser,
     sendPasswordReset,

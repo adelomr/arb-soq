@@ -14,7 +14,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { PlusCircle, User, LayoutDashboard, LogOut, Globe, LogIn, Sun, Moon, Minus, Plus, Undo2, Shield, Bell, Trash2, Info, Wallet, Megaphone, X, BadgeDollarSign, Store, Edit, ShoppingCart, MapPin, Tv, Grid, List, Smartphone, BadgeCheck } from 'lucide-react';
+import { PlusCircle, User, LayoutDashboard, LogOut, Globe, LogIn, Sun, Moon, Minus, Plus, Undo2, Shield, Bell, Trash2, Info, Wallet, Megaphone, X, BadgeDollarSign, Store, Edit, ShoppingCart, MapPin, Tv, Grid, List, Smartphone, BadgeCheck, ChevronLeft } from 'lucide-react';
 import { useState, useEffect, useRef } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import RequireAuthModal from './RequireAuthModal';
@@ -271,6 +271,25 @@ export default function Header() {
   return (
     <>
       <NotificationBar />
+      {user && userProfile && !userProfile.country && !userProfile.city && !userProfile.province && !userProfile.governorate && (
+        <div className="bg-gradient-to-r from-primary/15 via-accent/10 to-primary/15 border-b border-primary/25 py-2 px-3 sm:px-4 text-xs sm:text-sm text-foreground flex items-center justify-between gap-2 shadow-xs" dir="rtl">
+          <div className="flex items-center gap-2">
+            <span className="p-1 rounded-full bg-primary/20 text-primary">
+              <MapPin className="h-3.5 w-3.5" />
+            </span>
+            <span className="font-medium text-2xs sm:text-xs">
+              حسابك جديد أو غير مكتمل الموقع! أكمل بياناتك وحدد منطقتك لإظهار إعلانات بلدك ومدينتك وتعبئة إعلاناتك تلقائياً.
+            </span>
+          </div>
+          <Link
+            href="/profile?mode=signup"
+            className="shrink-0 font-bold bg-primary text-primary-foreground hover:bg-primary/90 px-2.5 py-1 rounded-xl text-2xs sm:text-xs flex items-center gap-1 transition-all shadow-xs"
+          >
+            <span>إكمال الموقع والبيانات</span>
+            <ChevronLeft className="h-3 w-3" />
+          </Link>
+        </div>
+      )}
       <header className="sticky top-0 z-40 w-full max-w-full overflow-hidden border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
         <div className="container flex h-20 items-center justify-between gap-2 sm:gap-4">
           <div className="flex items-center gap-2 md:gap-6">
@@ -423,7 +442,22 @@ export default function Header() {
                               <div className="flex-1 min-w-0 pr-2">
                                 <p className="text-sm leading-snug">{notification.message}</p>
                                 <div className="text-xs text-muted-foreground mt-1">
-                                  {notification.createdAt ? formatDistanceToNow(notification.createdAt.toDate(), { addSuffix: true, locale: dateLocale }) : ''}
+                                  {(() => {
+                                    if (!notification.createdAt) return '';
+                                    let dateObj: Date | null = null;
+                                    if (typeof (notification.createdAt as any).toDate === 'function') {
+                                      try { dateObj = (notification.createdAt as any).toDate(); } catch {}
+                                    } else if (notification.createdAt instanceof Date) {
+                                      dateObj = notification.createdAt;
+                                    } else if (typeof notification.createdAt === 'number') {
+                                      dateObj = new Date(notification.createdAt);
+                                    } else if (typeof notification.createdAt === 'string') {
+                                      dateObj = new Date(notification.createdAt);
+                                    } else if ((notification.createdAt as any).seconds) {
+                                      dateObj = new Date((notification.createdAt as any).seconds * 1000);
+                                    }
+                                    return dateObj ? formatDistanceToNow(dateObj, { addSuffix: true, locale: dateLocale }) : '';
+                                  })()}
                                 </div>
                               </div>
                             </>

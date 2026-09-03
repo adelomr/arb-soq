@@ -178,6 +178,8 @@ export interface UserProfile {
   phone?: string;
   phoneVerified?: boolean;
   verified?: boolean;
+  hasCompletedProfile?: boolean;
+  isNewUser?: boolean;
   fullName?: string;
   jobType?: string;
   country?: string;
@@ -185,6 +187,9 @@ export interface UserProfile {
   governorate?: string;
   city?: string;
   village?: string;
+  address?: string;
+  latitude?: number;
+  longitude?: number;
   role: 'user' | 'admin';
   moderatedCategories?: string[];
   status: 'active' | 'suspended' | 'deleted';

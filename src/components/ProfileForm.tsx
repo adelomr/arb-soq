@@ -26,7 +26,7 @@ import {
 } from "@/components/ui/alert-dialog"
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
-import { User, Save, FileUp, Loader2, Phone, MessageSquare, BadgeCheck, MapPin, Store, Trash2, Briefcase, Eye, EyeOff, Pencil } from 'lucide-react';
+import { User, Save, FileUp, Loader2, Phone, MessageSquare, BadgeCheck, MapPin, Store, Trash2, Briefcase, Eye, EyeOff, Pencil, LocateFixed, Globe, Building2, Building, Home, Sparkles } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from './ui/avatar';
 import { useEffect, useState, useRef } from 'react';
 import { useAuth } from '@/context/AuthContext';
@@ -38,13 +38,14 @@ import { Separator } from './ui/separator';
 import { Textarea } from './ui/textarea';
 import { firestore } from '@/lib/firebase';
 import { doc, setDoc } from 'firebase/firestore';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { Label } from './ui/label';
 import { useMarket } from '@/context/MarketContext';
 import { markets, Market } from '@/lib/markets';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import Image from 'next/image';
+import { detectUserLocation, buildFullAddress, saveAndSyncLocation, LocationData, loadSavedLocation } from '@/lib/locationEngine';
 
 const translations = {
     ar: {
@@ -134,12 +135,15 @@ const getProfileFormSchema = (t: typeof translations.ar) => z.object({
 });
 
 
-export default function ProfileForm() {
+export default function ProfileForm({ isSignupMode = false }: { isSignupMode?: boolean }) {
   const { toast } = useToast();
   const { user, userProfile, updateUserProfile, uploadProfileImage, loading: authLoading, sendVerificationCode, confirmVerificationCode, deleteUserProfile, refreshUserProfile, professions } = useAuth();
   const { market } = useMarket();
   const { language, direction } = useLanguage();
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const redirectUrl = searchParams.get('redirectUrl') || '/';
+
   const t = translations.ar;
   const profileFormSchema = getProfileFormSchema(t);
   type ProfileFormValues = z.infer<typeof profileFormSchema>;
@@ -154,6 +158,8 @@ export default function ProfileForm() {
   const [isDeleting, setIsDeleting] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [isEditingPhone, setIsEditingPhone] = useState(false);
+  const [isDetectingLocation, setIsDetectingLocation] = useState(false);
+  const [coords, setCoords] = useState<{ lat: number; lng: number } | null>(null);
   const [cooldown, setCooldown] = useState(0);
   const cooldownTimer = useRef<NodeJS.Timeout | null>(null);
   const [isClient, setIsClient] = useState(false);
@@ -200,14 +206,20 @@ export default function ProfileForm() {
           }
       }
 
+      const savedLoc = loadSavedLocation();
+      const initialCountry = userProfile.country || (savedLoc?.country !== 'غير محدد' ? savedLoc?.country : '') || '';
+      const initialProvince = userProfile.province || (userProfile as any).governorate || (savedLoc?.governorate !== 'غير محدد' ? savedLoc?.governorate : '') || '';
+      const initialCity = userProfile.city || (savedLoc?.city !== 'غير محدد' ? savedLoc?.city : '') || '';
+      const initialVillage = userProfile.village || (savedLoc?.village !== 'غير محدد' ? savedLoc?.village : '') || '';
+
       const activeMarket = phoneCountry || market || markets[0];
 
       form.reset({
-        name: userProfile.name || '',
-        country: userProfile.country || '',
-        province: userProfile.province || '',
-        city: userProfile.city || '',
-        village: userProfile.village || '',
+        name: userProfile.name || user?.displayName || '',
+        country: initialCountry,
+        province: initialProvince,
+        city: initialCity,
+        village: initialVillage,
         phoneCountryCode: activeMarket.id,
         phoneNumber: phoneNum,
         profession: userProfile.profession || '',
@@ -218,7 +230,7 @@ export default function ProfileForm() {
         setAvatarPreview(userProfile.avatarUrl);
       }
     }
-  }, [userProfile, market, form]);
+  }, [userProfile, user, market, form]);
   
   useEffect(() => {
     const cooldownEndTime = localStorage.getItem(COOLDOWN_STORAGE_KEY);
@@ -259,6 +271,40 @@ export default function ProfileForm() {
         setImageFile(file);
       };
       reader.readAsDataURL(file);
+    }
+  };
+
+  const handleDetectGPS = async () => {
+    setIsDetectingLocation(true);
+    try {
+      const loc = await detectUserLocation();
+      if (loc.country && loc.country !== 'غير محدد') {
+        form.setValue('country', loc.country, { shouldValidate: true });
+      }
+      if (loc.governorate && loc.governorate !== 'غير محدد') {
+        form.setValue('province', loc.governorate, { shouldValidate: true });
+      }
+      if (loc.city && loc.city !== 'غير محدد') {
+        form.setValue('city', loc.city, { shouldValidate: true });
+      }
+      if (loc.village && loc.village !== 'غير محدد') {
+        form.setValue('village', loc.village, { shouldValidate: true });
+      }
+      if (loc.latitude && loc.longitude) {
+        setCoords({ lat: loc.latitude, lng: loc.longitude });
+      }
+      toast({
+        title: 'تم تحديد موقعك بدقة 🛰️',
+        description: `تم تحويل الإحداثيات وتعبئة المربعات الأربعة: ${loc.fullAddress}`,
+      });
+    } catch (err: any) {
+      toast({
+        title: 'تنبيه الموقع الجغرافي',
+        description: err?.message || 'تعذر تحديد الموقع. تأكد من تفعيل الـ GPS في جهازك.',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsDetectingLocation(false);
     }
   };
 
@@ -319,6 +365,16 @@ export default function ProfileForm() {
               return;
           }
 
+          if (data.isPhoneAlreadyInUse || res.status === 409) {
+            toast({
+              title: '⚠️ رقم الهاتف مستخدم بالفعل',
+              description: data.error || 'هذا الرقم مرتبط ومؤكد بالفعل بحساب آخر على سوق العرب. يرجى تسجيل الدخول بحسابك السابق أو استخدام رقم هاتف آخر لتأكيد هذا الحساب.',
+              variant: 'destructive',
+              duration: 9000,
+            });
+            return;
+          }
+
           if (isLocal) {
             console.error(`[WhatsApp OTP] ❌ Failed in ${elapsed}ms:`, data);
           }
@@ -349,6 +405,22 @@ export default function ProfileForm() {
       }
   };
 
+  const syncCurrentLocation = async (countryVal?: string, provinceVal?: string, cityVal?: string, villageVal?: string) => {
+    if (!countryVal && !provinceVal && !cityVal) return;
+    const fullAddress = buildFullAddress(villageVal, cityVal, provinceVal, countryVal);
+    const locationPayload: LocationData = {
+      country: countryVal || 'غير محدد',
+      governorate: provinceVal || 'غير محدد',
+      city: cityVal || 'غير محدد',
+      village: villageVal || 'غير محدد',
+      fullAddress,
+      latitude: coords?.lat || (userProfile as any)?.latitude || 0,
+      longitude: coords?.lng || (userProfile as any)?.longitude || 0,
+      scope: villageVal ? 'village' : cityVal ? 'city' : 'governorate',
+      updatedAt: Date.now(),
+    };
+    await saveAndSyncLocation(locationPayload, user?.uid);
+  };
 
   // ── التحقق من كود الـ OTP عبر بوابة واتساب ──
   const handleVerifyCode = async () => {
@@ -390,31 +462,46 @@ export default function ProfileForm() {
         const countryVal = form.getValues('country') || userProfile?.country || '';
         const provinceVal = form.getValues('province') || userProfile?.province || '';
         const cityVal = form.getValues('city') || userProfile?.city || '';
+        const villageVal = form.getValues('village') || userProfile?.village || '';
         const isDataComplete = Boolean(nameVal && countryVal && provinceVal && cityVal);
 
         if (user?.uid) {
             await updateUserProfile(user.uid, { 
               phoneNumber: fullPhoneNumber, 
               phoneVerified: true,
+              country: countryVal,
+              province: provinceVal,
+              governorate: provinceVal,
+              city: cityVal,
+              village: villageVal,
               ...(isDataComplete ? { verified: true } : {})
             });
         }
 
-        if (isDataComplete) {
+        await syncCurrentLocation(countryVal, provinceVal, cityVal, villageVal);
+        await refreshUserProfile();
+        setCodeSent(false);
+        setIsEditingPhone(false);
+
+        if (isSignupMode) {
+          toast({ 
+            title: "🎉 تم إنشاء وتفعيل حسابك بنجاح!", 
+            description: "تم تأكيد رقم هاتفك وتحديد موقع منطقتك، وأصبح حسابك موثقاً 🛡️." 
+          });
+          router.push(redirectUrl);
+        } else {
+          if (isDataComplete) {
             toast({ 
               title: "🎉 أصبح حسابك الآن موثقاً!", 
               description: "تم تأكيد رقم هاتفك واكتمال جميع بياناتك، وأصبح حسابك موثقاً بالعلامة الزرقاء 🛡️." 
             });
-        } else {
+          } else {
             toast({ 
               title: t.phoneVerifiedSuccess, 
               description: "تم تأكيد رقم هاتفك بنجاح. أكمل باقي بياناتك الشخصية والعنوان ليصبح حسابك موثقاً." 
             });
+          }
         }
-
-        setCodeSent(false);
-        setIsEditingPhone(false);
-        await refreshUserProfile();
 
     } catch (error: any) {
         console.error("Error verifying WhatsApp OTP: ", error);
@@ -428,46 +515,22 @@ export default function ProfileForm() {
     }
   };
 
+  const handleSaveAndSkipPhone = async () => {
+    const isValid = await form.trigger(['name', 'country', 'province', 'city']);
+    if (!isValid) {
+      toast({
+        title: "بيانات الموقع مطلوبة",
+        description: "يرجى إدخال اسمك وتحديد (الدولة والمحافظة والمدينة) لحفظ موقعك الجغرافي.",
+        variant: "destructive",
+      });
+      return;
+    }
+    const values = form.getValues();
+    await onSubmit(values);
+  };
 
   async function onSubmit(data: ProfileFormValues) {
     if (!user || !userProfile) return;
-
-    // إذا كان هناك رمز تحقق تم إرساله ولم يتم تأكيده بعد
-    if (codeSent) {
-      if (data.verificationCode && data.verificationCode.trim()) {
-        await handleVerifyCode();
-        return;
-      } else {
-        toast({
-          title: "يرجى تأكيد رقم الهاتف",
-          description: "تم إرسال رمز التحقق إلى واتساب. يرجى إدخال الرمز والضغط على 'تأكيد الرمز'.",
-          variant: "destructive",
-        });
-        return;
-      }
-    }
-    
-    const phoneCountry = markets.find(m => m.id === (data.phoneCountryCode || market?.id)) || market || markets[0];
-    const fullPhoneNumber = data.phoneNumber
-    ? `${phoneCountry?.phoneCode}${data.phoneNumber.replace(/^0+/, '')}`
-    : '';
-
-    const hasFormChanged = 
-        data.name !== userProfile.name ||
-        data.country !== userProfile.country ||
-        data.province !== userProfile.province ||
-        data.city !== userProfile.city ||
-        data.village !== userProfile.village ||
-        data.profession !== userProfile.profession ||
-        data.specialization !== userProfile.specialization ||
-        fullPhoneNumber !== userProfile.phoneNumber ||
-        imageFile !== null;
-
-    if (!hasFormChanged) {
-        toast({ title: t.noChangesToSave });
-        router.push('/');
-        return;
-    }
 
     setIsSaving(true);
     try {
@@ -480,14 +543,20 @@ export default function ProfileForm() {
             toast({ title: t.imageUploadSuccess });
         }
 
+        const phoneCountry = markets.find(m => m.id === (data.phoneCountryCode || market?.id)) || market || markets[0];
+        const fullPhoneNumber = data.phoneNumber
+        ? `${phoneCountry?.phoneCode}${data.phoneNumber.replace(/^0+/, '')}`
+        : '';
+
         const isDataComplete = Boolean(data.name && data.country && data.province && data.city);
-        const isPhoneVerifiedNow = (userProfile.phoneVerified && fullPhoneNumber === userProfile.phoneNumber);
+        const isPhoneVerifiedNow = Boolean(userProfile.phoneVerified && fullPhoneNumber === userProfile.phoneNumber);
         const isFullyVerified = isDataComplete && isPhoneVerifiedNow;
 
         const profileData: Partial<UserProfile> = {
             name: data.name,
             country: data.country,
             province: data.province,
+            governorate: data.province,
             city: data.city,
             village: data.village,
             avatarUrl: newAvatarUrl,
@@ -496,26 +565,37 @@ export default function ProfileForm() {
             ...(isFullyVerified ? { verified: true } : {})
         };
         
-        if (fullPhoneNumber !== userProfile.phoneNumber) {
+        if (fullPhoneNumber) {
             profileData.phoneNumber = fullPhoneNumber;
-            profileData.phoneVerified = false; // Always reset verification status on number change
-            profileData.verified = false;
+            if (fullPhoneNumber !== userProfile.phoneNumber) {
+                profileData.phoneVerified = false;
+                profileData.verified = false;
+            }
         }
 
-        toast({ title: t.updatingProfile });
+        toast({ title: isSignupMode ? "جارٍ إكمال إنشاء الحساب وحفظ الموقع..." : t.updatingProfile });
         await updateUserProfile(user.uid, profileData);
+        await syncCurrentLocation(data.country, data.province, data.city, data.village);
+        await refreshUserProfile();
         setImageFile(null); 
         
-        if (isFullyVerified && !userProfile.verified) {
+        if (isSignupMode) {
             toast({ 
-              title: "🎉 أصبح حسابك الآن موثقاً!", 
-              description: "تم حفظ بياناتك واكتمال تأكيد الهاتف، وأصبح حسابك موثقاً بالعلامة الزرقاء 🛡️." 
+              title: "تم إنشاء حسابك وحفظ موقعك بنجاح! ✨", 
+              description: "تم تحديد منطقتك بنجاح، ويمكنك تأكيد رقم هاتفك لاحقاً في أي وقت من ملفك الشخصي." 
             });
+            router.push(redirectUrl);
         } else {
-            toast({ title: t.changesSaved });
+            if (isFullyVerified && !userProfile.verified) {
+                toast({ 
+                  title: "🎉 أصبح حسابك الآن موثقاً!", 
+                  description: "تم حفظ بياناتك واكتمال تأكيد الهاتف، وأصبح حسابك موثقاً بالعلامة الزرقاء 🛡️." 
+                });
+            } else {
+                toast({ title: t.changesSaved });
+            }
+            router.push(redirectUrl === '/' ? '/' : redirectUrl);
         }
-
-        router.push('/');
     } catch (error: any) {
         console.error("Profile update error:", error);
         toast({
@@ -526,8 +606,8 @@ export default function ProfileForm() {
     } finally {
         setIsSaving(false);
     }
-}
-  
+  }
+
   const handleDeleteAccount = async () => {
     setIsDeleting(true);
     setShowDeleteDialog(false);
@@ -607,62 +687,120 @@ export default function ProfileForm() {
 
 
 
-        <div className="space-y-4">
-            <Label className="text-lg font-medium">العنوان</Label>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-x-4 gap-y-6">
-                 <FormField
-                    control={form.control}
-                    name="country"
-                    render={({ field }) => (
-                        <FormItem>
-                            <FormLabel>{t.country}</FormLabel>
-                            <FormControl>
-                                <Input placeholder={t.countryPlaceholder} {...field} />
-                            </FormControl>
-                            <FormMessage />
-                        </FormItem>
-                    )}
-                />
-                <FormField
-                    control={form.control}
-                    name="province"
-                    render={({ field }) => (
-                        <FormItem>
-                             <FormLabel>{t.province}</FormLabel>
-                            <FormControl>
-                                <Input placeholder={t.provincePlaceholder} {...field} />
-                            </FormControl>
-                            <FormMessage />
-                        </FormItem>
-                    )}
-                />
-                 <FormField
-                    control={form.control}
-                    name="city"
-                    render={({ field }) => (
-                         <FormItem>
-                             <FormLabel>{t.city}</FormLabel>
-                            <FormControl>
-                                <Input placeholder={t.cityPlaceholder} {...field} />
-                            </FormControl>
-                            <FormMessage />
-                        </FormItem>
-                    )}
-                />
-                 <FormField
-                    control={form.control}
-                    name="village"
-                    render={({ field }) => (
-                         <FormItem>
-                             <FormLabel>{t.village}</FormLabel>
-                            <FormControl>
-                                <Input placeholder={t.villagePlaceholder} {...field} />
-                            </FormControl>
-                            <FormMessage />
-                        </FormItem>
-                    )}
-                />
+        {/* قسم العنوان والمربعات الأربعة */}
+        <div className="p-4 sm:p-5 rounded-3xl bg-muted/20 border border-border/80 space-y-4">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+            <Label className="text-base font-bold flex items-center gap-2 text-foreground">
+              <MapPin className="h-5 w-5 text-primary" />
+              العنوان ومربعات الاستهداف الجغرافي (4 مستويات)
+            </Label>
+
+            {/* زر تحديد الموقع التلقائي من GPS */}
+            <Button
+              type="button"
+              variant="outline"
+              onClick={handleDetectGPS}
+              disabled={isDetectingLocation}
+              className="h-10 px-4 rounded-xl border-primary/40 bg-primary/5 hover:bg-primary/10 text-primary font-bold text-xs flex items-center gap-2 shadow-sm transition-all"
+            >
+              {isDetectingLocation ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  <span>جارٍ تحويل الإحداثيات لأسماء...</span>
+                </>
+              ) : (
+                <>
+                  <LocateFixed className="h-4 w-4" />
+                  <span>تحديد موقعي وتعبئة المربعات (GPS)</span>
+                </>
+              )}
+            </Button>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-1">
+            {/* 1. الدولة */}
+            <FormField
+              control={form.control}
+              name="country"
+              render={({ field }) => (
+                <FormItem className="p-3 rounded-2xl bg-card border border-border/70 space-y-1">
+                  <FormLabel className="text-xs font-bold text-muted-foreground flex items-center gap-1.5">
+                    <Globe className="w-3.5 h-3.5 text-primary" />
+                    1. الدولة
+                  </FormLabel>
+                  <FormControl>
+                    <Input placeholder={t.countryPlaceholder} {...field} className="h-9 text-xs border-border/60" />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            {/* 2. المحافظة / المنطقة */}
+            <FormField
+              control={form.control}
+              name="province"
+              render={({ field }) => (
+                <FormItem className="p-3 rounded-2xl bg-card border border-border/70 space-y-1">
+                  <FormLabel className="text-xs font-bold text-muted-foreground flex items-center gap-1.5">
+                    <Building2 className="w-3.5 h-3.5 text-primary" />
+                    2. المحافظة / المنطقة
+                  </FormLabel>
+                  <FormControl>
+                    <Input placeholder={t.provincePlaceholder} {...field} className="h-9 text-xs border-border/60" />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            {/* 3. المدينة / المركز */}
+            <FormField
+              control={form.control}
+              name="city"
+              render={({ field }) => (
+                <FormItem className="p-3 rounded-2xl bg-card border border-border/70 space-y-1">
+                  <FormLabel className="text-xs font-bold text-muted-foreground flex items-center gap-1.5">
+                    <Building className="w-3.5 h-3.5 text-primary" />
+                    3. المدينة / المركز
+                  </FormLabel>
+                  <FormControl>
+                    <Input placeholder={t.cityPlaceholder} {...field} className="h-9 text-xs border-border/60" />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            {/* 4. الحي / القرية */}
+            <FormField
+              control={form.control}
+              name="village"
+              render={({ field }) => (
+                <FormItem className="p-3 rounded-2xl bg-card border border-border/70 space-y-1">
+                  <FormLabel className="text-xs font-bold text-muted-foreground flex items-center gap-1.5">
+                    <Home className="w-3.5 h-3.5 text-primary" />
+                    4. القرية / الحي
+                  </FormLabel>
+                  <FormControl>
+                    <Input placeholder={t.villagePlaceholder} {...field} className="h-9 text-xs border-border/60" />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+          </div>
+
+          {/* ملخص العنوان الكامل */}
+          {buildFullAddress(form.watch('village'), form.watch('city'), form.watch('province'), form.watch('country')) !== 'غير محدد' && (
+            <div className="p-3 rounded-2xl bg-primary/10 border border-primary/20 flex items-center gap-2 text-xs">
+              <Sparkles className="w-4 h-4 text-primary shrink-0" />
+              <span className="text-muted-foreground">العنوان المعتمد:</span>
+              <strong className="text-foreground font-semibold">
+                {buildFullAddress(form.watch('village'), form.watch('city'), form.watch('province'), form.watch('country'))}
+              </strong>
             </div>
+          )}
         </div>
 
         <div className="space-y-4">
@@ -772,7 +910,7 @@ export default function ProfileForm() {
                     </div>
                     <span className="text-2xs bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 px-2 py-0.5 rounded-full font-mono">صالح لـ 5 دقائق</span>
                 </FormLabel>
-                 <div className="flex gap-2">
+                 <div className="flex flex-col sm:flex-row gap-2">
                     <FormControl>
                         <Input 
                             type="text" 
@@ -794,10 +932,24 @@ export default function ProfileForm() {
                         type="button" 
                         onClick={handleVerifyCode} 
                         disabled={isVerifying || !form.watch('verificationCode')}
-                        className="relative min-w-28 font-bold bg-emerald-600 hover:bg-emerald-700 text-white h-11"
+                        className="relative min-w-32 font-bold bg-emerald-600 hover:bg-emerald-700 text-white h-11"
                     >
-                        {isVerifying ? <Loader2 className="animate-spin h-4 w-4" /> : 'تأكيد الرمز'}
+                        {isVerifying ? <Loader2 className="animate-spin h-4 w-4" /> : 'تأكيد الرمز وتوثيق الحساب'}
                      </Button>
+                 </div>
+                 {/* خيار الحفظ والمتابعة في حال تعذر استلام الكود */}
+                 <div className="pt-1 flex items-center justify-between border-t border-border/40 text-2xs">
+                   <span className="text-muted-foreground">لم يصلك الرمز بعد أو حدث خطأ؟</span>
+                   <Button
+                     type="button"
+                     variant="ghost"
+                     size="sm"
+                     onClick={handleSaveAndSkipPhone}
+                     disabled={isSaving}
+                     className="text-xs text-primary font-bold hover:underline h-auto p-1 cursor-pointer"
+                   >
+                     حفظ ومتابعة (تأكيد الهاتف لاحقاً)
+                   </Button>
                  </div>
                 <FormMessage />
                 </FormItem>
@@ -805,10 +957,32 @@ export default function ProfileForm() {
             />
         )}
 
-        <Button type="submit" className="w-full" size="lg" disabled={isSaving}>
-          {isSaving ? <Loader2 className="animate-spin h-4 w-4" /> : <Save className={direction === 'rtl' ? 'ml-2 h-4 w-4' : 'mr-2 h-4 w-4'} />}
-          {isSaving ? t.saving : t.saveChanges}
-        </Button>
+        <div className="space-y-3 pt-2">
+          <Button type="submit" className="w-full h-12 text-sm sm:text-base font-bold shadow-md rounded-2xl" size="lg" disabled={isSaving}>
+            {isSaving ? (
+              <>
+                <Loader2 className="animate-spin h-4 w-4 ml-2" />
+                <span>{isSignupMode ? "جارٍ إكمال إنشاء الحساب..." : t.saving}</span>
+              </>
+            ) : isSignupMode ? (
+              <>
+                <Sparkles className="ml-2 h-4 w-4" />
+                <span>حفظ وإنشاء الحساب وتحديد موقعي</span>
+              </>
+            ) : (
+              <>
+                <Save className={direction === 'rtl' ? 'ml-2 h-4 w-4' : 'mr-2 h-4 w-4'} />
+                <span>{t.saveChanges}</span>
+              </>
+            )}
+          </Button>
+
+          {isSignupMode && (
+            <p className="text-2xs text-center text-muted-foreground">
+              سيتم حفظ موقعك الجغرافي لتخصيص إعلانات سوق بلدنا وتعبئة مربعات الإعلانات لك تلقائياً.
+            </p>
+          )}
+        </div>
       </form>
     </Form>
 

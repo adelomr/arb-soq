@@ -63,15 +63,15 @@ export default function AllCategoriesPage() {
       <Header />
       <main className="flex-1">
         {/* Hero Section with Dedicated Category Search */}
-        <section className="bg-gradient-to-b from-primary/10 via-accent/5 to-background py-10 md:py-14 text-center border-b border-border/40">
+        <section className="bg-gradient-to-b from-primary/10 via-accent/5 to-background py-8 md:py-14 text-center border-b border-border/40">
           <div className="container mx-auto px-4 max-w-3xl space-y-4">
             <div className="inline-flex items-center justify-center p-3 rounded-2xl bg-primary/10 text-primary mb-1">
-              <Shapes className="h-10 w-10 md:h-12 md:w-12" />
+              <Shapes className="h-8 w-8 md:h-12 md:w-12" />
             </div>
-            <h1 className="text-3xl md:text-5xl font-extrabold font-headline tracking-tight text-foreground">
+            <h1 className="text-2xl sm:text-3xl md:text-5xl font-extrabold font-headline tracking-tight text-foreground">
               {t.allCategories}
             </h1>
-            <p className="text-sm md:text-base text-muted-foreground max-w-xl mx-auto">
+            <p className="text-xs sm:text-sm md:text-base text-muted-foreground max-w-xl mx-auto px-2">
               {t.browseAll}
             </p>
 
@@ -86,7 +86,7 @@ export default function AllCategoriesPage() {
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   placeholder="ابحث عن فئة رئيسية أو قسم فرعي..."
-                  className="w-full h-12 md:h-14 pr-11 pl-10 text-xs sm:text-sm md:text-base font-medium bg-transparent border-none outline-none focus:outline-none placeholder:text-muted-foreground rounded-2xl"
+                  className="w-full h-11 sm:h-12 md:h-14 pr-11 pl-10 text-xs sm:text-sm md:text-base font-medium bg-transparent border-none outline-none focus:outline-none placeholder:text-muted-foreground rounded-2xl"
                 />
                 {searchQuery && (
                   <button
@@ -113,12 +113,12 @@ export default function AllCategoriesPage() {
         </section>
 
         {/* Categories Grid */}
-        <section className="py-10 md:py-14">
+        <section className="py-6 sm:py-10 md:py-14 pb-28 md:pb-16">
           <div className="container mx-auto px-4">
             {authLoading ? (
-              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3 sm:gap-4">
                 {[...Array(12)].map((_, i) => (
-                  <Skeleton key={i} className="h-32 w-full rounded-2xl" />
+                  <Skeleton key={i} className="min-h-[135px] sm:min-h-[150px] w-full rounded-2xl" />
                 ))}
               </div>
             ) : filteredCategories.length === 0 ? (
@@ -136,7 +136,7 @@ export default function AllCategoriesPage() {
                 </button>
               </div>
             ) : (
-              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3 sm:gap-4">
                 {filteredCategories.map((category) => {
                   const CategoryIcon = getCategoryIcon(category.icon);
                   const catName = category.name?.ar || category.id;
@@ -148,18 +148,27 @@ export default function AllCategoriesPage() {
                   const subCount = category.subcategories?.length || 0;
 
                   return (
-                    <Link key={category.id} href={href} className="w-full group">
-                      <Card className="flex flex-col items-center justify-center p-4 h-32 text-center transition-all bg-card hover:bg-primary/5 hover:border-primary/50 hover:shadow-md hover:-translate-y-1 rounded-2xl border border-border">
-                        <div className="p-3 rounded-xl bg-primary/10 text-primary mb-2.5 group-hover:scale-110 group-hover:bg-primary group-hover:text-primary-foreground transition-all duration-300">
-                          <CategoryIcon className="h-6 w-6" />
+                    <Link key={category.id} href={href} className="w-full group flex">
+                      <Card className="flex flex-col items-center justify-between p-3.5 sm:p-4 min-h-[135px] sm:min-h-[150px] w-full text-center transition-all bg-card hover:bg-primary/5 hover:border-primary/50 hover:shadow-md hover:-translate-y-1 rounded-2xl border border-border">
+                        {/* Icon Container */}
+                        <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-2xl bg-primary/10 text-primary mb-2 flex items-center justify-center shrink-0 group-hover:scale-110 group-hover:bg-primary group-hover:text-primary-foreground transition-all duration-300 shadow-xs">
+                          <CategoryIcon className="h-6 w-6 sm:h-7 sm:w-7" />
                         </div>
-                        <p className="text-xs sm:text-sm font-bold text-center w-full truncate text-foreground group-hover:text-primary transition-colors">
-                          {catName}
-                        </p>
-                        {subCount > 0 && (
-                          <span className="text-[10px] text-muted-foreground mt-0.5">
+
+                        {/* Title - Fully visible without clipping */}
+                        <div className="flex-1 flex items-center justify-center w-full px-0.5 my-1">
+                          <h2 className="text-xs sm:text-sm font-bold text-center leading-snug line-clamp-2 w-full break-words text-foreground group-hover:text-primary transition-colors">
+                            {catName}
+                          </h2>
+                        </div>
+
+                        {/* Subcategory Count Badge */}
+                        {subCount > 0 ? (
+                          <span className="text-[10px] sm:text-[11px] text-muted-foreground font-medium bg-muted/60 px-2 py-0.5 rounded-full mt-1 shrink-0">
                             {subCount} أقسام فرعية
                           </span>
+                        ) : (
+                          <div className="h-4" />
                         )}
                       </Card>
                     </Link>

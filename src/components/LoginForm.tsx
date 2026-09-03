@@ -3,7 +3,7 @@
 
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { Loader2 } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { useState } from 'react';
@@ -43,11 +43,13 @@ export default function LoginForm() {
   const [isGoogleLoading, setIsGoogleLoading] = useState(false);
   const { language } = useLanguage();
   const t = translations[language];
+  const searchParams = useSearchParams();
+  const redirectUrl = searchParams.get('redirectUrl') || '/';
 
   const handleGoogleSignIn = async () => {
     setIsGoogleLoading(true);
     try {
-      await signInWithGoogle();
+      await signInWithGoogle(redirectUrl);
       // Redirection is handled in AuthContext
     } catch (error) {
        toast({

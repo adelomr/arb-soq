@@ -2,11 +2,9 @@
 
 import { useEffect, useState } from 'react';
 import { useAuth } from '@/context/AuthContext';
-import { auth } from '@/lib/firebase';
-import { GoogleAuthProvider, signInWithCredential } from 'firebase/auth';
 
 export default function GoogleOneTap() {
-  const { user, loading } = useAuth();
+  const { user, loading, signInWithGoogleCredential } = useAuth();
   const [scriptLoaded, setScriptLoaded] = useState(false);
 
   useEffect(() => {
@@ -52,8 +50,9 @@ export default function GoogleOneTap() {
     try {
       const handleCredentialResponse = async (response: any) => {
         try {
-          const credential = GoogleAuthProvider.credential(response.credential);
-          await signInWithCredential(auth, credential);
+          if (response?.credential) {
+            await signInWithGoogleCredential(response.credential);
+          }
         } catch (err) {
           console.warn('Google One Tap Sign-In Error:', err);
         }
@@ -66,21 +65,31 @@ export default function GoogleOneTap() {
         callback: handleCredentialResponse,
         auto_select: false,
         itp_support: true,
+        use_fedcm_for_prompt: false,
       });
 
       // Prompt One Tap dialog
       // @ts-ignore
-      window.google?.accounts.id.prompt((notification) => {
-        if (notification.isNotDisplayed()) {
-          // Logged silently
-        } else if (notification.isSkippedMoment()) {
-          // Logged silently
+      window.google?.accounts.id.prompt((notification: any) => {
+        if (
+          notification.isNotDisplayed?.() || 
+          notification.isSkippedMoment?.() || 
+          notification.isDismissedMoment?.()
+        ) {
+          // Silently handled
         }
       });
+
+      return () => {
+        try {
+          // @ts-ignore
+          window.google?.accounts.id.cancel();
+        } catch {}
+      };
     } catch (error) {
       // Ignored in dev
     }
-  }, [scriptLoaded, user, loading]);
+  }, [scriptLoaded, user, loading, signInWithGoogleCredential]);
 
   return null;
 }

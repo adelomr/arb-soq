@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { sendWhatsAppOTP } from '@/lib/whatsapp-gateway-client';
 import { saveOTP } from '@/lib/otp-store';
 import { firestore } from '@/lib/firebase';
-import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
+import { collection, addDoc, serverTimestamp, query, where, getDocs } from 'firebase/firestore';
 
 export const dynamic = 'force-dynamic';
 
@@ -80,6 +80,28 @@ export async function POST(request: NextRequest) {
         { success: false, error: 'يرجى إدخال رقم هاتف صحيح.' },
         { status: 400 }
       );
+    }
+
+    // فحص ما إذا كان الرقم مرتبطاً ومؤكداً بالفعل بحساب آخر على سوق العرب
+    try {
+      const usersQuery = query(collection(firestore, 'users'), where('phoneNumber', '==', cleanPhone));
+      const usersSnap = await getDocs(usersQuery);
+      const conflictingDoc = usersSnap.docs.find(d => d.id !== userId);
+      if (conflictingDoc) {
+        const conflictingData = conflictingDoc.data();
+        if (conflictingData.phoneVerified !== false) {
+          return NextResponse.json(
+            {
+              success: false,
+              error: 'هذا الرقم مرتبط ومؤكد بالفعل بحساب آخر على سوق العرب. يرجى تسجيل الدخول بحسابك السابق أو استخدام رقم هاتف آخر لتأكيد هذا الحساب.',
+              isPhoneAlreadyInUse: true,
+            },
+            { status: 409 }
+          );
+        }
+      }
+    } catch (checkErr) {
+      console.warn('[whatsapp-otp/send] Error checking phone uniqueness:', checkErr);
     }
 
     // توليد كود 6 أرقام عشوائي

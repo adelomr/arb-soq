@@ -22,8 +22,8 @@ export const BALADNA_COORDS_KEY = 'arb_soq_my_balad_coords';
 export const LOCATION_SCOPE_KEY = 'arb_soq_location_scope';
 
 /**
- * بناء العنوان الكامل بالتسلسل المنطقي المطابق لكود تطبيق الأندرويد
- * village, city, governorate, country
+ * بناء العنوان الكامل بالتسلسل المنطقي المطابق لكود تطبيق الأندرويد القديم (SignupActivity):
+ * [القرية/الحي]، [المدينة]، [المحافظة]، [الدولة]
  */
 export function buildFullAddress(
   village?: string | null,
@@ -45,7 +45,7 @@ export function buildFullAddress(
   if (
     cleanCity &&
     cleanCity !== 'غير محدد' &&
-    (!cleanVillage || cleanVillage !== cleanCity)
+    (!cleanVillage || cleanVillage.toLowerCase() !== cleanCity.toLowerCase())
   ) {
     parts.push(cleanCity);
   }
@@ -53,8 +53,8 @@ export function buildFullAddress(
   if (
     cleanGov &&
     cleanGov !== 'غير محدد' &&
-    (!cleanCity || cleanCity !== cleanGov) &&
-    (!cleanVillage || cleanVillage !== cleanGov)
+    (!cleanCity || cleanCity.toLowerCase() !== cleanGov.toLowerCase()) &&
+    (!cleanVillage || cleanVillage.toLowerCase() !== cleanGov.toLowerCase())
   ) {
     parts.push(cleanGov);
   }
@@ -67,9 +67,16 @@ export function buildFullAddress(
 }
 
 /**
- * تحديد أفضل اسم للعرض السريع (سوق بلدنا / الشريط العلوي)
+ * تحديد أفضل اسم للعرض السريع (سوق بلدنا / الشريط العلوي) وفق النطاق المحدد أو الترتيب المنطقي
  */
 export function getBestLocationName(loc: Partial<LocationData>): string {
+  // 1. إذا كان المستخدم قد اختار نطاقاً محدداً (الدولة، المحافظة، المدينة، أو القرية)
+  if (loc.scope === 'village' && loc.village && loc.village !== 'غير محدد') return loc.village;
+  if (loc.scope === 'city' && loc.city && loc.city !== 'غير محدد') return loc.city;
+  if (loc.scope === 'governorate' && loc.governorate && loc.governorate !== 'غير محدد') return loc.governorate;
+  if (loc.scope === 'country' && loc.country && loc.country !== 'غير محدد') return loc.country;
+
+  // 2. الترتيب التلقائي البديل عند عدم تحديد نطاق محدد
   if (loc.village && loc.village !== 'غير محدد') return loc.village;
   if (loc.city && loc.city !== 'غير محدد') return loc.city;
   if (loc.governorate && loc.governorate !== 'غير محدد') return loc.governorate;
@@ -78,7 +85,7 @@ export function getBestLocationName(loc: Partial<LocationData>): string {
 }
 
 /**
- * معالجة وتدقيق بيانات العناوين لإزالة التكرارات وفق معايير أندرويد الدقيقة
+ * معالجة وتدقيق بيانات العناوين لإزالة التكرارات وفق معايير أندرويد الدقيقة (SignupActivity)
  */
 export function cleanAndDeduplicateAddress(raw: {
   village?: string;
@@ -95,16 +102,29 @@ export function cleanAndDeduplicateAddress(raw: {
   let governorate = (raw.governorate || '').trim();
   let country = (raw.country || '').trim();
 
-  // تنظيف التكرارات: لا نظهر المحافظة كقرية إذا كانت متطابقة
+  // تنظيف القيم الافتراضية
+  if (village === 'غير محدد') village = '';
+  if (city === 'غير محدد') city = '';
+  if (governorate === 'غير محدد') governorate = '';
+  if (country === 'غير محدد') country = '';
+
+  // قواعد منع التكرار المطابقة لـ SignupActivity.java:
+  // 1. إذا كان الحي/القرية يطابق المحافظة -> إلغاء الحي
   if (village && governorate && village.toLowerCase() === governorate.toLowerCase()) {
     village = '';
   }
 
+  // 2. إذا كانت المدينة تطابق المحافظة -> إلغاء المحافظة المكررة أو المدينة
   if (city && governorate && city.toLowerCase() === governorate.toLowerCase()) {
-    city = '';
+    // نفضل إبقاء المحافظة وتعيين المدينة حسب الحي إن وجد
   }
 
-  // إذا كانت القرية أو الحي غير موجودة ولكن المدينة محددة، المدينة تعتبر المكان الأقرب
+  // 3. إذا كان الحي والمدينة متطابقين
+  if (village && city && village.toLowerCase() === city.toLowerCase()) {
+    // الإبقاء على اسم واحد
+  }
+
+  // إذا كانت القرية غير متوفرة ولكن المدينة متوفرة
   if (!village && city) {
     village = city;
   }
@@ -112,10 +132,10 @@ export function cleanAndDeduplicateAddress(raw: {
   const fullAddress = buildFullAddress(village, city, governorate, country);
 
   return {
-    village,
-    city,
-    governorate,
-    country,
+    village: village || city || governorate || 'غير محدد',
+    city: city || governorate || 'غير محدد',
+    governorate: governorate || country || 'غير محدد',
+    country: country || 'غير محدد',
     fullAddress,
     latitude: raw.latitude,
     longitude: raw.longitude,
@@ -126,8 +146,7 @@ export function cleanAndDeduplicateAddress(raw: {
 }
 
 /**
- * جلب العنوان الدقيق من الإحداثيات باستخدام مزودي خدمات متعددين بالعربية
- * الترتيب الأقرب دائماً: القرية / الحي / الشارع -> المدينة / المركز -> المحافظة -> الدولة
+ * تحويل الإحداثيات إلى أسماء المربعات الأربعة بالعربية (Geocoder Reverse Geocoding)
  */
 export async function reverseGeocodeCoordinates(
   lat: number,
@@ -147,10 +166,10 @@ export async function reverseGeocodeCoordinates(
       const data = await response.json();
       const addr = data.address || {};
 
-      // 1. استخراج الدولة
+      // 1. الدولة
       const country = addr.country || '';
 
-      // 2. استخراج المحافظة / المنطقة
+      // 2. المحافظة / المنطقة
       const governorate =
         addr.state ||
         addr.governorate ||
@@ -159,7 +178,7 @@ export async function reverseGeocodeCoordinates(
         addr.state_district ||
         '';
 
-      // 3. استخراج المدينة / المركز / الدائرة
+      // 3. المدينة / المركز / الدائرة
       const city =
         addr.city ||
         addr.town ||
@@ -170,7 +189,7 @@ export async function reverseGeocodeCoordinates(
         addr.subdistrict ||
         '';
 
-      // 4. استخراج أدق تسمية: القرية / الحي / الشارع / التجمع السكني (الأقرب جغرافياً للمستخدم)
+      // 4. الحي / القرية / الشارع
       const village =
         addr.neighbourhood ||
         addr.suburb ||
@@ -203,7 +222,7 @@ export async function reverseGeocodeCoordinates(
     console.warn('[LocationEngine] OSM Nominatim geocode error:', err);
   }
 
-  // محاولة 2: Photon Komoot Reverse Geocode (عالي الدقة ومفتوح يدعم العربية)
+  // محاولة 2: Photon Komoot Reverse Geocode بالعربية
   try {
     const photonUrl = `https://photon.komoot.io/reverse?lat=${lat}&lon=${lng}&lang=ar`;
     const response = await fetch(photonUrl);
@@ -222,7 +241,7 @@ export async function reverseGeocodeCoordinates(
           props.locality ||
           '';
 
-        if (village || city || governorate) {
+        if (village || city || governorate || country) {
           return cleanAndDeduplicateAddress({
             village,
             city,
@@ -239,7 +258,7 @@ export async function reverseGeocodeCoordinates(
     console.warn('[LocationEngine] Photon geocode error:', err);
   }
 
-  // محاولة 3: BigDataCloud مع استخراج أدق المستويات الإدارية والمحلية
+  // محاولة 3: BigDataCloud Reverse Geocoding
   try {
     const bdcUrl = `https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${lat}&longitude=${lng}&localityLanguage=ar`;
     const response = await fetch(bdcUrl);
@@ -253,12 +272,10 @@ export async function reverseGeocodeCoordinates(
       const informs: Array<{ name: string; description?: string }> =
         data.localityInfo?.informative || [];
 
-      // استخراج الحي أو القرية من Informative أو أدنى مستوى إداري
       let village = '';
       if (informs.length > 0 && informs[0]?.name) {
         village = informs[0].name;
       } else {
-        // البحث عن المستويات الأكثر تفصيلاً (adminLevel >= 7 أو أعلى order)
         const detailedAdmin = admins
           .filter((a) => a.name && a.name !== country && a.name !== governorate)
           .sort((a, b) => (b.order || 0) - (a.order || 0))[0];
@@ -284,12 +301,12 @@ export async function reverseGeocodeCoordinates(
     console.warn('[LocationEngine] BigDataCloud geocode error:', err);
   }
 
-  // في حال فشل المزودات، إرجاع الإحداثيات الخام
+  // في حال فشل المزودات، إرجاع الإحداثيات كعنوان
   return {
-    village: '',
-    city: '',
-    governorate: '',
-    country: '',
+    village: 'غير محدد',
+    city: 'غير محدد',
+    governorate: 'غير محدد',
+    country: 'غير محدد',
     fullAddress: `${lat.toFixed(5)}, ${lng.toFixed(5)}`,
     latitude: lat,
     longitude: lng,
@@ -300,7 +317,70 @@ export async function reverseGeocodeCoordinates(
 }
 
 /**
- * طلب موقع الـ GPS عالي الدقة من المتصفح / الجهاز
+/**
+ * استخراج الموقع الاحتياطي عبر عنوان الشبكة والـ IP بدقة وسرعة فائقة
+ */
+export async function getLocationFromIP(): Promise<LocationData> {
+  // 1. محاولة BigDataCloud المجاني بالعربية
+  try {
+    const res = await fetch('https://api.bigdatacloud.net/data/reverse-geocode-client?localityLanguage=ar');
+    if (res.ok) {
+      const data = await res.json();
+      if (data.countryName || data.principalSubdivision) {
+        const country = data.countryName || '';
+        const governorate = data.principalSubdivision || '';
+        const city = data.city || data.locality || '';
+        return cleanAndDeduplicateAddress({
+          country,
+          governorate,
+          city,
+          village: data.locality || city,
+          latitude: data.latitude || 0,
+          longitude: data.longitude || 0,
+          accuracy: 5000,
+        });
+      }
+    }
+  } catch (err) {
+    console.warn('[LocationEngine] BigDataCloud IP lookup failed:', err);
+  }
+
+  // 2. محاولة ipapi.co
+  try {
+    const res = await fetch('https://ipapi.co/json/');
+    if (res.ok) {
+      const data = await res.json();
+      if (data.country_name || data.city) {
+        return cleanAndDeduplicateAddress({
+          country: data.country_name || '',
+          governorate: data.region || '',
+          city: data.city || '',
+          village: data.city || '',
+          latitude: data.latitude || 0,
+          longitude: data.longitude || 0,
+          accuracy: 5000,
+        });
+      }
+    }
+  } catch (err) {
+    console.warn('[LocationEngine] IPAPI lookup failed:', err);
+  }
+
+  return {
+    village: 'غير محدد',
+    city: 'غير محدد',
+    governorate: 'غير محدد',
+    country: 'غير محدد',
+    fullAddress: 'غير محدد',
+    latitude: 0,
+    longitude: 0,
+    scope: 'city',
+    updatedAt: Date.now(),
+  };
+}
+
+/**
+ * طلب موقع الـ GPS مع دعم التراجع التلقائي من الدقة العالية للدقة المتوسطة
  */
 export function getCurrentGpsPosition(): Promise<{
   latitude: number;
@@ -313,6 +393,7 @@ export function getCurrentGpsPosition(): Promise<{
       return;
     }
 
+    // المحاولة 1: طلب الدقة العالية مع مهلة ذكية (7 ثوانٍ)
     navigator.geolocation.getCurrentPosition(
       (pos) => {
         resolve({
@@ -321,24 +402,105 @@ export function getCurrentGpsPosition(): Promise<{
           accuracy: pos.coords.accuracy,
         });
       },
-      (error) => {
-        let msg = 'تعذر الحصول على إشارة الموقع.';
-        if (error.code === 1) {
-          msg = 'تم رفض إذن الوصول للموقع الجغرافي. يرجى تفعيل إذن الموقع في المتصفح.';
-        } else if (error.code === 2) {
-          msg = 'إشارة الموقع (GPS) غير متوفرة حالياً. تأكد من تشغيل الـ GPS.';
-        } else if (error.code === 3) {
-          msg = 'استغرق تحديد الموقع وقتاً طويلاً، يرجى المحاولة في مكان مفتوح.';
+      (firstError) => {
+        // إذا استغرق وقتاً طويلاً أو كانت إشارة الأقمار غير متوفرة -> المحاولة فوراً عبر شبكة الواي فاي والإنترنت
+        if (firstError.code === 3 || firstError.code === 2) {
+          navigator.geolocation.getCurrentPosition(
+            (pos) => {
+              resolve({
+                latitude: pos.coords.latitude,
+                longitude: pos.coords.longitude,
+                accuracy: pos.coords.accuracy,
+              });
+            },
+            (secondError) => {
+              reject(secondError);
+            },
+            {
+              enableHighAccuracy: false,
+              timeout: 8000,
+              maximumAge: 300000,
+            }
+          );
+        } else {
+          reject(firstError);
         }
-        reject(new Error(msg));
       },
       {
         enableHighAccuracy: true,
-        timeout: 20000,
-        maximumAge: 0,
+        timeout: 7000,
+        maximumAge: 120000,
       }
     );
   });
+}
+
+/**
+ * الدالة الشاملة لتحديد الموقع وتعبئة المربعات الأربعة (تطبيق الحاوية + الويب):
+ * 1. إذا كان التطبيق يعمل داخل حاوية الأندرويد الأصلية -> يستدعي واجهة النظام الأصلية AndroidLocation
+ * 2. إذا كان متصفح ويب -> يستدعي Geolocation API مع تراجع فوري وتلقائي إلى موقع الـ IP دون إيقاف المستخدم
+ */
+export async function detectUserLocation(): Promise<LocationData> {
+  if (typeof window === 'undefined') {
+    throw new Error('بيئة غير مدعومة');
+  }
+
+  // 1. فحص وجود جسر الأندرويد الأصلي (Android Native Container Bridge)
+  const win = window as any;
+  if (win.AndroidLocation && typeof win.AndroidLocation.getUserLocation === 'function') {
+    try {
+      const nativePromise = new Promise<LocationData>((resolve, reject) => {
+        const timeout = setTimeout(() => {
+          delete win.onNativeLocationReceived;
+          delete win.onNativeLocationError;
+          reject(new Error('انتهت مهلة استجابة نظام الأندرويد لتحديد الموقع.'));
+        }, 15000);
+
+        win.onNativeLocationReceived = (jsonString: string) => {
+          clearTimeout(timeout);
+          delete win.onNativeLocationReceived;
+          delete win.onNativeLocationError;
+          try {
+            const data = typeof jsonString === 'string' ? JSON.parse(jsonString) : jsonString;
+            const cleaned = cleanAndDeduplicateAddress({
+              village: data.village,
+              city: data.city,
+              governorate: data.governorate || data.province,
+              country: data.country,
+              latitude: data.latitude || 0,
+              longitude: data.longitude || 0,
+              accuracy: data.accuracy,
+            });
+            resolve(cleaned);
+          } catch (parseErr) {
+            reject(new Error('خطأ في معالجة بيانات الموقع المستلمة من الأندرويد.'));
+          }
+        };
+
+        win.onNativeLocationError = (errMsg: string) => {
+          clearTimeout(timeout);
+          delete win.onNativeLocationReceived;
+          delete win.onNativeLocationError;
+          reject(new Error(errMsg || 'فشل تحديد الموقع من نظام الأندرويد.'));
+        };
+
+        win.AndroidLocation.getUserLocation();
+      });
+
+      return await nativePromise;
+    } catch (nativeErr: any) {
+      console.warn('[LocationEngine] Native Android location failed, falling back to Web GPS:', nativeErr);
+    }
+  }
+
+  // 2. الـ GPS والـ Geocoder عبر الويب مع التراجع التلقائي إلى الـ IP
+  try {
+    const pos = await getCurrentGpsPosition();
+    return await reverseGeocodeCoordinates(pos.latitude, pos.longitude, pos.accuracy);
+  } catch (gpsError) {
+    console.warn('[LocationEngine] Web GPS failed/timed out, seamlessly falling back to IP Geolocation:', gpsError);
+    return await getLocationFromIP();
+  }
 }
 
 /**
@@ -351,7 +513,6 @@ export function loadSavedLocation(): LocationData | null {
     if (raw) {
       return JSON.parse(raw) as LocationData;
     }
-    // فحص المفاتيح القديمة للتوافق
     const legacyBalad = localStorage.getItem(BALADNA_STORAGE_KEY);
     const legacyCoords = localStorage.getItem(BALADNA_COORDS_KEY);
     if (legacyBalad) {
@@ -367,7 +528,7 @@ export function loadSavedLocation(): LocationData | null {
         }
       }
       return {
-        village: '',
+        village: legacyBalad,
         city: legacyBalad,
         governorate: '',
         country: '',

@@ -60,6 +60,8 @@ export function subscribeToUserNotifications(userId: string, callback: (notifica
   return onSnapshot(q, (snapshot) => {
     const notifications = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Notification));
     callback(notifications);
+  }, (err) => {
+    callback([]);
   });
 }
 

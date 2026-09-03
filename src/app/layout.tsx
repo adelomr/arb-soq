@@ -40,6 +40,9 @@ export const metadata: Metadata = {
   verification: {
     google: 'google62a0a2329452de9a',
   },
+  other: {
+    google: 'notranslate',
+  },
   openGraph: {
     type: 'website',
     locale: 'ar_SA',
@@ -81,8 +84,9 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="ar" dir="rtl" suppressHydrationWarning>
+    <html lang="ar" dir="rtl" translate="no" className="notranslate" suppressHydrationWarning>
       <head>
+        <meta name="google" content="notranslate" />
         <link rel="preconnect" href="https://firebasestorage.googleapis.com" crossOrigin="anonymous" />
         <link rel="preconnect" href="https://firestore.googleapis.com" crossOrigin="anonymous" />
         <link rel="preconnect" href="https://arb-soq.firebaseapp.com" crossOrigin="anonymous" />

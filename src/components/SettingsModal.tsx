@@ -22,6 +22,7 @@ import {
 } from '@/components/ui/alert-dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/context/AuthContext';
@@ -42,13 +43,19 @@ import {
   Settings,
   UserPlus,
   ChevronLeft,
+  Globe,
+  Building2,
+  Building,
+  Home,
+  Sparkles,
+  CheckCircle2,
+  Circle,
 } from 'lucide-react';
 import {
-  getCurrentGpsPosition,
-  reverseGeocodeCoordinates,
+  detectUserLocation,
   saveAndSyncLocation,
   loadSavedLocation,
-  getBestLocationName,
+  buildFullAddress,
   LocationData,
   BALADNA_STORAGE_KEY,
 } from '@/lib/locationEngine';
@@ -69,10 +76,17 @@ export default function SettingsModal({ isOpen, onClose, defaultTab = 'account' 
   const hasStore = !!userProfile?.store;
 
   const [activeTab, setActiveTab] = useState<'account' | 'location'>(defaultTab);
-  const [locationName, setLocationName] = useState('');
-  const [coords, setCoords] = useState<{ lat: number; lng: number } | null>(null);
-  const [latestData, setLatestData] = useState<LocationData | null>(null);
 
+  // المربعات الأربعة (Targeting 4 Boxes)
+  const [country, setCountry] = useState('');
+  const [governorate, setGovernorate] = useState('');
+  const [city, setCity] = useState('');
+  const [village, setVillage] = useState('');
+
+  // تحديد أي مربع هو المعتمد لسوق بلدنا
+  const [selectedScope, setSelectedScope] = useState<'village' | 'city' | 'governorate' | 'country'>('village');
+
+  const [coords, setCoords] = useState<{ lat: number; lng: number } | null>(null);
   const [showPermissionDialog, setShowPermissionDialog] = useState(false);
   const [isDetecting, setIsDetecting] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
@@ -82,58 +96,82 @@ export default function SettingsModal({ isOpen, onClose, defaultTab = 'account' 
       setActiveTab(defaultTab);
       const saved = loadSavedLocation();
       if (saved) {
-        setLatestData(saved);
-        const name = getBestLocationName(saved) || saved.fullAddress || '';
-        setLocationName(name);
+        setCountry(saved.country && saved.country !== 'غير محدد' ? saved.country : '');
+        setGovernorate(saved.governorate && saved.governorate !== 'غير محدد' ? saved.governorate : '');
+        setCity(saved.city && saved.city !== 'غير محدد' ? saved.city : '');
+        setVillage(saved.village && saved.village !== 'غير محدد' ? saved.village : '');
+        if (saved.scope) {
+          setSelectedScope(saved.scope as any);
+        } else if (saved.village && saved.village !== 'غير محدد') {
+          setSelectedScope('village');
+        } else if (saved.city && saved.city !== 'غير محدد') {
+          setSelectedScope('city');
+        } else if (saved.governorate && saved.governorate !== 'غير محدد') {
+          setSelectedScope('governorate');
+        } else if (saved.country && saved.country !== 'غير محدد') {
+          setSelectedScope('country');
+        }
+
         if (saved.latitude && saved.longitude) {
           setCoords({ lat: saved.latitude, lng: saved.longitude });
         }
       } else if (userProfile) {
-        const name = userProfile.village || userProfile.city || userProfile.governorate || '';
-        setLocationName(name);
-      } else {
-        const legacy = localStorage.getItem(BALADNA_STORAGE_KEY) || '';
-        setLocationName(legacy);
+        setCountry(userProfile.country || '');
+        setGovernorate(userProfile.governorate || userProfile.province || '');
+        setCity(userProfile.city || '');
+        setVillage(userProfile.village || '');
+        if (userProfile.village) setSelectedScope('village');
+        else if (userProfile.city) setSelectedScope('city');
+        else if (userProfile.governorate || userProfile.province) setSelectedScope('governorate');
+        else if (userProfile.country) setSelectedScope('country');
       }
     }
   }, [isOpen, userProfile, defaultTab]);
 
-  // 1. الضغط على زر "تحديد موقعي": إظهار رسالة طلب الصلاحية والتأكيد
+  // 1. الضغط على زر "تحديد موقعي"
   const handleLocateMeClick = () => {
     setShowPermissionDialog(true);
   };
 
-  // 2. عند موافقة المستخدم: تفعيل البحث بالخلفية ووضع التسمية الأقرب في مربع النص
+  // 2. عند موافقة المستخدم: تفعيل البحث بالخلفية وتحويل الإحداثيات إلى أسماء وتعبئة المربعات الأربعة
   const handleConfirmLocationPermission = async () => {
     setShowPermissionDialog(false);
     setIsDetecting(true);
 
     try {
-      // جلب إحداثيات GPS
-      const gps = await getCurrentGpsPosition();
-      setCoords({ lat: gps.latitude, lng: gps.longitude });
+      // استدعاء محرك تحديد الموقع الذكي والـ Geocoder العربي
+      const loc = await detectUserLocation();
 
-      // البحث عن أقرب تسمية لموقع المستخدم (القرية أو المدينة أو المحافظة)
-      const geocoded = await reverseGeocodeCoordinates(
-        gps.latitude,
-        gps.longitude,
-        gps.accuracy
-      );
-      setLatestData(geocoded);
+      // تعبئة المربعات الأربعة بالأسماء المستخرجة
+      const c = loc.country && loc.country !== 'غير محدد' ? loc.country : '';
+      const g = loc.governorate && loc.governorate !== 'غير محدد' ? loc.governorate : '';
+      const ct = loc.city && loc.city !== 'غير محدد' ? loc.city : '';
+      const v = loc.village && loc.village !== 'غير محدد' ? loc.village : '';
 
-      // استخراج أقرب وأدق تسمية
-      const nearestName =
-        geocoded.village ||
-        geocoded.city ||
-        geocoded.governorate ||
-        geocoded.fullAddress;
+      setCountry(c);
+      setGovernorate(g);
+      setCity(ct);
+      setVillage(v);
 
-      // وضع التسمية تلقائياً في مربع النص
-      setLocationName(nearestName);
+      if (loc.scope) {
+        setSelectedScope(loc.scope as any);
+      } else if (v) {
+        setSelectedScope('village');
+      } else if (ct) {
+        setSelectedScope('city');
+      } else if (g) {
+        setSelectedScope('governorate');
+      } else if (c) {
+        setSelectedScope('country');
+      }
+
+      if (loc.latitude && loc.longitude) {
+        setCoords({ lat: loc.latitude, lng: loc.longitude });
+      }
 
       toast({
-        title: 'تم تحديد موقعك بنجاح 📍',
-        description: `أقرب مكان تم التعرف عليه: ${nearestName}`,
+        title: 'تم تحديد موقعك بدقة 🛰️',
+        description: `تم تحويل الإحداثيات وتعبئة المربعات: ${loc.fullAddress}`,
       });
     } catch (err: any) {
       toast({
@@ -146,13 +184,33 @@ export default function SettingsModal({ isOpen, onClose, defaultTab = 'account' 
     }
   };
 
+  // الحصول على القيمة الحالية للمربع المختار
+  const getScopeTargetName = () => {
+    if (selectedScope === 'village' && village.trim()) return village.trim();
+    if (selectedScope === 'city' && city.trim()) return city.trim();
+    if (selectedScope === 'governorate' && governorate.trim()) return governorate.trim();
+    if (selectedScope === 'country' && country.trim()) return country.trim();
+    return village.trim() || city.trim() || governorate.trim() || country.trim() || 'موقعي';
+  };
+
+  const getScopeLabelAr = (scope: 'village' | 'city' | 'governorate' | 'country') => {
+    switch (scope) {
+      case 'village': return 'القرية / الحي';
+      case 'city': return 'المدينة / المركز';
+      case 'governorate': return 'المحافظة / المنطقة';
+      case 'country': return 'الدولة';
+    }
+  };
+
+  const fullAddress = buildFullAddress(village, city, governorate, country);
+  const currentSelectedName = getScopeTargetName();
+
   // 3. زر حفظ الموقع المعتمد للمستخدم
   const handleSaveLocation = async () => {
-    const trimmed = locationName.trim();
-    if (!trimmed) {
+    if (!country && !governorate && !city && !village) {
       toast({
         title: 'موقعك مطلوب',
-        description: 'يرجى كتابة اسم موقعك أو الضغط على "تحديد موقعي".',
+        description: 'يرجى الضغط على زر تحديد الموقع أو كتابة منطقتك في المربعات.',
         variant: 'destructive',
       });
       return;
@@ -160,32 +218,23 @@ export default function SettingsModal({ isOpen, onClose, defaultTab = 'account' 
 
     setIsSaving(true);
     try {
-      const payload: LocationData = latestData
-        ? {
-            ...latestData,
-            city: latestData.city || trimmed,
-            village: latestData.village || trimmed,
-            fullAddress: latestData.fullAddress || trimmed,
-            latitude: coords?.lat || latestData.latitude || 0,
-            longitude: coords?.lng || latestData.longitude || 0,
-          }
-        : {
-            village: '',
-            city: trimmed,
-            governorate: '',
-            country: '',
-            fullAddress: trimmed,
-            latitude: coords?.lat || 0,
-            longitude: coords?.lng || 0,
-            scope: 'city',
-            updatedAt: Date.now(),
-          };
+      const payload: LocationData = {
+        country: country || 'غير محدد',
+        governorate: governorate || 'غير محدد',
+        city: city || 'غير محدد',
+        village: village || 'غير محدد',
+        fullAddress,
+        latitude: coords?.lat || 0,
+        longitude: coords?.lng || 0,
+        scope: selectedScope,
+        updatedAt: Date.now(),
+      };
 
       await saveAndSyncLocation(payload, user?.uid);
 
       toast({
-        title: 'تم حفظ موقعك بنجاح ✨',
-        description: `سيتم الآن عرض الإعلانات الأقرب إليك في (${trimmed}).`,
+        title: 'تم حفظ وتفعيل سوق بلدنا بنجاح ✨',
+        description: `الموقع المعتمد لسوق بلدنا: ${currentSelectedName} (${getScopeLabelAr(selectedScope)})`,
       });
 
       onClose();
@@ -220,14 +269,14 @@ export default function SettingsModal({ isOpen, onClose, defaultTab = 'account' 
     <>
       <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
         <DialogContent
-          className="max-w-md w-[94vw] sm:w-full p-0 overflow-hidden text-right font-body bg-card border-border shadow-2xl rounded-2xl max-h-[88vh] flex flex-col"
+          className="max-w-md w-[94vw] sm:w-full p-0 overflow-hidden text-right font-body bg-card border-border shadow-2xl rounded-3xl max-h-[90vh] flex flex-col"
           dir="rtl"
         >
           {/* Header with Title & Tab Switcher */}
           <DialogHeader className="p-4 pb-3 border-b border-border/60 bg-muted/30 shrink-0">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2 text-primary">
-                <div className="p-2 rounded-xl bg-primary/10 text-primary">
+                <div className="p-2 rounded-2xl bg-primary/10 text-primary">
                   <Settings className="w-5 h-5" />
                 </div>
                 <div>
@@ -235,19 +284,19 @@ export default function SettingsModal({ isOpen, onClose, defaultTab = 'account' 
                     الضبط والحساب
                   </DialogTitle>
                   <DialogDescription className="text-[11px] text-muted-foreground">
-                    إدارة حسابك وإعدادات الموقع والتطبيق
+                    إدارة حسابك وإعدادات الموقع الجغرافي
                   </DialogDescription>
                 </div>
               </div>
             </div>
 
             {/* Tab Selector */}
-            <div className="flex items-center p-1 mt-3 bg-muted rounded-xl gap-1">
+            <div className="flex items-center p-1 mt-3 bg-muted rounded-2xl gap-1">
               <button
                 type="button"
                 onClick={() => setActiveTab('account')}
                 className={cn(
-                  "flex-1 py-1.5 px-3 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5",
+                  "flex-1 py-1.5 px-3 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5",
                   activeTab === 'account'
                     ? "bg-background text-primary shadow-sm"
                     : "text-muted-foreground hover:text-foreground"
@@ -260,7 +309,7 @@ export default function SettingsModal({ isOpen, onClose, defaultTab = 'account' 
                 type="button"
                 onClick={() => setActiveTab('location')}
                 className={cn(
-                  "flex-1 py-1.5 px-3 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5",
+                  "flex-1 py-1.5 px-3 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5",
                   activeTab === 'location'
                     ? "bg-background text-primary shadow-sm"
                     : "text-muted-foreground hover:text-foreground"
@@ -280,7 +329,7 @@ export default function SettingsModal({ isOpen, onClose, defaultTab = 'account' 
                 {isAuthenticated ? (
                   <>
                     {/* User Card */}
-                    <div className="flex items-center gap-3 p-3 rounded-xl bg-muted/50 border border-border/80">
+                    <div className="flex items-center gap-3 p-3 rounded-2xl bg-muted/50 border border-border/80">
                       <Avatar className="h-12 w-12 border-2 border-primary/20">
                         <AvatarImage src={userProfile?.avatarUrl || user?.photoURL || undefined} alt={userProfile?.name} />
                         <AvatarFallback className="bg-primary/10 text-primary font-bold">
@@ -420,60 +469,215 @@ export default function SettingsModal({ isOpen, onClose, defaultTab = 'account' 
                 )}
               </div>
             ) : (
-              /* ================= 2. قسم ضبط الموقع ================= */
+              /* ================= 2. قسم ضبط الموقع والمربعات الأربعة ================= */
               <div className="space-y-4 py-1">
-                <div className="space-y-2">
-                  <label className="text-xs font-bold text-foreground block">
-                    موقعك الجغرافي (القرية أو الحي أو المدينة):
-                  </label>
+                {/* زر التحديد التلقائي عبر الـ GPS */}
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={handleLocateMeClick}
+                  disabled={isDetecting}
+                  className="w-full h-12 flex items-center justify-center gap-2 font-bold border-primary/40 bg-primary/5 hover:bg-primary/10 text-foreground rounded-2xl transition-all shadow-sm"
+                >
+                  {isDetecting ? (
+                    <>
+                      <Loader2 className="w-5 h-5 animate-spin text-primary" />
+                      <span className="text-xs">جارٍ قراءة الإحداثيات وتحويلها لأسماء...</span>
+                    </>
+                  ) : (
+                    <>
+                      <LocateFixed className="w-5 h-5 text-primary" />
+                      <span className="text-xs font-bold">تحديد موقعي وتعبئة المربعات تلقائياً (GPS)</span>
+                    </>
+                  )}
+                </Button>
 
-                  <div className="flex items-center gap-2">
-                    <div className="relative flex-1">
-                      <Input
-                        type="text"
-                        value={locationName}
-                        onChange={(e) => setLocationName(e.target.value)}
-                        placeholder="اكتب قريتك أو مدينتك هنا..."
-                        className="h-11 text-sm font-medium pr-9 rounded-xl"
-                        onKeyDown={(e) => {
-                          if (e.key === 'Enter') handleSaveLocation();
-                        }}
-                      />
-                      <MapPin className="w-4 h-4 text-muted-foreground absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
-                    </div>
-
-                    <Button
-                      type="button"
-                      variant="outline"
-                      onClick={handleLocateMeClick}
-                      disabled={isDetecting}
-                      className="h-11 px-3.5 rounded-xl border-primary/40 hover:bg-primary/10 hover:border-primary text-primary font-bold shrink-0 flex items-center gap-1.5 text-xs shadow-sm"
-                    >
-                      {isDetecting ? (
-                        <>
-                          <Loader2 className="w-4 h-4 animate-spin text-primary" />
-                          <span>جارٍ التحديد...</span>
-                        </>
-                      ) : (
-                        <>
-                          <LocateFixed className="w-4 h-4 text-primary" />
-                          <span>تحديد موقعي</span>
-                        </>
-                      )}
-                    </Button>
+                {/* المربعات الأربعة (Targeting 4 Boxes) مع إمكانية اختيار أي مربع لسوق بلدنا */}
+                <div className="space-y-2.5">
+                  <div className="flex items-center justify-between">
+                    <Label className="text-xs font-bold text-foreground block">
+                      مربعات الموقع (اضغط لاختيار موقع سوق بلدنا):
+                    </Label>
+                    {coords && (
+                      <span className="text-[10px] text-muted-foreground font-mono bg-muted/60 px-2 py-0.5 rounded-full border border-border">
+                        📍 {coords.lat.toFixed(4)}, {coords.lng.toFixed(4)}
+                      </span>
+                    )}
                   </div>
 
-                  <p className="text-[11px] text-muted-foreground leading-relaxed">
-                    اضغط على <strong>تحديد موقعي</strong> لجلب أقرب قرية أو شارع بالـ GPS تلقائياً، أو اكتب اسم موقعك يدوياً ثم اضغط حفظ.
-                  </p>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                    {/* 1. الدولة */}
+                    <div
+                      onClick={() => setSelectedScope('country')}
+                      className={cn(
+                        "p-2.5 rounded-2xl border transition-all duration-200 cursor-pointer relative space-y-1.5",
+                        selectedScope === 'country'
+                          ? "border-primary bg-primary/5 ring-2 ring-primary/25 shadow-sm"
+                          : "border-border/80 bg-muted/30 hover:border-primary/40 hover:bg-muted/50"
+                      )}
+                    >
+                      <div className="flex items-center justify-between">
+                        <Label className="text-[11px] font-bold text-foreground flex items-center gap-1 cursor-pointer">
+                          <Globe className="w-3.5 h-3.5 text-primary" />
+                          الدولة
+                        </Label>
+                        {selectedScope === 'country' ? (
+                          <span className="flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-primary text-primary-foreground shadow-sm">
+                            <CheckCircle2 className="w-3 h-3" /> سوق بلدنا
+                          </span>
+                        ) : (
+                          <span className="text-[10px] text-muted-foreground hover:text-primary flex items-center gap-1">
+                            <Circle className="w-2.5 h-2.5" /> اختيار
+                          </span>
+                        )}
+                      </div>
+                      <Input
+                        type="text"
+                        value={country}
+                        onChange={(e) => setCountry(e.target.value)}
+                        placeholder="مصر، السعودية..."
+                        className="h-8 text-xs bg-background"
+                        onClick={(e) => e.stopPropagation()}
+                      />
+                    </div>
+
+                    {/* 2. المحافظة */}
+                    <div
+                      onClick={() => setSelectedScope('governorate')}
+                      className={cn(
+                        "p-2.5 rounded-2xl border transition-all duration-200 cursor-pointer relative space-y-1.5",
+                        selectedScope === 'governorate'
+                          ? "border-primary bg-primary/5 ring-2 ring-primary/25 shadow-sm"
+                          : "border-border/80 bg-muted/30 hover:border-primary/40 hover:bg-muted/50"
+                      )}
+                    >
+                      <div className="flex items-center justify-between">
+                        <Label className="text-[11px] font-bold text-foreground flex items-center gap-1 cursor-pointer">
+                          <Building2 className="w-3.5 h-3.5 text-primary" />
+                          المحافظة / المنطقة
+                        </Label>
+                        {selectedScope === 'governorate' ? (
+                          <span className="flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-primary text-primary-foreground shadow-sm">
+                            <CheckCircle2 className="w-3 h-3" /> سوق بلدنا
+                          </span>
+                        ) : (
+                          <span className="text-[10px] text-muted-foreground hover:text-primary flex items-center gap-1">
+                            <Circle className="w-2.5 h-2.5" /> اختيار
+                          </span>
+                        )}
+                      </div>
+                      <Input
+                        type="text"
+                        value={governorate}
+                        onChange={(e) => setGovernorate(e.target.value)}
+                        placeholder="الدقهلية، الرياض..."
+                        className="h-8 text-xs bg-background"
+                        onClick={(e) => e.stopPropagation()}
+                      />
+                    </div>
+
+                    {/* 3. المدينة */}
+                    <div
+                      onClick={() => setSelectedScope('city')}
+                      className={cn(
+                        "p-2.5 rounded-2xl border transition-all duration-200 cursor-pointer relative space-y-1.5",
+                        selectedScope === 'city'
+                          ? "border-primary bg-primary/5 ring-2 ring-primary/25 shadow-sm"
+                          : "border-border/80 bg-muted/30 hover:border-primary/40 hover:bg-muted/50"
+                      )}
+                    >
+                      <div className="flex items-center justify-between">
+                        <Label className="text-[11px] font-bold text-foreground flex items-center gap-1 cursor-pointer">
+                          <Building className="w-3.5 h-3.5 text-primary" />
+                          المدينة / المركز
+                        </Label>
+                        {selectedScope === 'city' ? (
+                          <span className="flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-primary text-primary-foreground shadow-sm">
+                            <CheckCircle2 className="w-3 h-3" /> سوق بلدنا
+                          </span>
+                        ) : (
+                          <span className="text-[10px] text-muted-foreground hover:text-primary flex items-center gap-1">
+                            <Circle className="w-2.5 h-2.5" /> اختيار
+                          </span>
+                        )}
+                      </div>
+                      <Input
+                        type="text"
+                        value={city}
+                        onChange={(e) => setCity(e.target.value)}
+                        placeholder="المنصورة، الرياض..."
+                        className="h-8 text-xs bg-background"
+                        onClick={(e) => e.stopPropagation()}
+                      />
+                    </div>
+
+                    {/* 4. القرية / الحي */}
+                    <div
+                      onClick={() => setSelectedScope('village')}
+                      className={cn(
+                        "p-2.5 rounded-2xl border transition-all duration-200 cursor-pointer relative space-y-1.5",
+                        selectedScope === 'village'
+                          ? "border-primary bg-primary/5 ring-2 ring-primary/25 shadow-sm"
+                          : "border-border/80 bg-muted/30 hover:border-primary/40 hover:bg-muted/50"
+                      )}
+                    >
+                      <div className="flex items-center justify-between">
+                        <Label className="text-[11px] font-bold text-foreground flex items-center gap-1 cursor-pointer">
+                          <Home className="w-3.5 h-3.5 text-primary" />
+                          القرية / الحي
+                        </Label>
+                        {selectedScope === 'village' ? (
+                          <span className="flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-primary text-primary-foreground shadow-sm">
+                            <CheckCircle2 className="w-3 h-3" /> سوق بلدنا
+                          </span>
+                        ) : (
+                          <span className="text-[10px] text-muted-foreground hover:text-primary flex items-center gap-1">
+                            <Circle className="w-2.5 h-2.5" /> اختيار
+                          </span>
+                        )}
+                      </div>
+                      <Input
+                        type="text"
+                        value={village}
+                        onChange={(e) => setVillage(e.target.value)}
+                        placeholder="حي الجامعة، ميت برة..."
+                        className="h-8 text-xs bg-background"
+                        onClick={(e) => e.stopPropagation()}
+                      />
+                    </div>
+                  </div>
                 </div>
 
+                {/* بطاقة ملخص المربع المعتمد لسوق بلدنا والعنوان */}
+                <div className="p-3 rounded-2xl bg-primary/10 border border-primary/25 space-y-1">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-1.5">
+                      <Sparkles className="w-4 h-4 text-primary shrink-0 animate-pulse" />
+                      <span className="text-xs font-bold text-foreground">
+                        الموقع المعتمد لسوق بلدنا:
+                      </span>
+                    </div>
+                    <span className="text-[10px] font-bold text-primary bg-primary/15 px-2.5 py-0.5 rounded-full border border-primary/20">
+                      مستوى {getScopeLabelAr(selectedScope)}
+                    </span>
+                  </div>
+                  <p className="text-xs font-bold text-foreground truncate pt-0.5">
+                    📍 {currentSelectedName || 'يرجى كتابة الاسم في المربع المختار'}
+                  </p>
+                  {fullAddress && fullAddress !== 'غير محدد' && (
+                    <p className="text-[10px] text-muted-foreground truncate pt-0.5">
+                      العنوان الكامل: {fullAddress}
+                    </p>
+                  )}
+                </div>
+
+                {/* زر حفظ الموقع */}
                 <div className="pt-2">
                   <Button
                     type="button"
                     onClick={handleSaveLocation}
                     disabled={isSaving || isDetecting}
-                    className="w-full bg-primary text-primary-foreground font-bold hover:bg-primary/90 h-11 rounded-xl shadow-md text-xs gap-1.5"
+                    className="w-full bg-primary text-primary-foreground font-bold hover:bg-primary/90 h-11 rounded-2xl shadow-md text-xs gap-1.5"
                   >
                     {isSaving ? (
                       <>
@@ -496,10 +700,10 @@ export default function SettingsModal({ isOpen, onClose, defaultTab = 'account' 
 
       {/* رسالة طلب تفعيل الموقع والصلاحية عند الضغط على "تحديد موقعي" */}
       <AlertDialog open={showPermissionDialog} onOpenChange={setShowPermissionDialog}>
-        <AlertDialogContent className="max-w-sm w-[90vw] text-right font-body bg-card border-border rounded-2xl" dir="rtl">
+        <AlertDialogContent className="max-w-sm w-[90vw] text-right font-body bg-card border-border rounded-3xl p-6" dir="rtl">
           <AlertDialogHeader className="text-right space-y-2">
             <div className="flex items-center gap-2 text-primary">
-              <div className="p-2 rounded-xl bg-primary/10 text-primary">
+              <div className="p-2.5 rounded-2xl bg-primary/10 text-primary">
                 <Navigation className="w-5 h-5" />
               </div>
               <AlertDialogTitle className="text-base font-bold font-headline">
@@ -507,23 +711,23 @@ export default function SettingsModal({ isOpen, onClose, defaultTab = 'account' 
               </AlertDialogTitle>
             </div>
             <AlertDialogDescription className="text-xs text-muted-foreground leading-relaxed">
-              هل توافق على تفعيل وتحديد موقعك الجغرافي لعرض الإعلانات الأقرب إليك؟
+              هل توافق على قراءة موقعك الجغرافي لتحويل الإحداثيات لأسماء وتعبئة المربعات الأربعة؟
               <br />
-              <span className="text-[11px] text-foreground font-semibold mt-1 block">
-                ⚠️ يرجى التأكد من تشغيل الموقع (GPS) في هاتفك.
+              <span className="text-[11px] text-foreground font-semibold mt-2 block">
+                ⚠️ يرجى التأكد من تشغيل الموقع (GPS) في هاتفك أو متصفحك.
               </span>
             </AlertDialogDescription>
           </AlertDialogHeader>
-          <AlertDialogFooter className="flex flex-row-reverse items-center justify-start gap-2 pt-2">
+          <AlertDialogFooter className="flex flex-row-reverse items-center justify-start gap-2 pt-3">
             <AlertDialogAction
               onClick={handleConfirmLocationPermission}
-              className="flex-1 bg-primary text-primary-foreground font-bold hover:bg-primary/90 h-10 rounded-xl text-xs"
+              className="flex-1 bg-primary text-primary-foreground font-bold hover:bg-primary/90 h-11 rounded-2xl text-xs"
             >
               موافق، حدد موقعي
             </AlertDialogAction>
             <AlertDialogCancel
               onClick={() => setShowPermissionDialog(false)}
-              className="h-10 px-4 rounded-xl text-xs font-semibold"
+              className="h-11 px-4 rounded-2xl text-xs font-semibold"
             >
               إلغاء
             </AlertDialogCancel>
