@@ -202,19 +202,20 @@ async function connectToWhatsApp() {
       isLatest: true,
     }));
 
+    const logger = pino({ level: 'info' });
     console.log(`[WhatsApp Gateway] Connecting with Baileys v${version.join('.')} (isLatest: ${isLatest})...`);
 
     sock = makeWASocket({
       version,
       auth: state,
-      logger: pino({ level: 'silent' }),
+      logger,
       printQRInTerminal: false,
-      browser: ['Arb-Soq Gateway', 'Chrome', '120.0.0.0'],
+      browser: ['Ubuntu', 'Chrome', '20.0.04'],
       connectTimeoutMs: 60000,
       defaultQueryTimeoutMs: 60000,
       keepAliveIntervalMs: 15000,
       retryRequestDelayMs: 2000,
-      emitOwnEvents: false,
+      emitOwnEvents: true,
       markOnlineOnConnect: true,
       syncFullHistory: false,
       msgRetryCounterCache,
