@@ -149,6 +149,29 @@
     will-change: transform;
     transform: translateZ(0);
   }
+
+  /* شريط الأخبار والتنقل السريع المتحرك باستمرار */
+  .animate-marquee-ticker {
+    display: flex;
+    flex-shrink: 0;
+    will-change: transform;
+    animation: marquee-ticker 30s linear infinite;
+  }
+}
+
+@keyframes marquee-ticker {
+  0% {
+    transform: translateX(0);
+  }
+  100% {
+    transform: translateX(calc(-100% - 0.5rem));
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-marquee-ticker {
+    animation-play-state: paused !important;
+  }
 }
 
 @keyframes breath {

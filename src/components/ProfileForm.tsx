@@ -655,16 +655,7 @@ export default function ProfileForm({ isSignupMode = false }: { isSignupMode?: b
             </div>
         </div>
 
-        {/* شارة وحالة توثيق الحساب التلقائي */}
-        {userProfile?.verified ? (
-          <div className="p-4 rounded-xl bg-green-500/10 border border-green-500/30 text-green-700 dark:text-green-400 flex items-center gap-3 animate-in fade-in">
-            <BadgeCheck className="h-6 w-6 text-green-500 fill-green-500/10 flex-shrink-0" />
-            <div>
-              <h4 className="font-bold text-sm">أصبح حسابك الآن موثقاً بالعلامة الزرقاء 🛡️✨</h4>
-              <p className="text-xs opacity-90 mt-0.5">بياناتك مكتملة ورقم هاتفك مؤكد، وتظهر شارة التوثيق تلقائياً على جميع إعلاناتك وصفحتك الشخصية.</p>
-            </div>
-          </div>
-        ) : (
+        {!userProfile?.verified && (
           <div className="p-3.5 rounded-xl bg-blue-500/5 border border-blue-500/20 text-blue-700 dark:text-blue-400 flex items-center gap-2.5 text-xs animate-in fade-in">
             <BadgeCheck className="h-4 w-4 text-blue-500 shrink-0" />
             <span>عند ملء جميع بياناتك (الاسم والعنوان) وتأكيد رقم هاتفك، سيصبح حسابك موثقاً بالعلامة الزرقاء 🛡️ تلقائياً.</span>
@@ -934,7 +925,7 @@ export default function ProfileForm({ isSignupMode = false }: { isSignupMode?: b
                         disabled={isVerifying || !form.watch('verificationCode')}
                         className="relative min-w-32 font-bold bg-emerald-600 hover:bg-emerald-700 text-white h-11"
                     >
-                        {isVerifying ? <Loader2 className="animate-spin h-4 w-4" /> : 'تأكيد الرمز وتوثيق الحساب'}
+                        {isVerifying ? <Loader2 className="animate-spin h-4 w-4" /> : 'تأكيد الرمز'}
                      </Button>
                  </div>
                  {/* خيار الحفظ والمتابعة في حال تعذر استلام الكود */}
