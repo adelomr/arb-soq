@@ -164,7 +164,12 @@ export default function LandingPageClient({ page }: Props) {
         // إرسال حدث التحويل إلى Google Ads Tag
         if (typeof (window as any).gtag === 'function' && page.googleAdsTagId) {
           const cleanTag = page.googleAdsTagId.trim();
-          const cleanLabel = page.googleAdsConversionLabel?.trim();
+          // اختيار المعرف المخصص للاتصال أو الواتساب، أو المعرف العام كاحتياطي
+          const specificLabel = actionType === 'call'
+            ? (page.googleAdsCallConversionLabel || page.googleAdsConversionLabel)
+            : (page.googleAdsWaConversionLabel || page.googleAdsConversionLabel);
+
+          const cleanLabel = specificLabel?.trim();
           const sendTo = cleanLabel ? `${cleanTag}/${cleanLabel}` : cleanTag;
 
           (window as any).gtag('event', 'conversion', {

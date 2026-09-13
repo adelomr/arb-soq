@@ -378,9 +378,11 @@ export interface PageData {
   serviceArea?: string;        // المنطقة/الحي (لصفحات الهبوط)
   legacySlug?: string;         // الروابط القديمة لعمل redirect 301
   // === حقول التتبع والإحالة الناجحة (Google Ads & Tracking) ===
-  googleAdsTagId?: string;           // معرف إعلانات جوجل (مثال: AW-123456789)
-  googleAdsConversionLabel?: string; // معرف الإحالة لنقرات الاتصال والواتساب (مثال: AbCdEfGhIjK)
-  customHeadScript?: string;         // كود تتبع مخصص (مثل جوجل تاج أو فيسبوك بيكسل)
+  googleAdsTagId?: string;               // معرف إعلانات جوجل (مثال: AW-123456789)
+  googleAdsConversionLabel?: string;     // معرف الإحالة العام (اختياري/احتياطي)
+  googleAdsCallConversionLabel?: string; // معرف إحالة الاتصال الهاتفي (مثال: AbCdEf123)
+  googleAdsWaConversionLabel?: string;   // معرف إحالة محادثات الواتساب (مثال: GhIjKl456)
+  customHeadScript?: string;             // كود تتبع مخصص (مثل جوجل تاج أو فيسبوك بيكسل)
   // === حقول الصفحات الإعلانية (adpage) ===
   adpageCategoryId?: string;      // معرف الفئة الرئيسية (مثال: vehicles, realestate)
   adpageSubcategoryId?: string;   // معرف الفئة الفرعية (مثال: sub_v1)

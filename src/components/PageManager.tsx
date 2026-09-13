@@ -138,6 +138,8 @@ export default function PageManager({ initialFilter = 'all' }: PageManagerProps)
   // Google Ads & Tracking states
   const [googleAdsTagId, setGoogleAdsTagId] = useState('');
   const [googleAdsConversionLabel, setGoogleAdsConversionLabel] = useState('');
+  const [googleAdsCallConversionLabel, setGoogleAdsCallConversionLabel] = useState('');
+  const [googleAdsWaConversionLabel, setGoogleAdsWaConversionLabel] = useState('');
   const [customHeadScript, setCustomHeadScript] = useState('');
 
   // Upload states
@@ -301,6 +303,8 @@ export default function PageManager({ initialFilter = 'all' }: PageManagerProps)
     setServiceArea('');
     setGoogleAdsTagId('');
     setGoogleAdsConversionLabel('');
+    setGoogleAdsCallConversionLabel('');
+    setGoogleAdsWaConversionLabel('');
     setCustomHeadScript('');
   };
 
@@ -364,6 +368,8 @@ export default function PageManager({ initialFilter = 'all' }: PageManagerProps)
     setServiceArea(page.serviceArea ?? '');
     setGoogleAdsTagId(page.googleAdsTagId ?? '');
     setGoogleAdsConversionLabel(page.googleAdsConversionLabel ?? '');
+    setGoogleAdsCallConversionLabel(page.googleAdsCallConversionLabel ?? '');
+    setGoogleAdsWaConversionLabel(page.googleAdsWaConversionLabel ?? '');
     setCustomHeadScript(page.customHeadScript ?? '');
     // adpage fields
     setAdpageCategoryId(page.adpageCategoryId ?? '');
@@ -470,6 +476,8 @@ export default function PageManager({ initialFilter = 'all' }: PageManagerProps)
           serviceArea: serviceArea || undefined,
           googleAdsTagId: googleAdsTagId.trim() || undefined,
           googleAdsConversionLabel: googleAdsConversionLabel.trim() || undefined,
+          googleAdsCallConversionLabel: googleAdsCallConversionLabel.trim() || undefined,
+          googleAdsWaConversionLabel: googleAdsWaConversionLabel.trim() || undefined,
           customHeadScript: customHeadScript.trim() || undefined,
         } : {};
 
@@ -536,6 +544,8 @@ export default function PageManager({ initialFilter = 'all' }: PageManagerProps)
           serviceArea: serviceArea || undefined,
           googleAdsTagId: googleAdsTagId.trim() || undefined,
           googleAdsConversionLabel: googleAdsConversionLabel.trim() || undefined,
+          googleAdsCallConversionLabel: googleAdsCallConversionLabel.trim() || undefined,
+          googleAdsWaConversionLabel: googleAdsWaConversionLabel.trim() || undefined,
           customHeadScript: customHeadScript.trim() || undefined,
         } : {};
 
@@ -1922,42 +1932,62 @@ export default function PageManager({ initialFilter = 'all' }: PageManagerProps)
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-1">
+                  <div className="space-y-1.5 pt-1">
                     {/* Google Ads Tag ID */}
-                    <div className="space-y-1.5">
-                      <Label htmlFor="lp-gads-id" className="font-medium text-xs flex items-center gap-1.5">
-                        <BarChart3 className="h-3.5 w-3.5 text-blue-500" />
-                        معرف إعلانات جوجل (Google Tag ID)
+                    <Label htmlFor="lp-gads-id" className="font-medium text-xs flex items-center gap-1.5">
+                      <BarChart3 className="h-3.5 w-3.5 text-blue-500" />
+                      معرف إعلانات جوجل الأساسي (Google Tag ID)
+                    </Label>
+                    <Input
+                      id="lp-gads-id"
+                      value={googleAdsTagId}
+                      onChange={e => setGoogleAdsTagId(e.target.value)}
+                      placeholder="مثال: AW-17803963314 أو G-XXXXXXXX"
+                      dir="ltr"
+                      className="bg-background text-sm font-mono"
+                    />
+                    <p className="text-[11px] text-muted-foreground">
+                      معرف الحساب في إعلانات جوجل (يبدأ بـ AW-).
+                    </p>
+                  </div>
+
+                  {/* Dual Conversion Labels (Call & WhatsApp) */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-1">
+                    {/* Phone Call Conversion Label */}
+                    <div className="space-y-1.5 p-3 rounded-lg border border-blue-500/20 bg-blue-500/5">
+                      <Label htmlFor="lp-gads-call-label" className="font-medium text-xs flex items-center gap-1.5 text-blue-700 dark:text-blue-300">
+                        <Phone className="h-3.5 w-3.5 text-blue-600" />
+                        إحالة الاتصال الهاتفي (Call Conversion Label)
                       </Label>
                       <Input
-                        id="lp-gads-id"
-                        value={googleAdsTagId}
-                        onChange={e => setGoogleAdsTagId(e.target.value)}
-                        placeholder="مثال: AW-123456789 أو G-XXXXXXXX"
+                        id="lp-gads-call-label"
+                        value={googleAdsCallConversionLabel}
+                        onChange={e => setGoogleAdsCallConversionLabel(e.target.value)}
+                        placeholder="رمز إحالة المكالمات"
                         dir="ltr"
                         className="bg-background text-sm font-mono"
                       />
                       <p className="text-[11px] text-muted-foreground">
-                        معرف الحساب في إعلانات جوجل أو إحصاءات جوجل (يبدأ بـ AW- أو G-).
+                        يُسجل إحالة في جوجل فقط عند نقر العميل على زر <strong>"اتصل الآن"</strong>.
                       </p>
                     </div>
 
-                    {/* Google Ads Conversion Label */}
-                    <div className="space-y-1.5">
-                      <Label htmlFor="lp-gads-label" className="font-medium text-xs flex items-center gap-1.5">
-                        <Tag className="h-3.5 w-3.5 text-green-500" />
-                        معرف الإحالة الناجحة (Conversion Label)
+                    {/* WhatsApp Conversion Label */}
+                    <div className="space-y-1.5 p-3 rounded-lg border border-green-500/20 bg-green-500/5">
+                      <Label htmlFor="lp-gads-wa-label" className="font-medium text-xs flex items-center gap-1.5 text-green-700 dark:text-green-300">
+                        <MessageCircle className="h-3.5 w-3.5 text-green-600" />
+                        إحالة محادثات الواتساب (WhatsApp Conversion Label)
                       </Label>
                       <Input
-                        id="lp-gads-label"
-                        value={googleAdsConversionLabel}
-                        onChange={e => setGoogleAdsConversionLabel(e.target.value)}
-                        placeholder="مثال: AbCdEf12345_XYZ"
+                        id="lp-gads-wa-label"
+                        value={googleAdsWaConversionLabel}
+                        onChange={e => setGoogleAdsWaConversionLabel(e.target.value)}
+                        placeholder="مثال: IjUyCIWY_vUcELLXy6lC"
                         dir="ltr"
                         className="bg-background text-sm font-mono"
                       />
                       <p className="text-[11px] text-muted-foreground">
-                        رمز الإحالة الذي ينشئه جوجل لإجراء التحويل (لتسجيل نقرات أزرار الاتصال والواتساب كإحالة).
+                        يُسجل إحالة في جوجل فقط عند نقر العميل على زر <strong>"تواصل واتساب"</strong>.
                       </p>
                     </div>
                   </div>

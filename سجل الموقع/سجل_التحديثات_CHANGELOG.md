@@ -12,10 +12,10 @@
   - [LandingPageClient.tsx](file:///d:/mashro3/mashroh/arb-soq/arb_soq.wap/arb_soq.wap/src/components/LandingPageClient.tsx)
   - [page.tsx](file:///d:/mashro3/mashroh/arb-soq/arb_soq.wap/arb_soq.wap/src/app/p/[slug]/page.tsx)
 - **التفاصيل:**
-  - إضافة حقول `googleAdsTagId` و `googleAdsConversionLabel` و `customHeadScript` لواجهة بيانات الصفحات `PageData`.
-  - تصميم قسم مخصص واحترافي في لوحة التحكم تحت إدارة صفحات الهبوط يتيح للمسؤول إدخال معرف التاج (`AW-XXXXXXXXX`) ورمز التحويل (`Conversion Label`) أو وضع كود تتبع حر كامل.
+  - إضافة حقول `googleAdsTagId` و `googleAdsConversionLabel` و `googleAdsCallConversionLabel` و `googleAdsWaConversionLabel` و `customHeadScript` لواجهة بيانات الصفحات `PageData`.
+  - تصميم قسم مخصص واحترافي في لوحة التحكم يتيح إدخال معرف التاج الأساسي (`AW-XXXXXXXXX`)، وفصل إحالة الاتصال الهاتفي (Call Conversion Label) عن إحالة محادثات الواتساب (WhatsApp Conversion Label) لتتبع كل منهما على حدة في تقارير إعلانات جوجل.
   - حقن سكربت `gtag.js` الرسمي من جوجل تلقائياً في رأس الصفحة عند توفر معرف الحساب الإعلاني.
-  - ربط دالة `triggerConversion` التلقائية بجميع أزرار الاتصال الهاتفي والمراسلة عبر الواتساب (في القسم العلوي Hero، والشريط العائم للهواتف المحمولة، والبطاقة الختامية للتواصل)، لاحتساب الإحالات فور نقر العميل دون أي تأخير.
+  - ربط دالة `triggerConversion` التلقائية بأزرار الاتصال الهاتفي والمراسلة عبر الواتساب لاحتساب رمز الإحالة المخصص لكل زر بمفرده فور نقر العميل دون أي تأخير.
   - اختبار وتأكيد الاتصال والتحويل بنجاح 100% عبر أداة Google Tag Assistant الرسمية.
 
 ### 2. تطوير وتسهيل استخدام روابط أقسام إعلانات جوجل (Google Ads Sitelinks Helper)
