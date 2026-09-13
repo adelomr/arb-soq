@@ -71,8 +71,14 @@ export async function getPageBySlug(slug: string): Promise<PageData | null> {
 // Create new page
 export async function createPage(page: Omit<PageData, 'id' | 'createdAt' | 'updatedAt'>): Promise<string> {
   try {
+    const cleanData: any = {};
+    for (const [key, value] of Object.entries(page)) {
+      if (value !== undefined) {
+        cleanData[key] = value;
+      }
+    }
     const docRef = await addDoc(collection(firestore, PAGES_COLLECTION), {
-      ...page,
+      ...cleanData,
       createdAt: serverTimestamp(),
       updatedAt: serverTimestamp(),
     });
@@ -86,9 +92,15 @@ export async function createPage(page: Omit<PageData, 'id' | 'createdAt' | 'upda
 // Update existing page
 export async function updatePage(id: string, data: Partial<PageData>): Promise<void> {
   try {
+    const cleanData: any = {};
+    for (const [key, value] of Object.entries(data)) {
+      if (value !== undefined) {
+        cleanData[key] = value;
+      }
+    }
     const docRef = doc(firestore, PAGES_COLLECTION, id);
     await updateDoc(docRef, {
-      ...data,
+      ...cleanData,
       updatedAt: serverTimestamp()
     });
   } catch (error) {

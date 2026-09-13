@@ -67,6 +67,24 @@ import { POPULAR_CAR_BRANDS } from '@/lib/car-brands';
 
 
 const SYSTEM_SLUGS = ['redirect'];
+
+function cleanTrackingLabel(val: string): string {
+  if (!val) return '';
+  const trimmed = val.trim();
+  const sendToMatch = trimmed.match(/send_to['"]?\s*:\s*['"][^'"]*\/([A-Za-z0-9_-]+)['"]/);
+  if (sendToMatch && sendToMatch[1]) return sendToMatch[1];
+  const slashMatch = trimmed.match(/\/([A-Za-z0-9_-]{8,})/);
+  if (slashMatch && slashMatch[1]) return slashMatch[1];
+  return trimmed;
+}
+
+function cleanTagId(val: string): string {
+  if (!val) return '';
+  const trimmed = val.trim();
+  const match = trimmed.match(/(AW-[0-9]+|G-[A-Za-z0-9]+)/);
+  if (match && match[1]) return match[1];
+  return trimmed;
+}
 const LANDING_THEMES: { value: LandingTheme; label: string; desc: string; color: string }[] = [
   { value: 'default', label: 'افتراضي', desc: 'بنفسجي عصري', color: 'border-violet-500 bg-violet-500/10 text-violet-600' },
   { value: 'greenery', label: 'زراعي أخضر', desc: 'للمشاتل والحدائق', color: 'border-emerald-500 bg-emerald-500/10 text-emerald-600' },
@@ -474,10 +492,10 @@ export default function PageManager({ initialFilter = 'all' }: PageManagerProps)
           locationEmbed: locationEmbed || undefined,
           serviceName: serviceName || undefined,
           serviceArea: serviceArea || undefined,
-          googleAdsTagId: googleAdsTagId.trim() || undefined,
-          googleAdsConversionLabel: googleAdsConversionLabel.trim() || undefined,
-          googleAdsCallConversionLabel: googleAdsCallConversionLabel.trim() || undefined,
-          googleAdsWaConversionLabel: googleAdsWaConversionLabel.trim() || undefined,
+          googleAdsTagId: cleanTagId(googleAdsTagId) || undefined,
+          googleAdsConversionLabel: cleanTrackingLabel(googleAdsConversionLabel) || undefined,
+          googleAdsCallConversionLabel: cleanTrackingLabel(googleAdsCallConversionLabel) || undefined,
+          googleAdsWaConversionLabel: cleanTrackingLabel(googleAdsWaConversionLabel) || undefined,
           customHeadScript: customHeadScript.trim() || undefined,
         } : {};
 
@@ -542,10 +560,10 @@ export default function PageManager({ initialFilter = 'all' }: PageManagerProps)
           locationEmbed: locationEmbed || undefined,
           serviceName: serviceName || undefined,
           serviceArea: serviceArea || undefined,
-          googleAdsTagId: googleAdsTagId.trim() || undefined,
-          googleAdsConversionLabel: googleAdsConversionLabel.trim() || undefined,
-          googleAdsCallConversionLabel: googleAdsCallConversionLabel.trim() || undefined,
-          googleAdsWaConversionLabel: googleAdsWaConversionLabel.trim() || undefined,
+          googleAdsTagId: cleanTagId(googleAdsTagId) || undefined,
+          googleAdsConversionLabel: cleanTrackingLabel(googleAdsConversionLabel) || undefined,
+          googleAdsCallConversionLabel: cleanTrackingLabel(googleAdsCallConversionLabel) || undefined,
+          googleAdsWaConversionLabel: cleanTrackingLabel(googleAdsWaConversionLabel) || undefined,
           customHeadScript: customHeadScript.trim() || undefined,
         } : {};
 
@@ -577,9 +595,13 @@ export default function PageManager({ initialFilter = 'all' }: PageManagerProps)
         });
 
 
-        await handleRevalidatePage(finalSlug);
-        if (oldSlug && oldSlug !== finalSlug) {
-          await handleRevalidatePage(oldSlug);
+        try {
+          await handleRevalidatePage(finalSlug);
+          if (oldSlug && oldSlug !== finalSlug) {
+            await handleRevalidatePage(oldSlug);
+          }
+        } catch (revErr) {
+          console.warn('Revalidate cache non-fatal error:', revErr);
         }
 
         toast({
@@ -592,11 +614,11 @@ export default function PageManager({ initialFilter = 'all' }: PageManagerProps)
 
       setView('list');
       fetchPages();
-    } catch (error) {
-      console.error(error);
+    } catch (error: any) {
+      console.error('Error in handleSave:', error);
       toast({
         title: 'فشلت العملية',
-        description: 'حدث خطأ غير متوقع أثناء حفظ الصفحة.',
+        description: error?.message || 'حدث خطأ غير متوقع أثناء حفظ الصفحة.',
         variant: 'destructive',
       });
     } finally {
