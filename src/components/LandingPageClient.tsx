@@ -7,7 +7,7 @@ import { useSwipe } from '@/hooks/useSwipe';
 import type { PageData, LandingTheme } from '@/lib/types';
 import { formatWhatsAppNumber } from '@/lib/utils';
 import ContentWrapper from '@/components/ContentWrapper';
-import { Phone, MessageCircle, Star, ChevronDown, ChevronUp, MapPin, Check, ExternalLink } from 'lucide-react';
+import { Phone, MessageCircle, Star, ChevronDown, ChevronUp, MapPin, Check, ExternalLink, Copy } from 'lucide-react';
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 
 // prettier-ignore — Tailwind JIT safelist: all dynamic dark: classes used in THEMES object
@@ -131,6 +131,8 @@ export default function LandingPageClient({ page }: Props) {
   const [galleryOpen, setGalleryOpen] = useState(false);
   const [galleryIdx, setGalleryIdx] = useState(0);
   const [navVisible, setNavVisible] = useState(false);
+  const [phoneModalOpen, setPhoneModalOpen] = useState(false);
+  const [phoneCopied, setPhoneCopied] = useState(false);
 
   // إظهار شريط التنقل عند التمرير لأسفل بعد قسم HERO
   React.useEffect(() => {
@@ -161,7 +163,7 @@ export default function LandingPageClient({ page }: Props) {
         }
 
         // إرسال حدث التحويل إلى Google Ads Tag
-        if (typeof (window as any).gtag === 'function' && page.googleAdsTagId) {
+        if (page.googleAdsTagId) {
           const cleanTag = page.googleAdsTagId.trim();
           // اختيار المعرف المخصص للاتصال أو الواتساب، أو المعرف العام كاحتياطي
           const specificLabel = actionType === 'call'
@@ -171,17 +173,51 @@ export default function LandingPageClient({ page }: Props) {
           const cleanLabel = specificLabel?.trim();
           const sendTo = cleanLabel ? `${cleanTag}/${cleanLabel}` : cleanTag;
 
-          (window as any).gtag('event', 'conversion', {
+          if (typeof (window as any).gtag === 'function') {
+            (window as any).gtag('event', 'conversion', {
+              send_to: sendTo,
+              event_category: 'conversion',
+              event_label: actionType === 'call' ? 'phone_call' : 'whatsapp_click',
+              value: 1.0,
+              currency: 'SAR',
+            });
+          }
+
+          // تزويد dataLayer بالحدث لضمان التقاط أداة Tag Assistant للحدث
+          (window as any).dataLayer = (window as any).dataLayer || [];
+          (window as any).dataLayer.push({
+            event: 'conversion',
             send_to: sendTo,
-            event_category: 'conversion',
-            event_label: actionType === 'call' ? 'phone_call' : 'whatsapp_click',
+            conversion_id: cleanTag,
+            conversion_label: cleanLabel,
+            action_type: actionType,
             value: 1.0,
             currency: 'SAR',
           });
+
+          console.log(`[Google Ads Conversion] Sent ${actionType}: ${sendTo}`);
         }
       }
     } catch (err) {
       console.warn('Google Ads conversion tracking notice:', err);
+    }
+  };
+
+  // معالجة النقر على زر الاتصال (على الهواتف يتصل فوراً، وعلى الكمبيوتر يظهر نافذة واضحة بالرقم ونسخه مع إرسال الإحالة)
+  const handleCallClick = (e: React.MouseEvent) => {
+    triggerConversion('call');
+    const isMobile = typeof navigator !== 'undefined' && /Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+    if (!isMobile) {
+      e.preventDefault();
+      setPhoneModalOpen(true);
+    }
+  };
+
+  const handleCopyPhone = () => {
+    if (page.phoneNumber && typeof navigator !== 'undefined') {
+      navigator.clipboard.writeText(page.phoneNumber.replace(/\s+/g, ''));
+      setPhoneCopied(true);
+      setTimeout(() => setPhoneCopied(false), 2500);
     }
   };
 
@@ -318,7 +354,7 @@ export default function LandingPageClient({ page }: Props) {
               )}
               {callLink && (
                 <a href={callLink}
-                  onClick={() => triggerConversion('call')}
+                  onClick={handleCallClick}
                   className={`flex items-center gap-2 px-6 py-3 rounded-2xl text-white font-bold shadow-xl text-base transition-all hover:scale-105 active:scale-95 ${theme.callBtn}`}>
                   <Phone className="h-5 w-5" />
                   اتصل الآن
@@ -602,7 +638,7 @@ export default function LandingPageClient({ page }: Props) {
                   )}
                   {callLink && (
                     <a href={callLink}
-                      onClick={() => triggerConversion('call')}
+                      onClick={handleCallClick}
                       className="flex items-center gap-2 px-8 py-3.5 rounded-2xl bg-white text-slate-900 font-bold shadow-xl text-base transition-all hover:scale-105 active:scale-95">
                       <Phone className="h-5 w-5" />
                       اتصل الآن
@@ -667,6 +703,61 @@ export default function LandingPageClient({ page }: Props) {
               setGalleryIdx={setGalleryIdx}
             />
           )}
+        </DialogContent>
+      </Dialog>
+
+      {/* ========== Desktop Phone Call Dialog ========== */}
+      <Dialog open={phoneModalOpen} onOpenChange={setPhoneModalOpen}>
+        <DialogContent className="max-w-md w-[92%] p-6 rounded-2xl bg-card border border-border shadow-2xl text-center">
+          <div className="w-14 h-14 mx-auto mb-3 rounded-full bg-primary/10 flex items-center justify-center text-primary">
+            <Phone className="h-7 w-7 animate-bounce" />
+          </div>
+          <DialogTitle className="text-xl font-extrabold text-foreground mb-1">
+            الاتصال الهاتفي المباشر
+          </DialogTitle>
+          <DialogDescription className="text-sm text-muted-foreground mb-4">
+            يمكنك الاتصال مباشرة أو نسخ الرقم للاتصال من هاتفك المحمول
+          </DialogDescription>
+
+          <div className="bg-secondary/50 border border-border/60 rounded-xl p-4 mb-4 flex items-center justify-between gap-3">
+            <span className="text-xl font-bold tracking-wider text-foreground select-all dir-ltr font-mono">
+              {page.phoneNumber}
+            </span>
+            <button
+              onClick={handleCopyPhone}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-primary text-primary-foreground text-xs font-semibold hover:bg-primary/90 transition-all active:scale-95"
+            >
+              {phoneCopied ? (
+                <>
+                  <Check className="h-4 w-4" />
+                  تم النسخ
+                </>
+              ) : (
+                <>
+                  <Copy className="h-4 w-4" />
+                  نسخ الرقم
+                </>
+              )}
+            </button>
+          </div>
+
+          <div className="flex gap-2 justify-center">
+            {callLink && (
+              <a
+                href={callLink}
+                className="flex-1 flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl bg-primary text-primary-foreground font-semibold text-sm hover:bg-primary/90 transition-all"
+              >
+                <Phone className="h-4 w-4" />
+                فتح تطبيق الاتصال
+              </a>
+            )}
+            <button
+              onClick={() => setPhoneModalOpen(false)}
+              className="py-2.5 px-4 rounded-xl border border-border hover:bg-muted text-sm font-semibold transition-all"
+            >
+              إغلاق
+            </button>
+          </div>
         </DialogContent>
       </Dialog>
 
