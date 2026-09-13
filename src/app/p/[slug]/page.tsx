@@ -167,6 +167,19 @@ export default async function CustomPageDetail({ params }: Props) {
     };
     return (
       <main className="min-h-screen bg-background">
+        {page.googleAdsTagId && (
+          <>
+            <script
+              async
+              src={`https://www.googletagmanager.com/gtag/js?id=${page.googleAdsTagId.trim()}`}
+            />
+            <script
+              dangerouslySetInnerHTML={{
+                __html: `window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments);}gtag('js',new Date());gtag('config','${page.googleAdsTagId.trim()}');`,
+              }}
+            />
+          </>
+        )}
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: JSON.stringify(landingJsonLd) }}

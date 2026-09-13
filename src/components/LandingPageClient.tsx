@@ -1,7 +1,6 @@
 'use client';
 
 import Image from 'next/image';
-import Script from 'next/script';
 import Link from 'next/link';
 import React, { useState, type Dispatch, type SetStateAction } from 'react';
 import { useSwipe } from '@/hooks/useSwipe';
@@ -235,28 +234,6 @@ export default function LandingPageClient({ page }: Props) {
 
   return (
     <div className="min-h-screen" dir="rtl">
-      {/* ========== GOOGLE ADS TAG ========== */}
-      {page.googleAdsTagId && (
-        <>
-          <Script
-            id="google-ads-gtag-src"
-            strategy="afterInteractive"
-            src={`https://www.googletagmanager.com/gtag/js?id=${page.googleAdsTagId.trim()}`}
-          />
-          <Script
-            id="google-ads-gtag-init"
-            strategy="afterInteractive"
-            dangerouslySetInnerHTML={{
-              __html: `
-                window.dataLayer = window.dataLayer || [];
-                function gtag(){dataLayer.push(arguments);}
-                gtag('js', new Date());
-                gtag('config', '${page.googleAdsTagId.trim()}');
-              `,
-            }}
-          />
-        </>
-      )}
       {faqSchema && (
         <script
           type="application/ld+json"
