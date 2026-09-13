@@ -85,6 +85,35 @@ function cleanTagId(val: string): string {
   if (match && match[1]) return match[1];
   return trimmed;
 }
+
+function getDetailedErrorMessage(error: any): string {
+  if (!error) return 'حدث خطأ غير معروف.';
+  const msg = error?.message || (typeof error === 'string' ? error : JSON.stringify(error));
+
+  if (msg.includes('permission-denied') || msg.includes('Missing or insufficient permissions')) {
+    return 'تم رفض العملية: ليس لديك صلاحيات إدارية كافية لتعديل أو حفظ البيانات في قاعدة البيانات.';
+  }
+  if (msg.includes('Unsupported field value: undefined')) {
+    const fieldMatch = msg.match(/found in field ([a-zA-Z0-9_]+)/);
+    const fieldName = fieldMatch ? fieldMatch[1] : '';
+    return `خطأ في صياغة البيانات: الحقل (${fieldName || 'أحد الحقول'}) يحتوي على قيمة غير صالحة. تم تحديث النظام لتفادي هذا الخطأ.`;
+  }
+  if (msg.includes('unavailable') || msg.includes('network') || msg.includes('failed to fetch') || msg.includes('Failed to fetch')) {
+    return 'فشل الاتصال: تعذر الوصول إلى الخادم أو قاعدة البيانات بسبب ضعف أو انقطاع في الاتصال بالإنترنت.';
+  }
+  if (msg.includes('quota-exceeded')) {
+    return 'تم تجاوز الحد الأقصى للعمليات في قاعدة البيانات (Firebase Quota)، يرجى المحاولة بعد قليل.';
+  }
+  if (msg.includes('not-found')) {
+    return 'الصفحة المطلوبة غير موجودة في قاعدة البيانات.';
+  }
+  if (msg.includes('already exists') || msg.includes('duplicate')) {
+    return 'الرابط أو المعرف مستخدم بالفعل لصفحة أخرى، يرجى اختيار رابط مختلف.';
+  }
+
+  return msg;
+}
+
 const LANDING_THEMES: { value: LandingTheme; label: string; desc: string; color: string }[] = [
   { value: 'default', label: 'افتراضي', desc: 'بنفسجي عصري', color: 'border-violet-500 bg-violet-500/10 text-violet-600' },
   { value: 'greenery', label: 'زراعي أخضر', desc: 'للمشاتل والحدائق', color: 'border-emerald-500 bg-emerald-500/10 text-emerald-600' },
@@ -413,8 +442,9 @@ export default function PageManager({ initialFilter = 'all' }: PageManagerProps)
       const { url } = await uploadFileAndReturnInfo(file, 'adpage-covers');
       setAdpageCoverImage(url);
       toast({ title: 'تم رفع صورة الغلاف', description: 'تم رفع صورة الغلاف الإعلاني بنجاح.' });
-    } catch {
-      toast({ title: 'فشل الرفع', description: 'حدث خطأ أثناء رفع صورة الغلاف.', variant: 'destructive' });
+    } catch (err: any) {
+      console.error('Upload adpage cover error:', err);
+      toast({ title: 'فشل الرفع', description: getDetailedErrorMessage(err), variant: 'destructive' });
     } finally { setAdpageCoverUploading(false); }
   };
 
@@ -426,8 +456,9 @@ export default function PageManager({ initialFilter = 'all' }: PageManagerProps)
       const { url } = await uploadFileAndReturnInfo(file, 'landing-covers');
       setCoverImageUrl(url);
       toast({ title: 'تم رفع صورة الغلاف', description: 'تم رفع الصورة بنجاح.' });
-    } catch {
-      toast({ title: 'فشل الرفع', description: 'حدث خطأ أثناء رفع صورة الغلاف.', variant: 'destructive' });
+    } catch (err: any) {
+      console.error('Upload cover error:', err);
+      toast({ title: 'فشل الرفع', description: getDetailedErrorMessage(err), variant: 'destructive' });
     } finally { setCoverUploading(false); }
   };
 
@@ -439,8 +470,9 @@ export default function PageManager({ initialFilter = 'all' }: PageManagerProps)
       const { url } = await uploadFileAndReturnInfo(file, 'landing-logos');
       setLogoUrl(url);
       toast({ title: 'تم رفع الشعار', description: 'تم رفع الشعار بنجاح.' });
-    } catch {
-      toast({ title: 'فشل الرفع', description: 'حدث خطأ أثناء رفع الشعار.', variant: 'destructive' });
+    } catch (err: any) {
+      console.error('Upload logo error:', err);
+      toast({ title: 'فشل الرفع', description: getDetailedErrorMessage(err), variant: 'destructive' });
     } finally { setLogoUploading(false); }
   };
 
@@ -452,8 +484,9 @@ export default function PageManager({ initialFilter = 'all' }: PageManagerProps)
       const uploads = await Promise.all(files.map(f => uploadFileAndReturnInfo(f, 'landing-galleries')));
       setGallery(prev => [...prev, ...uploads.map(u => u.url)]);
       toast({ title: 'تم رفع الصور', description: `تم رفع ${uploads.length} صورة بنجاح.` });
-    } catch {
-      toast({ title: 'فشل الرفع', description: 'حدث خطأ أثناء رفع الصور.', variant: 'destructive' });
+    } catch (err: any) {
+      console.error('Upload gallery error:', err);
+      toast({ title: 'فشل الرفع', description: getDetailedErrorMessage(err), variant: 'destructive' });
     } finally { setGalleryUploading(false); }
   };
 
@@ -618,7 +651,7 @@ export default function PageManager({ initialFilter = 'all' }: PageManagerProps)
       console.error('Error in handleSave:', error);
       toast({
         title: 'فشلت العملية',
-        description: error?.message || 'حدث خطأ غير متوقع أثناء حفظ الصفحة.',
+        description: getDetailedErrorMessage(error),
         variant: 'destructive',
       });
     } finally {
@@ -736,11 +769,11 @@ export default function PageManager({ initialFilter = 'all' }: PageManagerProps)
         description: 'تمت إزالة الصفحة بنجاح من النظام.',
       });
       fetchPages();
-    } catch (error) {
-      console.error(error);
+    } catch (error: any) {
+      console.error('Error in handleDelete:', error);
       toast({
         title: 'فشل الحذف',
-        description: 'حدث خطأ أثناء محاولة حذف الصفحة.',
+        description: getDetailedErrorMessage(error),
         variant: 'destructive',
       });
     } finally {
@@ -781,8 +814,9 @@ export default function PageManager({ initialFilter = 'all' }: PageManagerProps)
 
     try {
       await Promise.all(updates);
-    } catch {
-      toast({ title: 'فشل الترتيب', description: 'حدث خطأ أثناء حفظ الترتيب.', variant: 'destructive' });
+    } catch (err: any) {
+      console.error('Error in handleReorderPage:', err);
+      toast({ title: 'فشل الترتيب', description: getDetailedErrorMessage(err), variant: 'destructive' });
       fetchPages(); // re-sync on failure
     }
   };
