@@ -26,6 +26,8 @@ import { Label } from '@/components/ui/label';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/context/AuthContext';
+import { useMarket } from '@/context/MarketContext';
+import { useCurrency } from '@/context/CurrencyContext';
 import {
   MapPin,
   LocateFixed,
@@ -50,7 +52,9 @@ import {
   Sparkles,
   CheckCircle2,
   Circle,
+  Wallet,
 } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
 import {
   detectUserLocation,
   saveAndSyncLocation,
@@ -71,6 +75,8 @@ export default function SettingsModal({ isOpen, onClose, defaultTab = 'account' 
   const router = useRouter();
   const { toast } = useToast();
   const { user, userProfile, signOutUser } = useAuth();
+  const { market } = useMarket();
+  const { formatConvertedBalance } = useCurrency();
 
   const isAdmin = userProfile?.role === 'admin';
   const hasStore = !!userProfile?.store;
@@ -417,6 +423,22 @@ export default function SettingsModal({ isOpen, onClose, defaultTab = 'account' 
                           <span>الباقات والترقيات</span>
                         </div>
                         <ChevronLeft className="w-4 h-4 text-muted-foreground group-hover:text-foreground transition-transform" />
+                      </button>
+
+                      <button
+                        onClick={() => handleNavigate('/wallet')}
+                        className="w-full flex items-center justify-between p-2.5 rounded-xl hover:bg-muted/80 text-foreground transition-colors text-xs font-medium group"
+                      >
+                        <div className="flex items-center gap-2.5">
+                          <Wallet className="w-4 h-4 text-primary" />
+                          <span>محفظتي ورصيد الإعلانات</span>
+                        </div>
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-[11px] font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-lg font-mono">
+                            {formatConvertedBalance(userProfile?.walletBalance || 0, market?.id).formatted} {formatConvertedBalance(userProfile?.walletBalance || 0, market?.id).symbol}
+                          </span>
+                          <ChevronLeft className="w-4 h-4 text-muted-foreground group-hover:text-foreground transition-transform" />
+                        </div>
                       </button>
 
                       <div className="pt-2 border-t border-border/60">

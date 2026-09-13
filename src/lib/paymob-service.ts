@@ -59,31 +59,73 @@ export async function activateUserPlan(userId: string, planId: string, transacti
 
   try {
     const now = new Date();
-    // مدة الباقة: 30 يوم للمميزة، 60 يوم للذهبية، أو 30 يوم كافتراضي
-    const durationDays = planId === 'gold' ? 60 : 30;
+    // التحقق إن كانت باقة متجر
+    const isStorePlan = planId.startsWith('store_');
+    const storeTier = isStorePlan ? (planId.replace('store_', '') as 'pro' | 'vip' | 'free') : null;
+
+    // مدة الباقة: 30 يوم للمميزة، 60 يوم للذهبية، 30 يوم للتاجر المحترف، 60 يوم للمتجر VIP
+    const durationDays = (planId === 'gold' || planId === 'store_vip') ? 60 : 30;
     const expiresAt = new Date(now.getTime() + durationDays * 24 * 60 * 60 * 1000);
 
     const userRef = doc(firestore, 'users', userId);
-    await updateDoc(userRef, {
-      plan: planId,
-      planPurchasedAt: now.toISOString(),
-      planExpiresAt: expiresAt.toISOString(),
-      planDurationDays: durationDays,
-      verified: true,
-      lastPaymentTransactionId: transactionId ? String(transactionId) : null,
-    });
 
-    // إرسال إشعار للمستخدم
-    const planNameAr = planId === 'gold' ? 'الباقة الذهبية' : planId === 'premium' ? 'الباقة المميزة' : planId;
-    const notifRef = doc(collection(firestore, 'notifications'));
-    await setDoc(notifRef, {
-      userId,
-      message: `🎉 تهانينا! تم تفعيل اشتراكك في ${planNameAr} بنجاح. يمكنك الآن نشر إعلاناتك والتمتع بجميع ميزات الباقة المميزة.`,
-      type: 'general',
-      isRead: false,
-      createdAt: now,
-      link: '/submit',
-    });
+    if (isStorePlan && storeTier) {
+      await updateDoc(userRef, {
+        storePlan: storeTier,
+        storePlanPurchasedAt: now.toISOString(),
+        storePlanExpiresAt: expiresAt.toISOString(),
+        verified: true,
+        lastPaymentTransactionId: transactionId ? String(transactionId) : null,
+      });
+
+      // إذا كان لدى المستخدم متجر بالفعل، نقوم بتحديث باقة المتجر
+      try {
+        const storeRef = doc(firestore, 'stores', userId);
+        const storeSnap = await getDoc(storeRef);
+        if (storeSnap.exists()) {
+          await updateDoc(storeRef, {
+            plan: storeTier,
+            planPurchasedAt: now.toISOString(),
+            planExpiresAt: expiresAt.toISOString(),
+            verified: true,
+          });
+        }
+      } catch (err) {
+        console.warn('Could not update stores collection:', err);
+      }
+
+      const storePlanNameAr = storeTier === 'vip' ? 'باقة متاجر النخبة والشركات VIP 👑' : 'باقة التاجر المحترف ⭐';
+      const notifRef = doc(collection(firestore, 'notifications'));
+      await setDoc(notifRef, {
+        userId,
+        message: `🎉 تهانينا! تم تفعيل اشتراكك في ${storePlanNameAr} بنجاح. يمكنك الآن إدارة منتجات متجرك والتمتع بكافة المزايا الاحترافية.`,
+        type: 'general',
+        isRead: false,
+        createdAt: now,
+        link: `/store/${userId}`,
+      });
+    } else {
+      await updateDoc(userRef, {
+        plan: planId,
+        planPurchasedAt: now.toISOString(),
+        planExpiresAt: expiresAt.toISOString(),
+        planDurationDays: durationDays,
+        verified: true,
+        lastPaymentTransactionId: transactionId ? String(transactionId) : null,
+      });
+
+      // إرسال إشعار للمستخدم
+      const planNameAr = planId === 'gold' ? 'الباقة الذهبية' : planId === 'premium' ? 'الباقة المميزة' : planId;
+      const notifRef = doc(collection(firestore, 'notifications'));
+      await setDoc(notifRef, {
+        userId,
+        message: `🎉 تهانينا! تم تفعيل اشتراكك في ${planNameAr} بنجاح. يمكنك الآن نشر إعلاناتك والتمتع بجميع ميزات الباقة المميزة.`,
+        type: 'general',
+        isRead: false,
+        createdAt: now,
+        link: '/submit',
+      });
+    }
 
     console.log(`Successfully activated plan [${planId}] for user [${userId}]`);
     return true;

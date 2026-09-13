@@ -103,7 +103,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
   const description = rawDescParts.join(' — ').substring(0, 160);
 
-  const imageUrl = ad.imageUrls && ad.imageUrls.length > 0 ? ad.imageUrls[0] : 'https://www.arb-soq.com/og-image.png';
+  const imageUrl = ad.imageUrls && ad.imageUrls.length > 0 ? ad.imageUrls[0] : 'https://www.arb-soq.com/og-image.png?v=2';
   const canonicalUrl = `https://www.arb-soq.com/ad/${userId}/${adId}`;
 
   // Rich keywords combining title tokens + brand + category + location
@@ -147,8 +147,8 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
       description,
       images: [
         ...(ad.imageUrls && ad.imageUrls.length > 0
-          ? ad.imageUrls.map((url) => ({ url, width: 1200, height: 630, alt: ad.title }))
-          : [{ url: imageUrl, width: 1200, height: 630, alt: ad.title }]),
+          ? ad.imageUrls.map((url) => ({ url, secureUrl: url, width: 1200, height: 630, alt: ad.title }))
+          : [{ url: imageUrl, secureUrl: imageUrl, width: 1200, height: 630, type: 'image/png', alt: ad.title }]),
       ],
       type: isVehicle ? 'article' : 'website',
       locale: 'ar_SA',

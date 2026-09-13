@@ -161,12 +161,18 @@ export interface AdSenseSettings {
   autoAdsEnabled: boolean;
 }
 
+export type StorePlanTier = 'free' | 'pro' | 'vip';
+
 export interface Store {
   id: string;
   storeName: string;
   storeDescription?: string;
   coverImageUrl?: string;
   ownerId: string;
+  plan?: StorePlanTier;
+  planExpiresAt?: string;
+  planPurchasedAt?: string;
+  verified?: boolean;
 }
 
 export interface UserProfile {
@@ -204,6 +210,9 @@ export interface UserProfile {
   planPurchasedAt?: string;
   planExpiresAt?: string;
   planDurationDays?: number;
+  storePlan?: StorePlanTier;
+  storePlanPurchasedAt?: string;
+  storePlanExpiresAt?: string;
   createdAt?: any;
   lastForumPostAt?: any;
 }

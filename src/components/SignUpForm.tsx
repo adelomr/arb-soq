@@ -122,14 +122,11 @@ export default function SignUpForm() {
   const fullAddressSummary = buildFullAddress(watchedVillage, watchedCity, watchedProvince, watchedCountry);
 
   useEffect(() => {
-    if (!authLoading && !user) {
-      router.push('/login');
-    }
     if (user) {
       form.setValue('name', user.displayName || '');
       form.setValue('email', user.email || '');
     }
-  }, [user, authLoading, router, form]);
+  }, [user, form]);
 
   const handleDetectGPS = async () => {
     setIsDetectingLocation(true);
@@ -206,6 +203,7 @@ export default function SignUpForm() {
         title: t.registrationComplete,
         description: t.registrationCompleteDesc,
       });
+
       router.push('/');
     } catch (error: any) {
       toast({
@@ -431,6 +429,7 @@ export default function SignUpForm() {
             />
           </div>
         </div>
+
 
         {/* زر إنشاء الحساب */}
         <Button type="submit" className="w-full h-12 text-base font-bold rounded-2xl shadow-lg" size="lg" disabled={isLoading}>

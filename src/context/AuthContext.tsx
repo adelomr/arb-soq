@@ -118,6 +118,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const createUserProfile = useCallback(async (uid: string, data: Partial<Omit<UserProfile, 'id' | 'avatarUrl' | 'phoneVerified' | 'role' | 'status' | 'walletBalance' | 'reviewCount' | 'rating' | 'store' | 'portfolioImages'>>, avatarUrl?: string) => {
     const finalAvatarUrl = avatarUrl || user?.photoURL || `https://avatar.vercel.sh/${uid}.png`;
     const role = 'user';
+
     const userProfileData: Omit<UserProfile, 'id' | 'store'> = {
       name: data.name!,
       email: data.email!,
@@ -173,6 +174,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     } else {
       // New user: create initial profile without setting location until user completes onboarding
       const finalAvatarUrl = firebaseUser.photoURL || `https://avatar.vercel.sh/${firebaseUser.uid}.png`;
+
       const newProfileData: Omit<UserProfile, 'id' | 'store'> = {
         name: firebaseUser.displayName || 'مستخدم جديد',
         email: firebaseUser.email || '',

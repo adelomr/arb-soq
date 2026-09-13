@@ -38,7 +38,7 @@ import {
 interface VodafoneCashDialogProps {
   isOpen: boolean;
   onOpenChange: (open: boolean) => void;
-  planId: 'premium' | 'gold';
+  planId: 'premium' | 'gold' | 'store_pro' | 'store_vip' | string;
   planName: string;
   amount: number;
   currency: string;

@@ -26,6 +26,7 @@ import { useTheme } from '@/context/ThemeContext';
 import { useFontSize } from '@/context/FontSizeContext';
 import { useView } from '@/context/ViewContext';
 import { useMarket } from '@/context/MarketContext';
+import { useCurrency } from '@/context/CurrencyContext';
 import { markets } from '@/lib/markets';
 import { useCart } from '@/context/CartContext';
 import AppDownloadButton from './AppDownloadButton';
@@ -168,6 +169,7 @@ export default function Header() {
   const { increase: increaseFontSize, decrease: decreaseFontSize, reset: resetFontSize } = useFontSize();
   const { view, setView } = useView();
   const { market, setMarket, sortAdsByDistance } = useMarket();
+  const { formatConvertedBalance } = useCurrency();
   const { cart } = useCart();
 
   const [notifications, setNotifications] = useState<Notification[]>([]);
@@ -525,6 +527,17 @@ export default function Header() {
                     )}
                     <DropdownMenuItem asChild>
                       <Link href="/pricing"><BadgeDollarSign className={direction === 'rtl' ? 'ml-2 h-4 w-4' : 'mr-2 h-4 w-4'} />{currentLabels.pricing}</Link>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem asChild>
+                      <Link href="/wallet" className="flex items-center justify-between w-full">
+                        <span className="flex items-center">
+                          <Wallet className={direction === 'rtl' ? 'ml-2 h-4 w-4 text-primary' : 'mr-2 h-4 w-4 text-primary'} />
+                          المحفظة والرصيد
+                        </span>
+                        <span className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-500/15 px-1.5 py-0.5 rounded-md font-mono">
+                          {formatConvertedBalance(userProfile?.walletBalance || 0, market?.id).formatted} {formatConvertedBalance(userProfile?.walletBalance || 0, market?.id).symbol}
+                        </span>
+                      </Link>
                     </DropdownMenuItem>
                     <DropdownMenuItem asChild>
                       <Link href="/profile" className="flex items-center justify-between w-full">

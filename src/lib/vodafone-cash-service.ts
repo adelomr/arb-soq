@@ -9,6 +9,7 @@ import {
   deleteDoc,
   serverTimestamp,
   Timestamp,
+  increment,
 } from 'firebase/firestore';
 import { activateUserPlan } from './paymob-service';
 
@@ -28,7 +29,7 @@ export interface VodafoneCashPayment {
   transactionRef: string;    // رقم مرجع عملية التحويل من رسالة فودافون
   amount: number;            // المبلغ بالجنيه
   currency: string;          // EGP
-  planId: 'premium' | 'gold';
+  planId: 'premium' | 'gold' | 'wallet_topup' | string;
   planName: string;          // اسم الباقة بالعربية
   receiptUrl?: string;       // رابط صورة إيصال التحويل
   status: VodafoneCashStatus;
@@ -118,7 +119,36 @@ export async function approveVodafoneCashPayment(
 
   const payment = snap.data() as VodafoneCashPayment;
 
-  // تفعيل الباقة للمستخدم
+  // إذا كان الطلب شحن رصيد للمحفظة
+  if (payment.planId === 'wallet_topup') {
+    const userRef = doc(firestore, 'users', payment.userId);
+    await updateDoc(userRef, {
+      walletBalance: increment(Number(payment.amount)),
+    });
+
+    await updateDoc(docRef, {
+      status: 'approved',
+      reviewedAt: serverTimestamp(),
+      reviewedBy: adminName,
+    });
+
+    try {
+      await addDoc(collection(firestore, 'notifications'), {
+        userId: payment.userId,
+        message: `✅ تم اعتماد وشحن رصيد محفظتك بمبلغ ${payment.amount} ج.م بنجاح عبر فودافون كاش!`,
+        type: 'general',
+        isRead: false,
+        createdAt: serverTimestamp(),
+        link: '/wallet',
+      });
+    } catch (e) {
+      console.warn('Failed to create user notification:', e);
+    }
+
+    return true;
+  }
+
+  // تفعيل الباقة للمستخدم (في حال كان الطلب اشتراك باقة مباشرة)
   const activated = await activateUserPlan(
     payment.userId,
     payment.planId,

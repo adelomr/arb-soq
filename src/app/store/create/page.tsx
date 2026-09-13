@@ -16,7 +16,7 @@ import {
 } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
-import { Save, FileUp, Loader2, Store, Text, Image as ImageIcon } from 'lucide-react';
+import { Save, FileUp, Loader2, Store, Text, Image as ImageIcon, Crown, Star, Sparkles, ArrowLeft, Check, ShieldCheck } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import type { UserProfile } from '@/lib/types';
@@ -24,6 +24,8 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { useLanguage } from '@/context/LanguageContext';
 import { Textarea } from '@/components/ui/textarea';
 import Image from 'next/image';
+import Link from 'next/link';
+import { Badge } from '@/components/ui/badge';
 import Footer from '@/components/Footer';
 import { useRouter } from 'next/navigation';
 import dynamic from 'next/dynamic';
@@ -156,11 +158,16 @@ export default function CreateStorePage() {
                 toast({ title: t.imageUploadSuccess });
             }
 
+            const storePlan = (userProfile as any)?.storePlan || 'free';
+            const isVerified = storePlan === 'vip' || storePlan === 'pro' || userProfile?.verified || false;
+
             const storeData = {
                 storeName: data.storeName,
                 storeDescription: data.storeDescription,
                 coverImageUrl: newCoverUrl || '',
                 ownerId: user.uid,
+                plan: storePlan,
+                verified: isVerified,
             };
 
             toast({ title: t.updatingProfile });
@@ -223,6 +230,52 @@ export default function CreateStorePage() {
                                 )}
                               </Button>
                             </div>
+
+                            {/* ── حالة وخطة المتجر الترويجية ── */}
+                            <div className="rounded-2xl border border-border/80 p-4 sm:p-5 bg-gradient-to-r from-secondary/40 via-card to-secondary/30 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 shadow-xs">
+                              <div className="space-y-1.5">
+                                <div className="flex items-center gap-2 flex-wrap">
+                                  <span className="text-xs font-semibold text-muted-foreground">خطة متجرك:</span>
+                                  {(userProfile as any)?.storePlan === 'vip' ? (
+                                    <Badge className="bg-gradient-to-r from-amber-500 to-yellow-400 text-black font-extrabold border-none gap-1 shadow-xs">
+                                      <Crown className="w-3.5 h-3.5 fill-black" />
+                                      <span>باقة النخبة والشركات VIP 👑</span>
+                                    </Badge>
+                                  ) : (userProfile as any)?.storePlan === 'pro' ? (
+                                    <Badge className="bg-primary text-primary-foreground font-bold gap-1 shadow-xs">
+                                      <Star className="w-3.5 h-3.5 fill-white text-white" />
+                                      <span>باقة التاجر المحترف ⭐</span>
+                                    </Badge>
+                                  ) : (
+                                    <Badge variant="outline" className="font-bold gap-1 bg-background border-border">
+                                      <Store className="w-3.5 h-3.5 text-primary" />
+                                      <span>باقة المتجر الأساسي (المجاني)</span>
+                                    </Badge>
+                                  )}
+                                </div>
+                                <p className="text-xs text-muted-foreground leading-relaxed">
+                                  {(userProfile as any)?.storePlan === 'vip'
+                                    ? 'متجرك يتمتع بمنتجات غير محدودة وصدارة قسم المتاجر وقمة البحث مع تحسين بالذكاء الاصطناعي.'
+                                    : (userProfile as any)?.storePlan === 'pro'
+                                    ? 'متجرك يتمتع بسعة 60 منتج وشارة متجر موثق وظهور في قسم المتاجر المميزة بالرئيسية.'
+                                    : 'تتيح لك الباقة المجانية حتى 10 منتجات نشطة. يمكنك الترقية للحصول على عدد غير محدود وشارة التوثيق.'}
+                                </p>
+                              </div>
+
+                              <Link href="/pricing?tab=stores" className="shrink-0 w-full sm:w-auto">
+                                <Button
+                                  type="button"
+                                  variant="outline"
+                                  size="sm"
+                                  className="w-full sm:w-auto text-xs font-bold gap-1.5 border-primary/40 text-primary hover:bg-primary/10 rounded-xl py-4"
+                                >
+                                  <Sparkles className="w-3.5 h-3.5 text-amber-500" />
+                                  <span>{userProfile?.storePlan && userProfile.storePlan !== 'free' ? 'إدارة أو ترقية الباقة' : 'استكشف باقات المتاجر ⭐'}</span>
+                                  <ArrowLeft className="w-3.5 h-3.5" />
+                                </Button>
+                              </Link>
+                            </div>
+
                              <FormField
                                 control={form.control}
                                 name="storeName"

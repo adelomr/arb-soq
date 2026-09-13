@@ -5,6 +5,7 @@ import { ThemeProvider } from '@/context/ThemeContext';
 import { FontSizeProvider } from '@/context/FontSizeContext';
 import { LanguageProvider, FontSizeApplier } from '@/context/LanguageContext';
 import { MarketProvider } from '@/context/MarketContext';
+import { CurrencyProvider } from '@/context/CurrencyContext';
 import { CartProvider } from '@/context/CartContext';
 import { ViewProvider } from '@/context/ViewContext';
 import Script from 'next/script';
@@ -52,9 +53,11 @@ export const metadata: Metadata = {
     description: 'بيع واشتري كل شيء في منطقتك. سيارات، عقارات، وتوظيف مجاناً.',
     images: [
       {
-        url: '/og-image.png',
+        url: 'https://www.arb-soq.com/og-image.png?v=2',
+        secureUrl: 'https://www.arb-soq.com/og-image.png?v=2',
         width: 1200,
         height: 630,
+        type: 'image/png',
         alt: 'سوق العرب',
       },
     ],
@@ -63,7 +66,7 @@ export const metadata: Metadata = {
     card: 'summary_large_image',
     title: 'سوق العرب - بيع واشتري في منطقتك',
     description: 'أفضل العروض والخدمات في الوطن العربي والخليج.',
-    images: ['/og-image.png'],
+    images: ['https://www.arb-soq.com/og-image.png?v=2'],
   },
   icons: {
     icon: [
@@ -133,40 +136,42 @@ export default function RootLayout({
             <ThemeProvider>
                 <FontSizeProvider>
                     <MarketProvider>
-                      <AuthProvider>
-                        <GoogleAdSenseLoader />
-                        <GoogleOneTap />
-                        <CartProvider>
-                          <ViewProvider>
-                          <FontSizeApplier>
-                            <ErrorWatcher />
-                            <AdminNodeInitializer />
-                            <LinkInterceptor />
-                            <script
-                              type="application/ld+json"
-                              dangerouslySetInnerHTML={{
-                                __html: JSON.stringify({
-                                  "@context": "https://schema.org",
-                                  "@type": "WebSite",
-                                  "name": "سوق العرب",
-                                  "url": "https://www.arb-soq.com",
-                                  "potentialAction": {
-                                    "@type": "SearchAction",
-                                    "target": "https://www.arb-soq.com/?q={search_term_string}",
-                                    "query-input": "required name=search_term_string"
-                                  }
-                                })
-                              }}
-                            />
-                            {children}
-                            <CookieConsent />
-                            <div id="recaptcha-container"></div>
-                            <Toaster />
-                            <BottomNav />
-                          </FontSizeApplier>
-                          </ViewProvider>
-                        </CartProvider>
-                      </AuthProvider>
+                      <CurrencyProvider>
+                        <AuthProvider>
+                          <GoogleAdSenseLoader />
+                          <GoogleOneTap />
+                          <CartProvider>
+                            <ViewProvider>
+                            <FontSizeApplier>
+                              <ErrorWatcher />
+                              <AdminNodeInitializer />
+                              <LinkInterceptor />
+                              <script
+                                type="application/ld+json"
+                                dangerouslySetInnerHTML={{
+                                  __html: JSON.stringify({
+                                    "@context": "https://schema.org",
+                                    "@type": "WebSite",
+                                    "name": "سوق العرب",
+                                    "url": "https://www.arb-soq.com",
+                                    "potentialAction": {
+                                      "@type": "SearchAction",
+                                      "target": "https://www.arb-soq.com/?q={search_term_string}",
+                                      "query-input": "required name=search_term_string"
+                                    }
+                                  })
+                                }}
+                              />
+                              {children}
+                              <CookieConsent />
+                              <div id="recaptcha-container"></div>
+                              <Toaster />
+                              <BottomNav />
+                            </FontSizeApplier>
+                            </ViewProvider>
+                          </CartProvider>
+                        </AuthProvider>
+                      </CurrencyProvider>
                     </MarketProvider>
                 </FontSizeProvider>
             </ThemeProvider>
