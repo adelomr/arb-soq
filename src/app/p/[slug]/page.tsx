@@ -171,6 +171,12 @@ export default async function CustomPageDetail({ params }: Props) {
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: JSON.stringify(landingJsonLd) }}
         />
+        {page.customHeadScript && (
+          <div
+            dangerouslySetInnerHTML={{ __html: page.customHeadScript }}
+            style={{ display: 'none' }}
+          />
+        )}
         <LandingPageClient page={serializedPage as any} />
         <PageViewIncrementer pageId={page.id} />
       </main>

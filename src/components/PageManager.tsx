@@ -23,6 +23,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
+import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
 import { 
   Loader2, 
@@ -55,7 +56,10 @@ import {
   SlidersHorizontal,
   ChevronUp,
   ChevronDown,
-  CarFront
+  CarFront,
+  Target,
+  BarChart3,
+  Code
 } from 'lucide-react';
 import RichTextEditor from './RichTextEditor';
 import Image from 'next/image';
@@ -131,6 +135,10 @@ export default function PageManager({ initialFilter = 'all' }: PageManagerProps)
   const [testimonials, setTestimonials] = useState<LandingTestimonial[]>([]);
   const [faqs, setFaqs] = useState<LandingFaq[]>([]);
   const [locationEmbed, setLocationEmbed] = useState('');
+  // Google Ads & Tracking states
+  const [googleAdsTagId, setGoogleAdsTagId] = useState('');
+  const [googleAdsConversionLabel, setGoogleAdsConversionLabel] = useState('');
+  const [customHeadScript, setCustomHeadScript] = useState('');
 
   // Upload states
   const [coverUploading, setCoverUploading] = useState(false);
@@ -143,8 +151,20 @@ export default function PageManager({ initialFilter = 'all' }: PageManagerProps)
   const { toast } = useToast();
   const [copied, setCopied] = useState(false);
   const [copiedSlug, setCopiedSlug] = useState<string | null>(null);
+  const [copiedSitelink, setCopiedSitelink] = useState<string | null>(null);
   const [serviceName, setServiceName] = useState('');
   const [serviceArea, setServiceArea] = useState('');
+
+  const handleCopySitelink = (hash: string) => {
+    const fullUrl = `${window.location.origin}/p/${slug}${hash}`;
+    navigator.clipboard.writeText(fullUrl);
+    setCopiedSitelink(hash);
+    toast({
+      title: 'تم نسخ الرابط الكامل بنجاح',
+      description: fullUrl,
+    });
+    setTimeout(() => setCopiedSitelink(null), 2000);
+  };
 
   const handleCopyLink = () => {
     const pageUrl = SYSTEM_SLUGS.includes(slug) ? `/${slug}` : `/p/${slug}`;
@@ -279,6 +299,9 @@ export default function PageManager({ initialFilter = 'all' }: PageManagerProps)
     setLocationEmbed('');
     setServiceName('');
     setServiceArea('');
+    setGoogleAdsTagId('');
+    setGoogleAdsConversionLabel('');
+    setCustomHeadScript('');
   };
 
   const resetAdpageFields = () => {
@@ -339,6 +362,9 @@ export default function PageManager({ initialFilter = 'all' }: PageManagerProps)
     setLocationEmbed(page.locationEmbed ?? '');
     setServiceName(page.serviceName ?? '');
     setServiceArea(page.serviceArea ?? '');
+    setGoogleAdsTagId(page.googleAdsTagId ?? '');
+    setGoogleAdsConversionLabel(page.googleAdsConversionLabel ?? '');
+    setCustomHeadScript(page.customHeadScript ?? '');
     // adpage fields
     setAdpageCategoryId(page.adpageCategoryId ?? '');
     setAdpageSubcategoryId(page.adpageSubcategoryId ?? '');
@@ -442,6 +468,9 @@ export default function PageManager({ initialFilter = 'all' }: PageManagerProps)
           locationEmbed: locationEmbed || undefined,
           serviceName: serviceName || undefined,
           serviceArea: serviceArea || undefined,
+          googleAdsTagId: googleAdsTagId.trim() || undefined,
+          googleAdsConversionLabel: googleAdsConversionLabel.trim() || undefined,
+          customHeadScript: customHeadScript.trim() || undefined,
         } : {};
 
         const adpageExtras = isAdPage ? {
@@ -505,6 +534,9 @@ export default function PageManager({ initialFilter = 'all' }: PageManagerProps)
           locationEmbed: locationEmbed || undefined,
           serviceName: serviceName || undefined,
           serviceArea: serviceArea || undefined,
+          googleAdsTagId: googleAdsTagId.trim() || undefined,
+          googleAdsConversionLabel: googleAdsConversionLabel.trim() || undefined,
+          customHeadScript: customHeadScript.trim() || undefined,
         } : {};
 
         const adpageExtrasUpdate = isAdPage ? {
@@ -1877,6 +1909,79 @@ export default function PageManager({ initialFilter = 'all' }: PageManagerProps)
                   <Input id="lp-location" value={locationEmbed} onChange={e => setLocationEmbed(e.target.value)} placeholder="https://www.google.com/maps/embed?pb=..." dir="ltr" className="bg-background text-xs font-mono" />
                   <p className="text-xs text-muted-foreground">افتح جوجل ماب → مشاركة → تضمين الخريطة → انسخ رابط src</p>
                 </div>
+
+                {/* ========== GOOGLE ADS & TRACKING PANEL ========== */}
+                <div className="space-y-4 p-4 rounded-xl border border-blue-500/30 bg-blue-500/5 dark:bg-blue-950/20">
+                  <div className="flex items-center gap-2">
+                    <div className="p-1.5 rounded-lg bg-blue-500/15 text-blue-600 dark:text-blue-400">
+                      <Target className="h-5 w-5" />
+                    </div>
+                    <div>
+                      <h4 className="font-bold text-foreground text-sm">إعدادات تتبع إعلانات جوجل والإحالة الناجحة (Google Ads Conversion)</h4>
+                      <p className="text-xs text-muted-foreground">ربط الحملة واحتساب الإحالات الناجحة تلقائياً عند النقر على أزرار الاتصال أو الواتساب</p>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-1">
+                    {/* Google Ads Tag ID */}
+                    <div className="space-y-1.5">
+                      <Label htmlFor="lp-gads-id" className="font-medium text-xs flex items-center gap-1.5">
+                        <BarChart3 className="h-3.5 w-3.5 text-blue-500" />
+                        معرف إعلانات جوجل (Google Tag ID)
+                      </Label>
+                      <Input
+                        id="lp-gads-id"
+                        value={googleAdsTagId}
+                        onChange={e => setGoogleAdsTagId(e.target.value)}
+                        placeholder="مثال: AW-123456789 أو G-XXXXXXXX"
+                        dir="ltr"
+                        className="bg-background text-sm font-mono"
+                      />
+                      <p className="text-[11px] text-muted-foreground">
+                        معرف الحساب في إعلانات جوجل أو إحصاءات جوجل (يبدأ بـ AW- أو G-).
+                      </p>
+                    </div>
+
+                    {/* Google Ads Conversion Label */}
+                    <div className="space-y-1.5">
+                      <Label htmlFor="lp-gads-label" className="font-medium text-xs flex items-center gap-1.5">
+                        <Tag className="h-3.5 w-3.5 text-green-500" />
+                        معرف الإحالة الناجحة (Conversion Label)
+                      </Label>
+                      <Input
+                        id="lp-gads-label"
+                        value={googleAdsConversionLabel}
+                        onChange={e => setGoogleAdsConversionLabel(e.target.value)}
+                        placeholder="مثال: AbCdEf12345_XYZ"
+                        dir="ltr"
+                        className="bg-background text-sm font-mono"
+                      />
+                      <p className="text-[11px] text-muted-foreground">
+                        رمز الإحالة الذي ينشئه جوجل لإجراء التحويل (لتسجيل نقرات أزرار الاتصال والواتساب كإحالة).
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Custom Tracking Head Script */}
+                  <div className="space-y-1.5 pt-2 border-t border-border/40">
+                    <Label htmlFor="lp-custom-script" className="font-medium text-xs flex items-center gap-1.5">
+                      <Code className="h-3.5 w-3.5 text-violet-500" />
+                      كود تتبع مخصص إضافي (HTML / Script)
+                    </Label>
+                    <Textarea
+                      id="lp-custom-script"
+                      value={customHeadScript}
+                      onChange={e => setCustomHeadScript(e.target.value)}
+                      placeholder={'<!-- الصق هنا كود التتبع الكامل مثل كود جوجل أو فيسبوك بيكسل <script>...</script> -->'}
+                      dir="ltr"
+                      rows={3}
+                      className="bg-background text-xs font-mono resize-y"
+                    />
+                    <p className="text-[11px] text-muted-foreground">
+                      اختياري: يمكنك لصق أي سكربت تتبع جاهز من جوجل أو فيسبوك أو تيك توك هنا وسيتم تضمينه في صفحة الهبوط مباشرة.
+                    </p>
+                  </div>
+                </div>
               </div>
             )}
 
@@ -1924,39 +2029,56 @@ export default function PageManager({ initialFilter = 'all' }: PageManagerProps)
 
             {/* Google Ads Sitelinks Guide — landing pages only */}
             {pageType === 'landing' && slug && (
-              <div className="space-y-2 p-4 rounded-xl border border-blue-500/20 bg-blue-500/5 text-xs">
-                <div className="flex items-center gap-2 font-bold text-blue-600 text-sm">
-                  <Rocket className="h-4 w-4" />
-                  <span>روابط أقسام إعلانات جوجل (Google Ads Sitelinks)</span>
+              <div className="space-y-3 p-4 rounded-xl border border-blue-500/25 bg-blue-500/5 text-xs">
+                <div className="flex items-center justify-between flex-wrap gap-2">
+                  <div className="flex items-center gap-2 font-bold text-blue-600 dark:text-blue-400 text-sm">
+                    <Rocket className="h-4 w-4" />
+                    <span>روابط أقسام إعلانات جوجل (Google Ads Sitelinks)</span>
+                  </div>
+                  <span className="text-[11px] text-muted-foreground bg-background px-2.5 py-0.5 rounded-full border border-border">
+                    اضغط 📋 لنسخ الرابط الكامل لحملتك
+                  </span>
                 </div>
-                <p className="text-muted-foreground">
-                  يمكنك استخدام هذه الروابط في حملات إعلانات جوجل كروابط أقسام (Sitelinks) للتوجيه المباشر لجميع مكونات صفحة الهبوط:
+                <p className="text-muted-foreground text-xs leading-relaxed">
+                  يمكنك استخدام هذه الروابط في حملات إعلانات جوجل كروابط أقسام (Sitelinks) لتكبير حجم إعلانك والتوجيه المباشر لأي قسم داخل صفحة الهبوط:
                 </p>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1 font-mono text-xs" dir="ltr">
-                  <div className="bg-background p-2 rounded-lg border border-border flex items-center justify-between">
-                    <span className="truncate text-foreground font-bold">/p/{slug}#details</span>
-                    <span className="text-2xs bg-muted px-1.5 py-0.5 rounded text-muted-foreground font-sans">التفاصيل</span>
-                  </div>
-                  <div className="bg-background p-2 rounded-lg border border-border flex items-center justify-between">
-                    <span className="truncate text-foreground font-bold">/p/{slug}#features</span>
-                    <span className="text-2xs bg-muted px-1.5 py-0.5 rounded text-muted-foreground font-sans">المميزات</span>
-                  </div>
-                  <div className="bg-background p-2 rounded-lg border border-border flex items-center justify-between">
-                    <span className="truncate text-foreground font-bold">/p/{slug}#gallery</span>
-                    <span className="text-2xs bg-muted px-1.5 py-0.5 rounded text-muted-foreground font-sans">المعرض</span>
-                  </div>
-                  <div className="bg-background p-2 rounded-lg border border-border flex items-center justify-between">
-                    <span className="truncate text-foreground font-bold">/p/{slug}#testimonials</span>
-                    <span className="text-2xs bg-muted px-1.5 py-0.5 rounded text-muted-foreground font-sans">الآراء</span>
-                  </div>
-                  <div className="bg-background p-2 rounded-lg border border-border flex items-center justify-between">
-                    <span className="truncate text-foreground font-bold">/p/{slug}#faqs</span>
-                    <span className="text-2xs bg-muted px-1.5 py-0.5 rounded text-muted-foreground font-sans">الأسئلة</span>
-                  </div>
-                  <div className="bg-background p-2 rounded-lg border border-border flex items-center justify-between">
-                    <span className="truncate text-foreground font-bold">/p/{slug}#contact</span>
-                    <span className="text-2xs bg-muted px-1.5 py-0.5 rounded text-muted-foreground font-sans">التواصل</span>
-                  </div>
+                  {[
+                    { hash: '#details', label: 'تفاصيل الخدمة' },
+                    { hash: '#features', label: 'المميزات' },
+                    { hash: '#gallery', label: 'معرض الأعمال' },
+                    { hash: '#testimonials', label: 'آراء العملاء' },
+                    { hash: '#faqs', label: 'الأسئلة الشائعة' },
+                    { hash: '#contact', label: 'تواصل معنا' },
+                  ].map(item => (
+                    <div
+                      key={item.hash}
+                      className="bg-background p-2 rounded-lg border border-border flex items-center justify-between gap-2 shadow-xs hover:border-blue-500/50 transition-colors"
+                    >
+                      <div className="flex items-center gap-2 min-w-0">
+                        <span className="text-2xs bg-muted px-1.5 py-0.5 rounded text-muted-foreground font-sans flex-shrink-0">
+                          {item.label}
+                        </span>
+                        <span className="truncate text-foreground font-bold font-mono text-xs">
+                          /p/{slug}{item.hash}
+                        </span>
+                      </div>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        className="h-7 w-7 flex-shrink-0 hover:bg-blue-500/10 text-muted-foreground hover:text-blue-600"
+                        onClick={() => handleCopySitelink(item.hash)}
+                        title="نسخ الرابط الكامل"
+                      >
+                        {copiedSitelink === item.hash ? (
+                          <Check className="h-3.5 w-3.5 text-green-600" />
+                        ) : (
+                          <Copy className="h-3.5 w-3.5" />
+                        )}
+                      </Button>
+                    </div>
+                  ))}
                 </div>
               </div>
             )}

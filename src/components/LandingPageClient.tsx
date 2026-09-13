@@ -1,6 +1,7 @@
 'use client';
 
 import Image from 'next/image';
+import Script from 'next/script';
 import Link from 'next/link';
 import React, { useState, type Dispatch, type SetStateAction } from 'react';
 import { useSwipe } from '@/hooks/useSwipe';
@@ -151,6 +152,35 @@ export default function LandingPageClient({ page }: Props) {
 
   const hasCta = waLink || callLink;
 
+  // إرسال حدث الإحالة الناجحة لإعلانات جوجل (Google Ads Conversion Tracking)
+  const triggerConversion = (actionType: 'call' | 'whatsapp') => {
+    try {
+      if (typeof window !== 'undefined') {
+        // إذا كان هناك سكريبت مخصص يحتوي على gtag_report_conversion
+        if (typeof (window as any).gtag_report_conversion === 'function') {
+          (window as any).gtag_report_conversion();
+        }
+
+        // إرسال حدث التحويل إلى Google Ads Tag
+        if (typeof (window as any).gtag === 'function' && page.googleAdsTagId) {
+          const cleanTag = page.googleAdsTagId.trim();
+          const cleanLabel = page.googleAdsConversionLabel?.trim();
+          const sendTo = cleanLabel ? `${cleanTag}/${cleanLabel}` : cleanTag;
+
+          (window as any).gtag('event', 'conversion', {
+            send_to: sendTo,
+            event_category: 'conversion',
+            event_label: actionType === 'call' ? 'phone_call' : 'whatsapp_click',
+            value: 1.0,
+            currency: 'SAR',
+          });
+        }
+      }
+    } catch (err) {
+      console.warn('Google Ads conversion tracking notice:', err);
+    }
+  };
+
   // التنقل السلس بين أقسام صفحة الهبوط مع مراعاة ارتفاع الشريط الثابت
   const handleSectionNav = (e: React.MouseEvent<HTMLAnchorElement>) => {
     const href = e.currentTarget.getAttribute('href');
@@ -200,6 +230,28 @@ export default function LandingPageClient({ page }: Props) {
 
   return (
     <div className="min-h-screen" dir="rtl">
+      {/* ========== GOOGLE ADS TAG ========== */}
+      {page.googleAdsTagId && (
+        <>
+          <Script
+            id="google-ads-gtag-src"
+            strategy="afterInteractive"
+            src={`https://www.googletagmanager.com/gtag/js?id=${page.googleAdsTagId.trim()}`}
+          />
+          <Script
+            id="google-ads-gtag-init"
+            strategy="afterInteractive"
+            dangerouslySetInnerHTML={{
+              __html: `
+                window.dataLayer = window.dataLayer || [];
+                function gtag(){dataLayer.push(arguments);}
+                gtag('js', new Date());
+                gtag('config', '${page.googleAdsTagId.trim()}');
+              `,
+            }}
+          />
+        </>
+      )}
       {faqSchema && (
         <script
           type="application/ld+json"
@@ -276,6 +328,7 @@ export default function LandingPageClient({ page }: Props) {
             <div className="flex flex-wrap gap-3 mt-1 justify-center">
               {waLink && (
                 <a href={waLink} target="_blank" rel="noopener noreferrer"
+                  onClick={() => triggerConversion('whatsapp')}
                   className={`flex items-center gap-2 px-6 py-3 rounded-2xl text-white font-bold shadow-xl text-base transition-all hover:scale-105 active:scale-95 ${theme.waBtn}`}>
                   <MessageCircle className="h-5 w-5" />
                   تواصل واتساب
@@ -283,6 +336,7 @@ export default function LandingPageClient({ page }: Props) {
               )}
               {callLink && (
                 <a href={callLink}
+                  onClick={() => triggerConversion('call')}
                   className={`flex items-center gap-2 px-6 py-3 rounded-2xl text-white font-bold shadow-xl text-base transition-all hover:scale-105 active:scale-95 ${theme.callBtn}`}>
                   <Phone className="h-5 w-5" />
                   اتصل الآن
@@ -558,6 +612,7 @@ export default function LandingPageClient({ page }: Props) {
                 <div className="flex flex-wrap gap-4 justify-center">
                   {waLink && (
                     <a href={waLink} target="_blank" rel="noopener noreferrer"
+                      onClick={() => triggerConversion('whatsapp')}
                       className={`flex items-center gap-2 px-8 py-3.5 rounded-2xl text-white font-bold shadow-xl text-base transition-all hover:scale-105 active:scale-95 ${theme.waBtn}`}>
                       <MessageCircle className="h-5 w-5" />
                       واتساب مباشر
@@ -565,6 +620,7 @@ export default function LandingPageClient({ page }: Props) {
                   )}
                   {callLink && (
                     <a href={callLink}
+                      onClick={() => triggerConversion('call')}
                       className="flex items-center gap-2 px-8 py-3.5 rounded-2xl bg-white text-slate-900 font-bold shadow-xl text-base transition-all hover:scale-105 active:scale-95">
                       <Phone className="h-5 w-5" />
                       اتصل الآن
@@ -600,6 +656,7 @@ export default function LandingPageClient({ page }: Props) {
         <div className="fixed bottom-0 left-0 right-0 z-50 md:hidden flex bg-background/90 backdrop-blur-md border-t border-border shadow-2xl">
           {waLink && (
             <a href={waLink} target="_blank" rel="noopener noreferrer"
+              onClick={() => triggerConversion('whatsapp')}
               className={`flex-1 flex items-center justify-center gap-2 py-4 text-white font-bold text-base ${theme.waBtn}`}>
               <MessageCircle className="h-5 w-5" />
               واتساب
@@ -607,6 +664,7 @@ export default function LandingPageClient({ page }: Props) {
           )}
           {callLink && (
             <a href={callLink}
+              onClick={() => triggerConversion('call')}
               className={`flex-1 flex items-center justify-center gap-2 py-4 text-white font-bold text-base ${theme.callBtn}`}>
               <Phone className="h-5 w-5" />
               اتصل
