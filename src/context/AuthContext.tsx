@@ -1029,7 +1029,20 @@ const addAd = useCallback(async (adData: any, imageFiles: File[], user: User, pr
         }
         
         progressCallback("جارىٍ حفظ بيانات الإعلان...");
-        await addDoc(collectionRef, newAdData);
+        const docAdded = await addDoc(collectionRef, newAdData);
+
+        // إشعار محركات البحث (جوجل وبينغ) فورياً بالرابط الجديد وخريطة الموقع
+        try {
+            const authorId = newAdData.userId || user?.uid || 'item';
+            const adCanonicalUrl = `https://www.arb-soq.com/ad/${authorId}/${docAdded.id}`;
+            fetch('/api/seo/ping', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ url: adCanonicalUrl }),
+            }).catch(() => {});
+        } catch {
+            // Ignored - should not block ad creation
+        }
 
         return { success: true };
 

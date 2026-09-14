@@ -134,8 +134,9 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       else if (ad.postedAt) lastMod = new Date(ad.postedAt);
       else if (ad.createdAt?.seconds) lastMod = new Date(ad.createdAt.seconds * 1000);
 
+      const safeUserId = ad.userId || 'item';
       return {
-        url: `${BASE_URL}/ad/${ad.userId}/${doc.id}`,
+        url: `${BASE_URL}/ad/${safeUserId}/${doc.id}`,
         lastModified: lastMod,
         changeFrequency: 'weekly' as const,
         priority: ad.isPromoted ? 0.9 : 0.8,

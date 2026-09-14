@@ -53,12 +53,13 @@ export const metadata: Metadata = {
   },
 };
 
-// JSON-LD structured data للصفحة الرئيسية
+// JSON-LD structured data للصفحة الرئيسية المتوافقة مع معايير جوجل الرسمية
 const jsonLd = {
   '@context': 'https://schema.org',
   '@type': 'WebSite',
   name: 'سوق العرب',
   url: BASE_URL,
+  image: `${BASE_URL}/og-image.png?v=2`,
   description:
     'منصة الإعلانات المبوبة الأولى في الوطن العربي. بيع واشتري السيارات، العقارات والخدمات مجاناً.',
   inLanguage: 'ar',
@@ -66,7 +67,7 @@ const jsonLd = {
     '@type': 'SearchAction',
     target: {
       '@type': 'EntryPoint',
-      urlTemplate: `${BASE_URL}/?q={search_term_string}`,
+      urlTemplate: `${BASE_URL}/search?q={search_term_string}`,
     },
     'query-input': 'required name=search_term_string',
   },
@@ -76,7 +77,9 @@ const jsonLd = {
     url: BASE_URL,
     logo: {
       '@type': 'ImageObject',
-      url: `${BASE_URL}/favicon.ico`,
+      url: `${BASE_URL}/icons/icon-512x512.png`,
+      width: 512,
+      height: 512,
     },
   },
 };

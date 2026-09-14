@@ -104,7 +104,8 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const description = rawDescParts.join(' — ').substring(0, 160);
 
   const imageUrl = ad.imageUrls && ad.imageUrls.length > 0 ? ad.imageUrls[0] : 'https://www.arb-soq.com/og-image.png?v=2';
-  const canonicalUrl = `https://www.arb-soq.com/ad/${userId}/${adId}`;
+  const canonicalUserId = ad.userId || (userId !== 'owner' ? userId : 'item');
+  const canonicalUrl = `https://www.arb-soq.com/ad/${canonicalUserId}/${ad.id || adId}`;
 
   // Rich keywords combining title tokens + brand + category + location
   const keywordParts = [
@@ -175,7 +176,9 @@ export default async function AdPage({ params }: Props) {
   const viewType = getAdViewType(ad);
   const relatedAds = viewType === 'video' ? await getRelatedAds(ad.market || 'all', adId) : [];
 
-  const canonicalUrl = `https://www.arb-soq.com/ad/${userId}/${adId}`;
+  const canonicalUserId = ad.userId || (userId !== 'owner' ? userId : 'item');
+  const canonicalAdId = ad.id || adId;
+  const canonicalUrl = `https://www.arb-soq.com/ad/${canonicalUserId}/${canonicalAdId}`;
   const currencyMap: Record<string, string> = { sa: 'SAR', eg: 'EGP', ae: 'AED', kw: 'KWD', qa: 'QAR', bh: 'BHD', om: 'OMR', jo: 'JOD' };
   const currency = ad.currency || currencyMap[ad.market || ''] || 'SAR';
   const isVehicle = (ad.category === 'vehicles' || ad.categoryId === 'vehicles' || Boolean(ad.brand));
