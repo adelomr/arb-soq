@@ -40,6 +40,7 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
+import GoogleAdsDeviceCard from '@/components/GoogleAdsDeviceCard';
 
 // Whatsapp icon component
 const WhatsappIcon = ({ className = "h-4 w-4" }: { className?: string }) => (
@@ -420,6 +421,13 @@ export default function AdLogModal({ ad, isOpen, onClose, onStatsReset }: AdLogM
                 </CardContent>
               </Card>
             )}
+
+            {/* Google Ads Devices Performance Card (الأجهزة) */}
+            <GoogleAdsDeviceCard
+              stats={stats}
+              ad={ad}
+              onRefresh={() => fetchStats(timeframe, true)}
+            />
 
             {/* Recent Activity Log Feed */}
             <Card className="border border-border/60">

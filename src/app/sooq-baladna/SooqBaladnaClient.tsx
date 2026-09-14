@@ -16,6 +16,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
 import { Grid, List, MapPin, Sparkles, SlidersHorizontal } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { getFairRotatedAds } from '@/lib/fairRotation';
 
 // Haversine formula to calculate distance between two coordinates
 const getDistance = (lat1: number, lon1: number, lat2: number, lon2: number) => {
@@ -147,14 +148,20 @@ export default function SooqBaladnaClient() {
         return 0;
       });
 
-      const promoted = validAds.filter((ad) => isBoostActive(ad));
-      promoted.sort((a: any, b: any) => {
-        if (a.featuredTier === 'gold' && b.featuredTier !== 'gold') return -1;
-        if (a.featuredTier !== 'gold' && b.featuredTier === 'gold') return 1;
-        return (
-          new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime()
-        );
-      });
+      const getAdTime = (ad: Ad) => new Date((ad as any).createdAt || ad.postedAt || 0).getTime();
+
+      const gold = validAds.filter((ad) => isBoostActive(ad) && ad.featuredTier === 'gold');
+      gold.sort((a, b) => getAdTime(b) - getAdTime(a));
+      const rotatedGold = getFairRotatedAds(gold, 10);
+
+      const silver = validAds.filter((ad) => isBoostActive(ad) && ad.featuredTier === 'silver');
+      silver.sort((a, b) => getAdTime(b) - getAdTime(a));
+      const rotatedSilver = getFairRotatedAds(silver, 10);
+
+      const otherPromoted = validAds.filter((ad) => isBoostActive(ad) && ad.featuredTier !== 'gold' && ad.featuredTier !== 'silver');
+      otherPromoted.sort((a, b) => getAdTime(b) - getAdTime(a));
+
+      const promoted = [...rotatedGold, ...rotatedSilver, ...otherPromoted];
 
       const regular = validAds.filter((ad) => !isBoostActive(ad));
 

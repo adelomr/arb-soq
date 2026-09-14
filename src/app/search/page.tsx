@@ -17,6 +17,7 @@ import dynamic from 'next/dynamic';
 import SearchForm from '@/components/SearchForm';
 import AdSlot from '@/components/AdSlot';
 import { matchArabicQuery, isAdInMarket } from '@/lib/utils';
+import { getFairRotatedAds } from '@/lib/fairRotation';
 
 const Header = dynamic(() => import('@/components/Header'), { ssr: false });
 
@@ -28,10 +29,30 @@ const t = {
   localResults: 'نتائج مطابقة',
 };
 
+// ─── فرز عادل لإعلانات البحث يضمن تناوب الصدارة لمشتركي الباقات ──────────────────
+function sortAdsWithFairRotation(ads: Ad[]): Ad[] {
+  const isBoostActive = (ad: any) => (ad.isFeatured || ad.isPromoted) && (!ad.featuredUntil || new Date(ad.featuredUntil) > new Date());
+  
+  const goldAds = ads.filter((a: any) => isBoostActive(a) && a.featuredTier === 'gold');
+  goldAds.sort((a: any, b: any) => new Date(b.postedAt || b.createdAt || 0).getTime() - new Date(a.postedAt || a.createdAt || 0).getTime());
+  const rotatedGold = getFairRotatedAds(goldAds, 10);
+
+  const silverAds = ads.filter((a: any) => isBoostActive(a) && a.featuredTier === 'silver');
+  silverAds.sort((a: any, b: any) => new Date(b.postedAt || b.createdAt || 0).getTime() - new Date(a.postedAt || a.createdAt || 0).getTime());
+  const rotatedSilver = getFairRotatedAds(silverAds, 10);
+
+  const otherBoosted = ads.filter((a: any) => isBoostActive(a) && a.featuredTier !== 'gold' && a.featuredTier !== 'silver');
+  otherBoosted.sort((a: any, b: any) => new Date(b.postedAt || b.createdAt || 0).getTime() - new Date(a.postedAt || a.createdAt || 0).getTime());
+
+  const regularAds = ads.filter((a: any) => !isBoostActive(a));
+  regularAds.sort((a: any, b: any) => new Date(b.postedAt || b.createdAt || 0).getTime() - new Date(a.postedAt || a.createdAt || 0).getTime());
+
+  return [...rotatedGold, ...rotatedSilver, ...otherBoosted, ...regularAds];
+}
+
 // ─── smart Arabic filter helper (scoped by country/market) ────────────────────
 function filterByQuery(ads: Ad[], q: string, targetMarketId?: string): Ad[] {
   if (!q.trim()) return [];
-  const isBoostActive = (ad: any) => (ad.isFeatured || ad.isPromoted) && (!ad.featuredUntil || new Date(ad.featuredUntil) > new Date());
   const matches = ads.filter((ad) =>
     isAdInMarket(ad, targetMarketId) &&
     matchArabicQuery(
@@ -57,17 +78,7 @@ function filterByQuery(ads: Ad[], q: string, targetMarketId?: string): Ad[] {
     ),
   );
 
-  return matches.sort((a: any, b: any) => {
-    const aBoost = isBoostActive(a);
-    const bBoost = isBoostActive(b);
-    if (aBoost && !bBoost) return -1;
-    if (!aBoost && bBoost) return 1;
-    if (aBoost && bBoost) {
-      if (a.featuredTier === 'gold' && b.featuredTier !== 'gold') return -1;
-      if (a.featuredTier !== 'gold' && b.featuredTier === 'gold') return 1;
-    }
-    return new Date(b.postedAt || b.createdAt || 0).getTime() - new Date(a.postedAt || a.createdAt || 0).getTime();
-  });
+  return sortAdsWithFairRotation(matches);
 }
 
 function SearchResults() {
@@ -115,20 +126,7 @@ function SearchResults() {
   useEffect(() => {
     setLoading(true);
 
-    const isBoostActive = (ad: any) => (ad.isFeatured || ad.isPromoted) && (!ad.featuredUntil || new Date(ad.featuredUntil) > new Date());
-    const sortAds = (ads: Ad[]): Ad[] => {
-      return [...ads].sort((a: any, b: any) => {
-        const aBoost = isBoostActive(a);
-        const bBoost = isBoostActive(b);
-        if (aBoost && !bBoost) return -1;
-        if (!aBoost && bBoost) return 1;
-        if (aBoost && bBoost) {
-          if (a.featuredTier === 'gold' && b.featuredTier !== 'gold') return -1;
-          if (a.featuredTier !== 'gold' && b.featuredTier === 'gold') return 1;
-        }
-        return new Date(b.postedAt || b.createdAt || 0).getTime() - new Date(a.postedAt || a.createdAt || 0).getTime();
-      });
-    };
+    const sortAds = sortAdsWithFairRotation;
 
     const unsubscribe = getAds({ market: market.id, status: 'active' }, (allAds) => {
       if (adIdsParam) {

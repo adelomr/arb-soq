@@ -785,6 +785,10 @@ function PricingContent() {
                       <Check className="w-4 h-4 text-green-500 shrink-0" />
                       <span>أولوية الترتيب في البحث وتصفح الفئات</span>
                     </li>
+                    <li className="flex items-center gap-2.5 font-medium text-foreground">
+                      <Clock className="w-4 h-4 text-green-500 shrink-0" />
+                      <span><strong>نظام التدوير العادل:</strong> تناوب الصدارة بين المشتركين لضمان أعلى ظهور</span>
+                    </li>
                     <li className="flex items-center gap-2.5">
                       <Check className="w-4 h-4 text-green-500 shrink-0" />
                       <span>دعم فني وأولوية المراجعة والتفعيل</span>
@@ -869,6 +873,10 @@ function PricingContent() {
                     <li className="flex items-center gap-2.5 font-bold text-foreground">
                       <Check className="w-4 h-4 text-amber-500 shrink-0" />
                       <span><strong>تصدر قمة الصفحة الرئيسية</strong> والبحث والفئات أولاً</span>
+                    </li>
+                    <li className="flex items-center gap-2.5 font-bold text-amber-600 dark:text-amber-400">
+                      <Clock className="w-4 h-4 text-amber-500 shrink-0" />
+                      <span><strong>تيمر الأولوية وصدارة VIP:</strong> شريط دوار كل 5 ثوانٍ يضع إعلانك في المركز رقم 1</span>
                     </li>
                     <li className="flex items-center gap-2.5">
                       <Check className="w-4 h-4 text-amber-500 shrink-0" />

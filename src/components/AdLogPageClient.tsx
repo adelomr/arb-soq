@@ -44,6 +44,7 @@ import { cn } from '@/lib/utils';
 import { useMarket } from '@/context/MarketContext';
 import { useAuth } from '@/context/AuthContext';
 import AdPlaceholder from '@/components/AdPlaceholder';
+import GoogleAdsDeviceCard from '@/components/GoogleAdsDeviceCard';
 
 const Header = dynamic(() => import('@/components/Header'), { ssr: false });
 
@@ -62,6 +63,7 @@ export default function AdLogPageClient({ initialAd }: { initialAd: Ad }) {
   const [ad, setAd] = useState<Ad>(initialAd);
   const [timeframe, setTimeframe] = useState<AdTimeframe>('all');
   const [selectedActivityFilter, setSelectedActivityFilter] = useState<'all' | 'view' | 'click' | 'call' | 'whatsapp'>('all');
+  const [selectedDeviceFilter, setSelectedDeviceFilter] = useState<'all' | 'mobile' | 'desktop' | 'tablet'>('all');
   const [stats, setStats] = useState<AdActivityStats | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [refreshing, setRefreshing] = useState<boolean>(false);
@@ -303,12 +305,15 @@ export default function AdLogPageClient({ initialAd }: { initialAd: Ad }) {
     };
   }, [stats]);
 
-  // Filter recent events based on selected activity type filter (all, view, click, call, whatsapp)
+  // Filter recent events based on selected activity type filter (all, view, click, call, whatsapp) and device filter
   const filteredEvents = useMemo(() => {
     if (!stats?.recentEvents) return [];
-    if (selectedActivityFilter === 'all') return stats.recentEvents;
-    return stats.recentEvents.filter(e => e.type === selectedActivityFilter);
-  }, [stats?.recentEvents, selectedActivityFilter]);
+    return stats.recentEvents.filter(e => {
+      const matchType = selectedActivityFilter === 'all' || e.type === selectedActivityFilter;
+      const matchDevice = selectedDeviceFilter === 'all' || (e.device || 'mobile') === selectedDeviceFilter;
+      return matchType && matchDevice;
+    });
+  }, [stats?.recentEvents, selectedActivityFilter, selectedDeviceFilter]);
 
   // Find max daily total for relative chart heights
   const maxDailyTotal = stats?.dailyBreakdown
@@ -656,8 +661,23 @@ export default function AdLogPageClient({ initialAd }: { initialAd: Ad }) {
                 </Card>
               )}
 
+              {/* Google Ads Devices Performance Card (بطاقة الأجهزة المطابقة لإعلانات جوجل) */}
+              <GoogleAdsDeviceCard
+                stats={stats}
+                ad={ad}
+                selectedDeviceFilter={selectedDeviceFilter}
+                onSelectDeviceFilter={(device) => {
+                  setSelectedDeviceFilter(device);
+                  document.getElementById('activity-events-feed')?.scrollIntoView({ behavior: 'smooth' });
+                }}
+                onScrollToDetails={() => {
+                  document.getElementById('activity-events-feed')?.scrollIntoView({ behavior: 'smooth' });
+                }}
+                onRefresh={() => fetchStats(timeframe, true)}
+              />
+
               {/* Activity Log Feed with Activity Type Filters */}
-              <Card className="border border-border/70 shadow-sm overflow-hidden">
+              <Card id="activity-events-feed" className="border border-border/70 shadow-sm overflow-hidden scroll-mt-6">
                 <CardHeader className="pb-4 bg-muted/20 border-b border-border/40">
                   <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                     <div className="flex items-center gap-2.5">
@@ -723,71 +743,28 @@ export default function AdLogPageClient({ initialAd }: { initialAd: Ad }) {
                     </div>
                   </div>
 
-                  {/* Device Metrics 3-Card Summary Grid */}
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-3">
-                    {/* Mobile Phone Box */}
-                    <div className="p-3.5 rounded-2xl bg-card border border-border/70">
-                      <div className="flex items-center justify-between mb-2">
-                        <div className="flex items-center gap-2">
-                          <div className="p-1.5 rounded-lg bg-blue-500/10 text-blue-600 dark:text-blue-400">
-                            <Smartphone className="h-4 w-4" />
-                          </div>
-                          <span className="text-xs font-bold text-foreground">جوال</span>
-                        </div>
-                        <Badge variant="secondary" className="bg-blue-500/15 text-blue-700 dark:text-blue-300 border-none font-black text-2xs">
-                          {deviceStats.mobile.percentage}%
-                        </Badge>
-                      </div>
-                      <div className="w-full bg-secondary/80 rounded-full h-1.5 overflow-hidden">
-                        <div className="bg-blue-500 h-full rounded-full transition-all duration-500" style={{ width: `${deviceStats.mobile.percentage}%` }} />
-                      </div>
-                      <p className="text-xs font-semibold text-foreground mt-2">
-                        عدد الزيارات: <span className="font-bold text-primary">{deviceStats.mobile.count.toLocaleString('en-US')}</span>
-                      </p>
+                  {/* Active Device Filter Tag if filtered */}
+                  {selectedDeviceFilter !== 'all' && (
+                    <div className="flex items-center gap-2 pt-3">
+                      <div className="text-xs text-muted-foreground font-medium">تصفية نوع الجهاز:</div>
+                      <Badge 
+                        variant="outline" 
+                        className="gap-2 bg-primary/10 text-primary border-primary/25 text-xs py-1 px-3 rounded-xl font-semibold flex items-center"
+                      >
+                        <span>
+                          {selectedDeviceFilter === 'mobile' ? '📱 الهواتف الجوّالة فقط' : selectedDeviceFilter === 'tablet' ? '📟 الأجهزة اللوحية فقط' : '💻 أجهزة الكمبيوتر فقط'}
+                        </span>
+                        <button 
+                          type="button" 
+                          onClick={() => setSelectedDeviceFilter('all')} 
+                          className="hover:text-destructive hover:bg-primary/20 transition-all rounded-full p-0.5 text-xs font-bold leading-none cursor-pointer"
+                          title="إلغاء تصفية الجهاز"
+                        >
+                          ✕
+                        </button>
+                      </Badge>
                     </div>
-
-                    {/* Tablet Box */}
-                    <div className="p-3.5 rounded-2xl bg-card border border-border/70">
-                      <div className="flex items-center justify-between mb-2">
-                        <div className="flex items-center gap-2">
-                          <div className="p-1.5 rounded-lg bg-violet-500/10 text-violet-600 dark:text-violet-400">
-                            <Tablet className="h-4 w-4" />
-                          </div>
-                          <span className="text-xs font-bold text-foreground">تابلت</span>
-                        </div>
-                        <Badge variant="secondary" className="bg-violet-500/15 text-violet-700 dark:text-violet-300 border-none font-black text-2xs">
-                          {deviceStats.tablet.percentage}%
-                        </Badge>
-                      </div>
-                      <div className="w-full bg-secondary/80 rounded-full h-1.5 overflow-hidden">
-                        <div className="bg-violet-500 h-full rounded-full transition-all duration-500" style={{ width: `${deviceStats.tablet.percentage}%` }} />
-                      </div>
-                      <p className="text-xs font-semibold text-foreground mt-2">
-                        عدد الزيارات: <span className="font-bold text-primary">{deviceStats.tablet.count.toLocaleString('en-US')}</span>
-                      </p>
-                    </div>
-
-                    {/* Desktop / Computer Box */}
-                    <div className="p-3.5 rounded-2xl bg-card border border-border/70">
-                      <div className="flex items-center justify-between mb-2">
-                        <div className="flex items-center gap-2">
-                          <div className="p-1.5 rounded-lg bg-amber-500/10 text-amber-600 dark:text-amber-400">
-                            <Monitor className="h-4 w-4" />
-                          </div>
-                          <span className="text-xs font-bold text-foreground">كمبيوتر</span>
-                        </div>
-                        <Badge variant="secondary" className="bg-amber-500/15 text-amber-700 dark:text-amber-300 border-none font-black text-2xs">
-                          {deviceStats.desktop.percentage}%
-                        </Badge>
-                      </div>
-                      <div className="w-full bg-secondary/80 rounded-full h-1.5 overflow-hidden">
-                        <div className="bg-amber-500 h-full rounded-full transition-all duration-500" style={{ width: `${deviceStats.desktop.percentage}%` }} />
-                      </div>
-                      <p className="text-xs font-semibold text-foreground mt-2">
-                        عدد الزيارات: <span className="font-bold text-primary">{deviceStats.desktop.count.toLocaleString('en-US')}</span>
-                      </p>
-                    </div>
-                  </div>
+                  )}
                 </CardHeader>
 
                 <CardContent className="p-5 pt-3">

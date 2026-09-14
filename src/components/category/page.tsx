@@ -20,6 +20,8 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { AdPlaceholder } from '../Adsense';
+import PackageAdsSlider from '@/components/PackageAdsSlider';
+import { getFairRotatedAds } from '@/lib/fairRotation';
 
 const translations = {
     ar: {
@@ -58,6 +60,7 @@ export default function CategoryPage() {
   const [isSubcategory, setIsSubcategory] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [adsInCategory, setAdsInCategory] = useState<Ad[]>([]);
+  const [goldCategoryAds, setGoldCategoryAds] = useState<Ad[]>([]);
   const [adsLoading, setAdsLoading] = useState(true);
   const { view, setView } = useView();
 
@@ -101,22 +104,27 @@ export default function CategoryPage() {
       if (categoriesForAdFetch.length > 0) {
         const isBoostActive = (ad: any) => (ad.isFeatured || ad.isPromoted) && (!ad.featuredUntil || new Date(ad.featuredUntil) > new Date());
         const unsubscribe = getAds({ market: market.id, status: 'active', categories: categoriesForAdFetch }, (fetchedAds) => {
-          const sorted = [...fetchedAds].sort((a: any, b: any) => {
-            const aBoost = isBoostActive(a);
-            const bBoost = isBoostActive(b);
-            if (aBoost && !bBoost) return -1;
-            if (!aBoost && bBoost) return 1;
-            if (aBoost && bBoost) {
-              if (a.featuredTier === 'gold' && b.featuredTier !== 'gold') return -1;
-              if (a.featuredTier !== 'gold' && b.featuredTier === 'gold') return 1;
-            }
-            return new Date(b.postedAt || b.createdAt || 0).getTime() - new Date(a.postedAt || a.createdAt || 0).getTime();
-          });
-          setAdsInCategory(sorted);
+          const goldAds = fetchedAds.filter((a: any) => isBoostActive(a) && a.featuredTier === 'gold');
+          goldAds.sort((a: any, b: any) => new Date(b.postedAt || b.createdAt || 0).getTime() - new Date(a.postedAt || a.createdAt || 0).getTime());
+          const rotatedGold = getFairRotatedAds(goldAds, 10);
+
+          const silverAds = fetchedAds.filter((a: any) => isBoostActive(a) && a.featuredTier === 'silver');
+          silverAds.sort((a: any, b: any) => new Date(b.postedAt || b.createdAt || 0).getTime() - new Date(a.postedAt || a.createdAt || 0).getTime());
+          const rotatedSilver = getFairRotatedAds(silverAds, 10);
+
+          const otherBoosted = fetchedAds.filter((a: any) => isBoostActive(a) && a.featuredTier !== 'gold' && a.featuredTier !== 'silver');
+          otherBoosted.sort((a: any, b: any) => new Date(b.postedAt || b.createdAt || 0).getTime() - new Date(a.postedAt || a.createdAt || 0).getTime());
+
+          const regularAds = fetchedAds.filter((a: any) => !isBoostActive(a));
+          regularAds.sort((a: any, b: any) => new Date(b.postedAt || b.createdAt || 0).getTime() - new Date(a.postedAt || a.createdAt || 0).getTime());
+
+          setGoldCategoryAds(rotatedGold);
+          setAdsInCategory([...rotatedGold, ...rotatedSilver, ...otherBoosted, ...regularAds]);
           setAdsLoading(false);
         });
         return () => unsubscribe();
       } else {
+          setGoldCategoryAds([]);
           setAdsInCategory([]);
           setAdsLoading(false);
       }
@@ -231,7 +239,18 @@ export default function CategoryPage() {
                     {[...Array(8)].map((_, i) => <Skeleton key={i} className={view === 'grid' ? 'h-80 w-full' : 'h-36 w-full'} />)}
                 </div>
             ) : adsInCategory.length > 0 ? (
-              view === 'grid' ? renderAdGrid() : renderAdList()
+              <>
+                {goldCategoryAds.length > 0 && (
+                  <PackageAdsSlider 
+                    ads={goldCategoryAds} 
+                    tier="gold" 
+                    intervalSeconds={5} 
+                    title={`صدارة الإعلانات الذهبية VIP في ${categoryName}`} 
+                    className="mb-8"
+                  />
+                )}
+                {view === 'grid' ? renderAdGrid() : renderAdList()}
+              </>
             ) : (
                 <div className="flex justify-center">
                     <Alert className="max-w-lg text-center">
