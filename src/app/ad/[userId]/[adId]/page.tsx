@@ -9,6 +9,7 @@ import { notFound } from 'next/navigation';
 import { getAdViewType, serializeFirestoreData } from '@/lib/utils';
 import RegularVideoPlayer from '@/components/video-ad/RegularVideoPlayer';
 import VideoFeed from '@/components/video-ad/VideoFeed';
+import { formatAdPrice, resolveAdCurrencyCode } from '@/lib/currency-service';
 
 type Props = {
   params: Promise<{ userId: string; adId: string }>;
@@ -92,7 +93,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   // Clean description stripped of symbols, formatted for search snippets
   const cleanBody = cleanSeoDescription(ad.description);
   const locationText = [ad.city, ad.governorate, ad.country].filter(Boolean).join(' - ');
-  const priceText = ad.price ? `السعر: ${ad.price.toLocaleString('ar-SA')} ${ad.currency || 'ريال'}` : '';
+  const priceText = ad.price ? `السعر: ${formatAdPrice(ad.price, ad)}` : '';
   
   const rawDescParts = [
     ad.title,
@@ -179,8 +180,7 @@ export default async function AdPage({ params }: Props) {
   const canonicalUserId = ad.userId || (userId !== 'owner' ? userId : 'item');
   const canonicalAdId = ad.id || adId;
   const canonicalUrl = `https://www.arb-soq.com/ad/${canonicalUserId}/${canonicalAdId}`;
-  const currencyMap: Record<string, string> = { sa: 'SAR', eg: 'EGP', ae: 'AED', kw: 'KWD', qa: 'QAR', bh: 'BHD', om: 'OMR', jo: 'JOD' };
-  const currency = ad.currency || currencyMap[ad.market || ''] || 'SAR';
+  const currency = resolveAdCurrencyCode(ad);
   const isVehicle = (ad.category === 'vehicles' || ad.categoryId === 'vehicles' || Boolean(ad.brand));
   const cleanBody = cleanSeoDescription(ad.description);
   const sellerPhone = ad.phoneNumber || (ad as any).phone || ad.user?.phone || ad.user?.phoneNumber;

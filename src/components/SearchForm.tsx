@@ -9,6 +9,7 @@ import type { Ad } from '@/lib/types';
 import Image from 'next/image';
 import { cn, matchArabicQuery, normalizeArabicText, isAdInMarket } from '@/lib/utils';
 import { findMatchingCrafts, CraftTaxonomy } from '@/lib/search-taxonomy';
+import { formatAdPrice } from '@/lib/currency-service';
 
 const DEBOUNCE_MS = 250;
 
@@ -414,7 +415,7 @@ export default function SearchForm() {
                       </p>
                       {ad.price && (
                         <p className="text-xs text-primary font-semibold mt-0.5">
-                          {formatPrice(ad.price, ad.currency)}
+                          {formatAdPrice(ad.price, ad, market.currency)}
                         </p>
                       )}
                     </div>

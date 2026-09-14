@@ -49,6 +49,264 @@ export function getMarketCurrency(marketIdOrCurrency?: string): { symbol: string
   return MARKET_CURRENCIES['eg'];
 }
 
+export const COUNTRY_TO_CURRENCY_MAP: Record<string, string> = {
+  // مصر
+  'مصر': 'EGP',
+  'جمهورية مصر العربية': 'EGP',
+  'egypt': 'EGP',
+  'eg': 'EGP',
+  'القاهرة': 'EGP',
+  'الجيزة': 'EGP',
+  'الإسكندرية': 'EGP',
+  'الاسكندرية': 'EGP',
+  // السعودية
+  'السعودية': 'SAR',
+  'المملكة العربية السعودية': 'SAR',
+  'saudi': 'SAR',
+  'sa': 'SAR',
+  'الرياض': 'SAR',
+  'جدة': 'SAR',
+  'مكة': 'SAR',
+  'مكة المكرمة': 'SAR',
+  'المدينة المنورة': 'SAR',
+  'الدمام': 'SAR',
+  // الإمارات
+  'الإمارات': 'AED',
+  'الامارات': 'AED',
+  'دولة الإمارات العربية المتحدة': 'AED',
+  'uae': 'AED',
+  'ae': 'AED',
+  'دبي': 'AED',
+  'أبوظبي': 'AED',
+  'ابوظبي': 'AED',
+  'الشارقة': 'AED',
+  // الكويت
+  'الكويت': 'KWD',
+  'kw': 'KWD',
+  // قطر
+  'قطر': 'QAR',
+  'qa': 'QAR',
+  // البحرين
+  'البحرين': 'BHD',
+  'bh': 'BHD',
+  // عمان
+  'عمان': 'OMR',
+  'عُمان': 'OMR',
+  'سلطنة عمان': 'OMR',
+  'om': 'OMR',
+  // الأردن
+  'الأردن': 'JOD',
+  'الاردن': 'JOD',
+  'jo': 'JOD',
+  // العراق
+  'العراق': 'IQD',
+  'iq': 'IQD',
+  // المغرب
+  'المغرب': 'MAD',
+  'ma': 'MAD',
+  // الجزائر
+  'الجزائر': 'DZD',
+  'dz': 'DZD',
+  // ليبيا
+  'ليبيا': 'LYD',
+  'ly': 'LYD',
+  // السودان
+  'السودان': 'SDG',
+  'sd': 'SDG',
+  // اليمن
+  'اليمن': 'YER',
+  'ye': 'YER',
+  // تونس
+  'تونس': 'TND',
+  'tn': 'TND',
+  // لبنان
+  'لبنان': 'LBP',
+  'lb': 'LBP',
+  // فلسطين
+  'فلسطين': 'ILS',
+  'ps': 'ILS',
+  // سوريا
+  'سوريا': 'SYP',
+  'sy': 'SYP',
+  // موريتانيا
+  'موريتانيا': 'MRU',
+  'mr': 'MRU',
+};
+
+export const SYMBOL_TO_CURRENCY_MAP: Record<string, string> = {
+  'ج.م': 'EGP',
+  'ج.م.': 'EGP',
+  'جنيه': 'EGP',
+  'جنيه مصري': 'EGP',
+  'ر.س': 'SAR',
+  'ر.س.': 'SAR',
+  'ريال': 'SAR',
+  'ريال سعودي': 'SAR',
+  'د.إ': 'AED',
+  'د.إ.': 'AED',
+  'درهم': 'AED',
+  'درهم إماراتي': 'AED',
+  'د.ك': 'KWD',
+  'د.ك.': 'KWD',
+  'دينار كويتي': 'KWD',
+  'ر.ق': 'QAR',
+  'ر.ق.': 'QAR',
+  'ريال قطري': 'QAR',
+  'د.ب': 'BHD',
+  'د.ب.': 'BHD',
+  'دينار بحريني': 'BHD',
+  'ر.ع': 'OMR',
+  'ر.ع.': 'OMR',
+  'ريال عماني': 'OMR',
+  'د.أ': 'JOD',
+  'د.أ.': 'JOD',
+  'دينار أردني': 'JOD',
+  'د.ع': 'IQD',
+  'دينار عراقي': 'IQD',
+  'د.م': 'MAD',
+  'درهم مغربي': 'MAD',
+  'د.ج': 'DZD',
+  'دينار جزائري': 'DZD',
+  'د.ل': 'LYD',
+  'دينار ليبي': 'LYD',
+  'ج.س': 'SDG',
+  'جنيه سوداني': 'SDG',
+  'ر.ي': 'YER',
+  'ريال يمني': 'YER',
+  'د.ت': 'TND',
+  'دينار تونسي': 'TND',
+  'ل.ل': 'LBP',
+  'ليرة لبنانية': 'LBP',
+  'شيكل': 'ILS',
+  'ل.س': 'SYP',
+  'ليرة سورية': 'SYP',
+  'أوقية': 'MRU',
+  'فرنك': 'DJF',
+  'شلن': 'SOS',
+  '$': 'USD',
+  'usd': 'USD',
+  '€': 'EUR',
+  'eur': 'EUR',
+};
+
+export type AdCurrencySource = {
+  currency?: string;
+  market?: string;
+  country?: string;
+  governorate?: string;
+  province?: string;
+  city?: string;
+  user?: { country?: string };
+} | null | undefined;
+
+/**
+ * تحديد كود العملة الخاص بالإعلان بدقة استناداً إلى بيانات الإعلان الأصلية
+ * بحيث لا يتأثر بتغيير الدولة في ترويسة الموقع
+ */
+export function resolveAdCurrencyCode(
+  ad?: AdCurrencySource,
+  fallbackCurrency?: string
+): string {
+  if (!ad) return fallbackCurrency || 'EGP';
+
+  // 1. العملة المحددة صراحة في الإعلان
+  if (ad.currency && typeof ad.currency === 'string') {
+    const cleanCurr = ad.currency.trim();
+    const upper = cleanCurr.toUpperCase();
+    if (upper === 'EGP' || upper === 'SAR' || upper === 'AED' || upper === 'KWD' || upper === 'USD' || upper === 'EUR' || FALLBACK_EGP_RATES[upper]) {
+      return upper;
+    }
+    if (SYMBOL_TO_CURRENCY_MAP[cleanCurr] || SYMBOL_TO_CURRENCY_MAP[cleanCurr.toLowerCase()]) {
+      return SYMBOL_TO_CURRENCY_MAP[cleanCurr] || SYMBOL_TO_CURRENCY_MAP[cleanCurr.toLowerCase()];
+    }
+    const marketMatch = MARKET_CURRENCIES[cleanCurr.toLowerCase()];
+    if (marketMatch) return marketMatch.code;
+  }
+
+  // 2. كود دولة الإعلان (ad.market مثل eg, sa, ae)
+  if (ad.market && typeof ad.market === 'string') {
+    const cleanMarket = ad.market.trim().toLowerCase();
+    if (MARKET_CURRENCIES[cleanMarket]) {
+      return MARKET_CURRENCIES[cleanMarket].code;
+    }
+    if (COUNTRY_TO_CURRENCY_MAP[cleanMarket]) {
+      return COUNTRY_TO_CURRENCY_MAP[cleanMarket];
+    }
+  }
+
+  // 3. اسم الدولة المكتوب بالعربي في الإعلان (ad.country مثل مصر، السعودية، الإمارات)
+  if (ad.country && typeof ad.country === 'string') {
+    const cleanCountry = ad.country.trim();
+    if (COUNTRY_TO_CURRENCY_MAP[cleanCountry]) {
+      return COUNTRY_TO_CURRENCY_MAP[cleanCountry];
+    }
+    for (const [key, val] of Object.entries(COUNTRY_TO_CURRENCY_MAP)) {
+      if (cleanCountry.includes(key) || key.includes(cleanCountry)) {
+        return val;
+      }
+    }
+  }
+
+  // 4. دولة المستخدم صاحب الإعلان إن وجدت
+  if (ad.user?.country && typeof ad.user.country === 'string') {
+    const userCountry = ad.user.country.trim();
+    if (COUNTRY_TO_CURRENCY_MAP[userCountry]) {
+      return COUNTRY_TO_CURRENCY_MAP[userCountry];
+    }
+  }
+
+  // 5. المحافظة أو المدينة إن كانت تشير لدولة معينة
+  const locStr = [ad.governorate, ad.province, ad.city].filter(Boolean).join(' ');
+  if (locStr) {
+    for (const [key, val] of Object.entries(COUNTRY_TO_CURRENCY_MAP)) {
+      if (locStr.includes(key)) {
+        return val;
+      }
+    }
+  }
+
+  return fallbackCurrency || 'EGP';
+}
+
+/**
+ * تنسيق سعر الإعلان بعملته الأصلية الخاصة به، بثبات تام وبدون أن يتأثر بتغيير الدولة في الترويسة
+ */
+export function formatAdPrice(
+  price: number | undefined | null,
+  ad?: AdCurrencySource,
+  fallbackCurrency?: string
+): string {
+  if (price === undefined || price === null || isNaN(price) || price <= 0) {
+    return '';
+  }
+
+  const currencyCode = resolveAdCurrencyCode(ad, fallbackCurrency);
+  const currencyInfo = getMarketCurrency(currencyCode);
+
+  try {
+    return new Intl.NumberFormat('ar-SA', {
+      style: 'currency',
+      currency: currencyCode,
+      maximumFractionDigits: 0,
+      numberingSystem: 'latn',
+    }).format(price);
+  } catch {
+    const symbol = currencyInfo?.symbol || currencyCode;
+    return `${formatCurrencyAmount(price)} ${symbol}`;
+  }
+}
+
+/**
+ * جلب رمز عملة الإعلان الأصلي (مثل: ج.م أو ر.س أو د.إ)
+ */
+export function getAdCurrencySymbol(
+  ad?: AdCurrencySource,
+  fallbackCurrency?: string
+): string {
+  const code = resolveAdCurrencyCode(ad, fallbackCurrency);
+  return getMarketCurrency(code).symbol || code;
+}
+
 export const BASE_CURRENCY = 'EGP';
 
 /**

@@ -21,6 +21,7 @@ import { memo, useState, useRef } from 'react';
 import AdPlaceholder from '@/components/AdPlaceholder';
 import RequireAuthModal from '@/components/RequireAuthModal';
 import { isPhysicalGoodsCategory } from '@/lib/category-utils';
+import { formatAdPrice } from '@/lib/currency-service';
 
 
 const WhatsappIcon = () => (
@@ -265,7 +266,7 @@ function AdRow({ ad, priority = false }: AdRowProps) {
                 <div className="flex items-center gap-2">
                   <Tag className="w-5 h-5 text-primary" />
                   <span className="text-lg font-bold text-primary">
-                    {currencyFormatter.format(Number(ad.price))}
+                    {formatAdPrice(Number(ad.price), ad, market.currency)}
                   </span>
                 </div>
               )}

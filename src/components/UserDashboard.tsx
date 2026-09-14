@@ -69,6 +69,7 @@ import { cn } from '@/lib/utils';
 import StoreCard from './StoreCard';
 import { useSearchParams } from 'next/navigation';
 import dynamic from 'next/dynamic';
+import { formatAdPrice } from '@/lib/currency-service';
 
 const translations = {
     ar: {
@@ -410,7 +411,7 @@ const AdTable = ({ ads, isLoading, isAdmin, noItemsMessage, isStoreProduct = fal
 
                     <div className="flex items-center justify-between mt-2 pt-1 border-t border-border/40">
                       <div className="text-sm font-black text-primary font-headline">
-                        {ad.price ? currencyFormatter.format(ad.price) : 'حسب الاتفاق'}
+                        {ad.price ? formatAdPrice(ad.price, ad, market.currency) : 'حسب الاتفاق'}
                       </div>
                       
                       {/* Metric pills: Compact Views and Clicks without extra text */}
@@ -558,7 +559,7 @@ const AdTable = ({ ads, isLoading, isAdmin, noItemsMessage, isStoreProduct = fal
                               </div>
                             </TableCell>
                             <TableCell className="font-black font-headline text-foreground">
-                                {ad.price ? currencyFormatter.format(ad.price) : '-'}
+                                {ad.price ? formatAdPrice(ad.price, ad, market.currency) : '-'}
                             </TableCell>
                             <TableCell className="text-center">
                               <div className="flex items-center justify-center gap-2 text-xs text-muted-foreground font-semibold">

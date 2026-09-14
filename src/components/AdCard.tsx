@@ -17,6 +17,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import AdPlaceholder from '@/components/AdPlaceholder';
 import RequireAuthModal from '@/components/RequireAuthModal';
 import { isPhysicalGoodsCategory } from '@/lib/category-utils';
+import { formatAdPrice } from '@/lib/currency-service';
 
 const WhatsappIcon = () => (
     <svg role="img" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="currentColor">
@@ -274,7 +275,7 @@ function AdCard({ ad, priority = false }: AdCardProps) {
                             <div className="flex items-center gap-1">
                                 <Tag className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-primary" />
                                 <span className="text-sm sm:text-base font-bold text-primary">
-                                    {currencyFormatter.format(Number(ad.price))}
+                                    {formatAdPrice(Number(ad.price), ad, market.currency)}
                                 </span>
                             </div>
                         )}

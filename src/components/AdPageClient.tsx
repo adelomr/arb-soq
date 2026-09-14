@@ -38,6 +38,7 @@ import RequireAuthModal from '@/components/RequireAuthModal';
 import type { Ad, PageData, Category, AdpageStore, AdpageBrand, AdpageConditionFilter } from '@/lib/types';
 import { matchAdToCategory, matchAdToSubcategory, isAdInMarket, getParentCategoryId, isPhysicalGoodsCategory } from '@/lib/category-utils';
 import { matchAdToBrand, POPULAR_CAR_BRANDS, isVehicleCategory } from '@/lib/car-brands';
+import { formatAdPrice } from '@/lib/currency-service';
 
 const PHYSICAL_GOODS_CATEGORIES = ['vehicles', 'mobiles', 'electronics', 'furniture', 'fashion', 'baby', 'hobbies', 'trade'];
 
@@ -658,7 +659,7 @@ export default function AdPageClient({ page }: AdPageClientProps) {
                               <div className="flex items-center gap-2 mt-0.5 text-[11px] text-muted-foreground">
                                 {ad.price ? (
                                   <span className="font-bold text-primary">
-                                    {ad.price.toLocaleString()} {ad.currency || market.currency}
+                                    {formatAdPrice(Number(ad.price), ad, market.currency)}
                                   </span>
                                 ) : (
                                   <span>السعر عند الاتصال</span>

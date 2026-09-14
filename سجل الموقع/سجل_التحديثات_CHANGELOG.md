@@ -2,6 +2,37 @@
 
 هذا السجل يوثق التعديلات والتحسينات المعمارية والبرمجية المنجزة لتكون مرجعاً دائمًا لفريق التطوير.
 
+## [إصلاح ثبات عملة وسعر الإعلان الأصلي ومنع تأثره بتغيير دولة الموقع في الترويسة] - 2026-09-14
+
+### 1. تثبيت العملة الأصلية لكل إعلان بشكل مستقل عن الدولة المختارة بالترويسة
+- **المشكلة التي تم حلها:** عندما كان المستخدم يتصفح إعلاناً منشأً في مصر بسعر (مثلاً 1500 ج.م)، ثم يقوم بتغيير الدولة من أعلى الموقع إلى السعودية، كان رمز العملة يتحول تلقائياً إلى "ريال سعودي" ليظهر الإعلان بسعر "1500 ريال سعودي" بدلاً من "1500 جنيه مصري"، وهو خطأ جوهري لأن سعر الإعلان يجب أن يظل ثابتاً بنفس عملة البلد أو المعلن التي تم النشر بها.
+- **السبب الجذري:** كانت مكونات عرض الإعلانات (`AdCard`, `AdRow`, `AdDetailClient`, `AdPageClient`, `StoreSidebarSection`, `ServiceCard`, `UserDashboard`, `SearchForm`, `cart`) تستخدم كائن التنسيق المربوط بـ `market.currency` (العملة العامة المختارة في الترويسة) وتطبقه مباشرة على السعر الرقمي `ad.price` بدلاً من فحص عملة الإعلان نفسه `ad.currency` أو بلد الإعلان `ad.market / ad.country`.
+- **الحل والتطوير المعماري المنفذ:**
+  - تطوير دوال استنتاج وتنسيق العملات الذكية في [currency-service.ts](file:///d:/mashro3/mashroh/arb-soq/arb_soq.wap/arb_soq.wap/src/lib/currency-service.ts):
+    1. `resolveAdCurrencyCode(ad, fallbackCurrency)`: خوارزمية ذكية تحدد كود العملة القياسي (ISO) للإعلان استناداً إلى:
+       - عملة الإعلان المحددة صراحة (`ad.currency`).
+       - كود دولة الإعلان (`ad.market` مثل `eg`, `sa`, `ae`).
+       - اسم الدولة بالعربي (`ad.country` مثل "مصر"، "السعودية").
+       - دولة الحساب للمعلن (`ad.user.country`).
+       - اسم المحافظة أو المدينة ("القاهرة"، "الرياض"، إلخ).
+    2. `formatAdPrice(price, ad, fallbackCurrency)`: تقوم بتنسيق السعر بالعملة الأصلية للإعلان دائماً بصيغة جمالية بالرمز العربي الصحيح (`ج.م`، `ر.س`، `د.إ`، إلخ) مع مراعاة الأرقام اللاتينية.
+    3. `getAdCurrencySymbol(ad, fallbackCurrency)`: تعيد الرمز العربي الدقيق لعملة الإعلان.
+  - تطبيق التنسيق الجديد على كافة الشاشات والمكونات:
+    - بطاقات الشبكة الرئيسية [AdCard.tsx](file:///d:/mashro3/mashroh/arb-soq/arb_soq.wap/arb_soq.wap/src/components/AdCard.tsx).
+    - صفوف القوائم [AdRow.tsx](file:///d:/mashro3/mashroh/arb-soq/arb_soq.wap/arb_soq.wap/src/components/AdRow.tsx).
+    - صفحة تفاصيل الإعلان [AdDetailClient.tsx](file:///d:/mashro3/mashroh/arb-soq/arb_soq.wap/arb_soq.wap/src/components/AdDetailClient.tsx).
+    - صفحة العرض المتقدمة وقائمة الإعلانات ذات الصلة [AdPageClient.tsx](file:///d:/mashro3/mashroh/arb-soq/arb_soq.wap/arb_soq.wap/src/components/AdPageClient.tsx).
+    - قسم منتجات المتاجر الجانبي [StoreSidebarSection.tsx](file:///d:/mashro3/mashroh/arb-soq/arb_soq.wap/arb_soq.wap/src/components/StoreSidebarSection.tsx).
+    - بطاقة الخدمات [ServiceCard.tsx](file:///d:/mashro3/mashroh/arb-soq/arb_soq.wap/arb_soq.wap/src/components/ServiceCard.tsx).
+    - مشغل إعلانات الفيديو [RegularVideoPlayer.tsx](file:///d:/mashro3/mashroh/arb-soq/arb_soq.wap/arb_soq.wap/src/components/video-ad/RegularVideoPlayer.tsx).
+    - لوحة تحكم المستخدم وإدارة إعلاناته [UserDashboard.tsx](file:///d:/mashro3/mashroh/arb-soq/arb_soq.wap/arb_soq.wap/src/components/UserDashboard.tsx).
+    - قائمة مراجعة الإعلانات [AdModerationList.tsx](file:///d:/mashro3/mashroh/arb-soq/arb_soq.wap/arb_soq.wap/src/components/AdModerationList.tsx).
+    - نتائج البحث المباشرة [SearchForm.tsx](file:///d:/mashro3/mashroh/arb-soq/arb_soq.wap/arb_soq.wap/src/components/SearchForm.tsx).
+    - بيانات الميتا ومخطط Schema.org [ad/[userId]/[adId]/page.tsx](file:///d:/mashro3/mashroh/arb-soq/arb_soq.wap/arb_soq.wap/src/app/ad/[userId]/[adId]/page.tsx).
+    - سلة المشتريات وفاتورة الواتساب [cart/page.tsx](file:///d:/mashro3/mashroh/arb-soq/arb_soq.wap/arb_soq.wap/src/app/cart/page.tsx).
+
+---
+
 ## [إصلاح ظهور لوجو وصور الموقع في بحث جوجل + نظام التحفيز الفوري لفهرسة الإعلانات + دليل حماية الفهرسة] - 2026-09-14
 
 ### 1. استعادة صورة ولوجو الموقع في نتائج بحث جوجل (Google Snippet Thumbnail & Favicon)

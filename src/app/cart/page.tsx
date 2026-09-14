@@ -14,6 +14,7 @@ import dynamic from 'next/dynamic';
 import { useAuth } from '@/context/AuthContext';
 import { useState } from 'react';
 import { formatWhatsAppNumber } from '@/lib/utils';
+import { formatAdPrice, resolveAdCurrencyCode, getAdCurrencySymbol } from '@/lib/currency-service';
 
 const Header = dynamic(() => import('@/components/Header'), { ssr: false });
 const Footer = dynamic(() => import('@/components/Footer'), { ssr: false });
@@ -68,11 +69,14 @@ export default function CartPage() {
   const { toast } = useToast();
   const [isCheckingOut, setIsCheckingOut] = useState(false);
 
+  const cartCurrency = cart.length > 0 ? resolveAdCurrencyCode(cart[0], market.currency) : market.currency;
+  const cartCurrencySymbol = cart.length > 0 ? getAdCurrencySymbol(cart[0], market.currency) : market.currency;
+
   const currencyFormatter = new Intl.NumberFormat(
     'ar-SA',
     {
       style: 'currency',
-      currency: market.currency,
+      currency: cartCurrency,
       maximumFractionDigits: 2,
       numberingSystem: 'latn',
     }
@@ -108,8 +112,9 @@ export default function CartPage() {
   
       const productDetails = cart.map((item, index) => {
         const itemTotal = (item.price || 0) * item.quantity;
+        const itemCurrencySymbol = getAdCurrencySymbol(item, cartCurrency);
         const productCodeLine = item.productCode ? `   - ${t.productCodeLabel}: ${item.productCode}\n` : '';
-        return `${index + 1}. *${item.title}*\n${productCodeLine}   - ${t.quantityLabel}: ${item.quantity}\n   - ${t.priceLabel}: ${item.price || 0} ${market.currency}\n   - ${t.totalLabel}: ${itemTotal} ${market.currency}`;
+        return `${index + 1}. *${item.title}*\n${productCodeLine}   - ${t.quantityLabel}: ${item.quantity}\n   - ${t.priceLabel}: ${item.price || 0} ${itemCurrencySymbol}\n   - ${t.totalLabel}: ${itemTotal} ${itemCurrencySymbol}`;
       }).join('\n\n');
   
       const messageParts = [
@@ -121,10 +126,10 @@ export default function CartPage() {
         productDetails,
         t.invoiceSeparator,
         t.summaryHeader,
-        `- ${t.subtotalLabel}: ${subtotal} ${market.currency}`,
+        `- ${t.subtotalLabel}: ${subtotal} ${cartCurrencySymbol}`,
         `- ${t.shippingLabel}: ${t.shippingValue}`,
         t.invoiceSeparator,
-        `${t.grandTotalLabel}: *${subtotal} ${market.currency}*`,
+        `${t.grandTotalLabel}: *${subtotal} ${cartCurrencySymbol}*`,
         '',
         t.invoiceFooter
       ];
@@ -201,7 +206,7 @@ export default function CartPage() {
                       {item.title}
                     </Link>
                     <p className="text-primary font-medium mt-1">
-                      {currencyFormatter.format(item.price || 0)}
+                      {formatAdPrice(item.price || 0, item, cartCurrency)}
                     </p>
                   </div>
                   <div className="flex items-center gap-2">
@@ -224,7 +229,7 @@ export default function CartPage() {
                     </Button>
                   </div>
                    <p className="font-bold text-right w-24">
-                        {currencyFormatter.format((item.price || 0) * item.quantity)}
+                        {formatAdPrice((item.price || 0) * item.quantity, item, cartCurrency)}
                    </p>
                   <Button
                     variant="ghost"

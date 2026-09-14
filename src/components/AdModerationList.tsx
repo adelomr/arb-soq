@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useAuth } from '@/context/AuthContext';
 import { useMarket } from '@/context/MarketContext';
 import type { Ad, Category } from '@/lib/types';
+import { formatAdPrice } from '@/lib/currency-service';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -762,7 +763,7 @@ export default function AdModerationList() {
 
                           {/* Price Cell */}
                           <TableCell>
-                            {ad.price ? currencyFormatter.format(ad.price) : '-'}
+                            {ad.price ? formatAdPrice(ad.price, ad, market.currency) : '-'}
                           </TableCell>
 
                           {/* Actions Cell */}

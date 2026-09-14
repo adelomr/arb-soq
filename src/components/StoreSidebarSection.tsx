@@ -11,6 +11,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { Store, Tag } from 'lucide-react';
 import { AdPlaceholder } from './Adsense';
+import { formatAdPrice } from '@/lib/currency-service';
 
 const t = {
     featuredStores: 'متاجر مميزة',
@@ -72,7 +73,7 @@ export default function StoreSidebarSection() {
                 {!!ad.price && Number(ad.price) > 0 && (
                     <div className="flex items-center gap-1 text-primary text-xs font-bold mt-1">
                         <Tag className="h-3 w-3" />
-                        <span>{currencyFormatter.format(Number(ad.price))}</span>
+                        <span>{formatAdPrice(Number(ad.price), ad, market.currency)}</span>
                     </div>
                 )}
             </div>

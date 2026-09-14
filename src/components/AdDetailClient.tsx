@@ -35,6 +35,7 @@ import { safeParseDate, cn, formatWhatsAppNumber } from '@/lib/utils';
 import { logAdActivity } from '@/lib/ad-log-service';
 import PromoteAdDialog from '@/components/PromoteAdDialog';
 import RequireAuthModal from '@/components/RequireAuthModal';
+import { formatAdPrice } from '@/lib/currency-service';
 
 const Header = dynamic(() => import('@/components/Header'), { ssr: false });
 const Footer = dynamic(() => import('@/components/Footer'), { ssr: false });
@@ -233,17 +234,7 @@ export default function AdDetailClient({ initialAd }: { initialAd: Ad }) {
   }
   
   const formatPrice = (price: number) => {
-    try {
-      const curr = (market && market.currency) ? market.currency : 'SAR';
-      return new Intl.NumberFormat('ar-SA', {
-        style: 'currency',
-        currency: curr,
-        maximumFractionDigits: 0,
-        numberingSystem: 'latn'
-      }).format(price);
-    } catch {
-      return `${price} ${market?.currency || 'ر.س'}`;
-    }
+    return formatAdPrice(price, ad, market?.currency);
   };
 
   const getPostedTimeAgo = () => {

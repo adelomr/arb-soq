@@ -8,6 +8,7 @@ import { Star, Handshake, Wrench, ImageIcon } from 'lucide-react';
 import Link from 'next/link';
 import { useMarket } from '@/context/MarketContext';
 import { Badge } from './ui/badge';
+import { formatAdPrice } from '@/lib/currency-service';
 
 const t = {
     startingFrom: 'تبدأ من',
@@ -91,7 +92,7 @@ export default function ServiceCard({ service }: ServiceCardProps) {
                         <div className="text-right">
                             <p className="text-xs text-muted-foreground uppercase">{t.startingFrom}</p>
                             <p className="text-base font-bold text-primary">
-                                {currencyFormatter.format(Number(service.price))}
+                                {formatAdPrice(Number(service.price), service, market.currency)}
                             </p>
                         </div>
                     </div>
