@@ -14,6 +14,7 @@ export const revalidate = 60;
 
 type Props = {
   params: Promise<{ slug: string }>;
+  searchParams?: Promise<{ [key: string]: string | string[] | undefined }>;
 };
 
 // Generate static params for faster initial load
@@ -32,12 +33,14 @@ export async function generateStaticParams() {
 }
 
 // Next.js dynamic metadata generation for SEO
-export async function generateMetadata({ params }: Props): Promise<Metadata> {
+export async function generateMetadata({ params, searchParams }: Props): Promise<Metadata> {
   const p = await params;
+  const sParams = searchParams ? await searchParams : {};
+  const isPreview = sParams?.preview === 'true';
   const slug = decodeURIComponent(p.slug);
   const page = await getPageBySlug(slug);
   
-  if (!page || !page.isPublished) {
+  if (!page || (!page.isPublished && !isPreview)) {
     return { title: 'الصفحة غير موجودة | سوق العرب' };
   }
 
@@ -48,15 +51,15 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const cleanDesc = (page.description || page.content || '').substring(0, 160).replace(/<[^>]+>/g, '');
 
   return {
-    title: `${page.title} | سوق العرب`,
+    title: `${page.title}${!page.isPublished ? ' (مسودة)' : ''} | سوق العرب`,
     description: cleanDesc,
     alternates: {
       canonical: canonicalUrl,
     },
-    // السماح بفهرسة صفحات الهبوط لتعمل مع إعلانات جوجل
+    // منع فهرسة المسودات نهائياً
     robots: {
-      index: page.pageType === 'landing' ? true : true,
-      follow: true,
+      index: page.isPublished,
+      follow: page.isPublished,
     },
     openGraph: {
       type: 'website',
@@ -72,15 +75,23 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   };
 }
 
-export default async function CustomPageDetail({ params }: Props) {
+export default async function CustomPageDetail({ params, searchParams }: Props) {
   const p = await params;
+  const sParams = searchParams ? await searchParams : {};
+  const isPreview = sParams?.preview === 'true';
   // Decode Arabic or special-character slugs encoded in the URL
   const slug = decodeURIComponent(p.slug);
   const page = await getPageBySlug(slug);
 
-  if (!page || !page.isPublished) {
+  if (!page || (!page.isPublished && !isPreview)) {
     notFound(); // Triggers 404 page
   }
+
+  const draftBanner = !page.isPublished ? (
+    <div className="bg-yellow-500/15 border-b border-yellow-500/30 py-2.5 px-4 text-center text-yellow-800 dark:text-yellow-200 font-bold text-xs sm:text-sm flex items-center justify-center gap-2 sticky top-0 z-50 backdrop-blur-md" dir="rtl">
+      <span>⚠️ وضع المعاينة الإداري: هذه الصفحة حالياً في حالة (مسودة) وهي مخفية وغير مرئية لزوار الموقع.</span>
+    </div>
+  ) : null;
 
   // ===== صفحات إعلانية: عرض AdPageClient دائماً =====
   if (page.pageType === 'adpage' && page.adpageCategoryId) {
@@ -117,6 +128,7 @@ export default async function CustomPageDetail({ params }: Props) {
 
     return (
       <main className="min-h-screen bg-background">
+        {draftBanner}
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: JSON.stringify(adpageJsonLd) }}
@@ -167,6 +179,7 @@ export default async function CustomPageDetail({ params }: Props) {
     };
     return (
       <main className="min-h-screen bg-background">
+        {draftBanner}
         {page.googleAdsTagId && (
           <>
             <script
@@ -199,6 +212,7 @@ export default async function CustomPageDetail({ params }: Props) {
   // ===== الصفحات العادية: العرض الكلاسيكي =====
   return (
     <div className="flex flex-col min-h-screen bg-background">
+      {draftBanner}
       <Header />
       <PageViewIncrementer pageId={page.id} />
 

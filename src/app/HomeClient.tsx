@@ -224,10 +224,10 @@ export default function HomeClient() {
     }, [adsLoading, view])
     
   return (
-    <div className="flex flex-col min-h-screen w-full max-w-full overflow-x-hidden">
+    <div className="flex flex-col min-h-screen w-full max-w-full">
       <Header />
       <QuickOptions />
-      <main className="flex-1 w-full max-w-full overflow-x-hidden">
+      <main className="flex-1 w-full max-w-full overflow-x-clip">
         <CategoriesGridHero />
         
         <div className="container mx-auto px-4 py-6 md:py-8 xl:pt-4">

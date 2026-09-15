@@ -120,7 +120,7 @@ export default function RootLayout({
           </>
         )}
       </head>
-      <body className={`${cairo.variable} min-h-screen w-full max-w-full overflow-x-hidden bg-background font-body text-base flex flex-col antialiased`} suppressHydrationWarning>
+      <body className={`${cairo.variable} min-h-screen w-full max-w-full overflow-x-clip bg-background font-body text-base flex flex-col antialiased`} suppressHydrationWarning>
         <Script
           id="google-gtm"
           async

@@ -64,6 +64,7 @@ import {
 import RichTextEditor from './RichTextEditor';
 import Image from 'next/image';
 import { POPULAR_CAR_BRANDS } from '@/lib/car-brands';
+import { cn } from '@/lib/utils';
 
 
 const SYSTEM_SLUGS = ['redirect'];
@@ -124,14 +125,14 @@ const LANDING_THEMES: { value: LandingTheme; label: string; desc: string; color:
 
 
 interface PageManagerProps {
-  initialFilter?: 'all' | 'landing' | 'site' | 'adpages';
+  initialFilter?: 'all' | 'landing' | 'site' | 'adpages' | 'drafts';
 }
 
 export default function PageManager({ initialFilter = 'all' }: PageManagerProps) {
   const [pages, setPages] = useState<PageData[]>([]);
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState(false);
-  const [activeFilter, setActiveFilter] = useState<'all' | 'landing' | 'site' | 'adpages'>(initialFilter as any);
+  const [activeFilter, setActiveFilter] = useState<'all' | 'landing' | 'site' | 'adpages' | 'drafts'>(initialFilter as any);
   // Dynamic Category state loaded from Category Management (Firestore DB)
   const { categories: authCategories } = useAuth();
   const dbCategories = authCategories || [];
@@ -490,8 +491,13 @@ export default function PageManager({ initialFilter = 'all' }: PageManagerProps)
     } finally { setGalleryUploading(false); }
   };
 
-  const handleSave = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSave = async (e?: React.FormEvent, overridePublishStatus?: boolean) => {
+    if (e) e.preventDefault();
+    const targetPublished = typeof overridePublishStatus === 'boolean' ? overridePublishStatus : isPublished;
+    if (typeof overridePublishStatus === 'boolean') {
+      setIsPublished(overridePublishStatus);
+    }
+
     const isAdPage = pageType === 'adpage';
     if (!title.trim() || !slug.trim() || (!isAdPage && !content.trim())) {
       toast({
@@ -550,7 +556,7 @@ export default function PageManager({ initialFilter = 'all' }: PageManagerProps)
           title,
           slug: finalSlug,
           content: finalContent,
-          isPublished,
+          isPublished: targetPublished,
           pageType,
           shortCode: (pageType === 'landing' || pageType === 'adpage') && shortCode ? normalizeShortCode(shortCode) : undefined,
           countdown: slug === 'redirect' ? countdown : undefined,
@@ -561,10 +567,10 @@ export default function PageManager({ initialFilter = 'all' }: PageManagerProps)
         await handleRevalidatePage(finalSlug);
 
         toast({
-          title: 'تم إنشاء الصفحة',
-          description: finalSlug !== slug 
-            ? `تم إنشاء الصفحة بنجاح برابط فريد: ${finalSlug}` 
-            : 'تم إنشاء الصفحة بنجاح ونشرها.',
+          title: targetPublished ? 'تم إنشاء ونشر الصفحة 🌐' : 'تم حفظ الصفحة كمسودة 📝',
+          description: targetPublished
+            ? (finalSlug !== slug ? `تم إنشاء الصفحة ونشرها برابط: ${finalSlug}` : 'تم إنشاء الصفحة ونشرها بنجاح لتكون مرئية للجميع.')
+            : 'تم حفظ الصفحة كمسودة بنجاح (مخفية عن الزوار مؤقتاً).',
         });
       } else if (view === 'edit' && selectedPage?.id) {
         const existingSlugs = pages.filter(p => p.id !== selectedPage.id).map(p => p.slug);
@@ -619,7 +625,7 @@ export default function PageManager({ initialFilter = 'all' }: PageManagerProps)
           slug: finalSlug,
           legacySlug: finalLegacySlug || undefined,
           content: finalContent,
-          isPublished,
+          isPublished: targetPublished,
           pageType,
           shortCode: (pageType === 'landing' || pageType === 'adpage') && shortCode ? normalizeShortCode(shortCode) : undefined,
           countdown: slug === 'redirect' ? countdown : undefined,
@@ -638,10 +644,10 @@ export default function PageManager({ initialFilter = 'all' }: PageManagerProps)
         }
 
         toast({
-          title: 'تم تحديث الصفحة',
-          description: finalSlug !== slug 
-            ? `تم تحديث الصفحة بنجاح برابط فريد: ${finalSlug}` 
-            : 'تم حفظ تعديلات الصفحة بنجاح.',
+          title: targetPublished ? 'تم تحديث ونشر الصفحة 🌐' : 'تم حفظ التعديلات كمسودة 📝',
+          description: targetPublished 
+            ? 'تم حفظ تعديلات الصفحة ونشرها بنجاح لتكون مرئية للجميع.' 
+            : 'تم حفظ تعديلات الصفحة كمسودة بنجاح (مخفية عن الزوار مؤقتاً).',
         });
       }
 
@@ -656,105 +662,6 @@ export default function PageManager({ initialFilter = 'all' }: PageManagerProps)
       });
     } finally {
       setActionLoading(false);
-    }
-  };
-
-  const [migrating, setMigrating] = useState(false);
-
-  const handleMigrateSlugs = async () => {
-    if (!window.confirm('هل أنت متأكد من رغبتك في ترحيل روابط صفحات الهبوط وتوليد الروابط القصيرة؟ لن يتم حذف أي بيانات وسيتم حفظ الروابط القديمة لعمل redirect 301.')) return;
-    
-    setMigrating(true);
-    try {
-      const prefixList = ["شركة", "فني", "معلم", "محل", "ورشة", "مكتب", "خدمات", "كشف", "نقل", "عزل", "تنظيف", "مكافحة", "رش", "صيانة"];
-      const stopwords = ['أفضل', 'افضل', 'ممتاز', 'رقم', 'خصم', 'بخصم', 'ارخص', 'أرخص', 'بأرخص', 'بارخص', 'للاتصال', 'اتصل', 'جوال', 'تليفون', 'هاتف'];
-
-      const usedSlugs = new Set();
-      pages.forEach(page => {
-        if (page.pageType !== 'landing') {
-          usedSlugs.add(page.slug);
-        }
-      });
-
-      let migratedCount = 0;
-
-      for (const page of pages) {
-        if (page.pageType !== 'landing') {
-          continue;
-        }
-
-        const oldSlug = page.slug;
-        const words = oldSlug.split('-');
-        const cleanWords = [];
-
-        for (const word of words) {
-          if (/[0-9\u0660-\u0669]/.test(word) || stopwords.includes(word.toLowerCase())) {
-            break;
-          }
-          cleanWords.push(word);
-        }
-
-        if (cleanWords.length === 0) {
-          cleanWords.push(...words.slice(0, 3));
-        }
-
-        const baseNewSlug = cleanWords.join('-');
-
-        let finalSlug = baseNewSlug;
-        let counter = 2;
-        while (usedSlugs.has(finalSlug)) {
-          finalSlug = `${baseNewSlug}-${counter}`;
-          counter++;
-        }
-        usedSlugs.add(finalSlug);
-
-        // Service & Area
-        let serviceName = "";
-        let serviceArea = "";
-
-        if (cleanWords.length >= 3 && prefixList.includes(cleanWords[0])) {
-          serviceName = cleanWords.slice(0, 2).join(' ');
-          serviceArea = cleanWords.slice(2).join(' ');
-        } else if (cleanWords.length > 0) {
-          serviceName = cleanWords[0];
-          serviceArea = cleanWords.slice(1).join(' ');
-        } else {
-          serviceName = page.title;
-          serviceArea = "";
-        }
-
-        const updateData: Partial<PageData> = {};
-        if (oldSlug !== finalSlug) {
-          updateData.slug = finalSlug;
-          updateData.legacySlug = oldSlug;
-        }
-        if (!page.serviceName) {
-          updateData.serviceName = serviceName;
-        }
-        if (!page.serviceArea) {
-          updateData.serviceArea = serviceArea;
-        }
-
-        if (Object.keys(updateData).length > 0 && page.id) {
-          await updatePage(page.id, updateData);
-          migratedCount++;
-        }
-      }
-
-      toast({
-        title: 'تم الترحيل بنجاح',
-        description: `تم تحديث روابط ${migratedCount} صفحة هبوط بنجاح.`,
-      });
-      fetchPages();
-    } catch (error: any) {
-      console.error(error);
-      toast({
-        title: 'فشل الترحيل',
-        description: error.message,
-        variant: 'destructive',
-      });
-    } finally {
-      setMigrating(false);
     }
   };
 
@@ -773,6 +680,38 @@ export default function PageManager({ initialFilter = 'all' }: PageManagerProps)
       console.error('Error in handleDelete:', error);
       toast({
         title: 'فشل الحذف',
+        description: getDetailedErrorMessage(error),
+        variant: 'destructive',
+      });
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleTogglePublish = async (page: PageData) => {
+    if (!page.id) return;
+    const newStatus = !page.isPublished;
+    setActionLoading(true);
+    try {
+      await updatePage(page.id, { isPublished: newStatus });
+      try {
+        await handleRevalidatePage(page.slug);
+      } catch (e) {
+        console.warn('Revalidate cache non-fatal:', e);
+      }
+
+      setPages(prev => prev.map(p => p.id === page.id ? { ...p, isPublished: newStatus } : p));
+
+      toast({
+        title: newStatus ? "تم نشر الصفحة بنجاح 🌐" : "تم تحويل الصفحة إلى مسودة 📝",
+        description: newStatus 
+          ? `أصبحت صفحة "${page.title}" منشورة ومتاحة لجميع زوار الموقع الآن.`
+          : `تم تحويل صفحة "${page.title}" إلى مسودة وإخفاؤها تماماً عن زوار الموقع.`,
+      });
+    } catch (error: any) {
+      console.error('Error toggling page publish status:', error);
+      toast({
+        title: 'فشل تعديل حالة الصفحة',
         description: getDetailedErrorMessage(error),
         variant: 'destructive',
       });
@@ -833,10 +772,12 @@ export default function PageManager({ initialFilter = 'all' }: PageManagerProps)
   const landingPagesCount = pages.filter(p => p.pageType === 'landing').length;
   const adPagesCount = pages.filter(p => p.pageType === 'adpage').length;
   const sitePagesCount = pages.filter(p => p.pageType !== 'landing' && p.pageType !== 'adpage').length;
+  const draftsCount = pages.filter(p => !p.isPublished).length;
   const filteredPages = pages.filter(p => {
     if (activeFilter === 'landing') return p.pageType === 'landing';
     if (activeFilter === 'site') return p.pageType !== 'landing' && p.pageType !== 'adpage';
     if (activeFilter === 'adpages') return p.pageType === 'adpage';
+    if (activeFilter === 'drafts') return !p.isPublished;
     return true;
   }).sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
 
@@ -860,6 +801,11 @@ export default function PageManager({ initialFilter = 'all' }: PageManagerProps)
                 <Tag className="h-6 w-6 md:h-8 md:w-8 text-amber-500" />
                 الصفحات الإعلانية
               </>
+            ) : activeFilter === 'drafts' ? (
+              <>
+                <FileLock className="h-6 w-6 md:h-8 md:w-8 text-yellow-500" />
+                المسودات غير المنشورة
+              </>
             ) : (
               <>
                 <FileText className="h-6 w-6 md:h-8 md:w-8 text-primary" />
@@ -873,25 +819,15 @@ export default function PageManager({ initialFilter = 'all' }: PageManagerProps)
               : activeFilter === 'site' 
                 ? 'إدارة الصفحات الثابتة والنظامية للموقع.' 
                 : activeFilter === 'adpages'
-                  ? 'صفحات تعلنية مخصصة تنتقل بك مباشرةً لصفحة فئة مع فلاتير محددة — رابط قصير نظيف.'
-                  : 'إنشاء وتعديل وحذف الصفحات الثابتة والديناميكية للموقع.'}
+                  ? 'صفحات إعلانية مخصصة تنتقل بك مباشرةً لصفحة فئة مع فلاتر محددة — رابط قصير نظيف.'
+                  : activeFilter === 'drafts'
+                    ? 'عرض وإدارة الصفحات المحفوظة كمسودة، يمكنك مراجعتها ونشرها بضغطة زر واحدة لتظهر للمستخدمين.'
+                    : 'إنشاء وتعديل وحذف الصفحات الثابتة والديناميكية للموقع.'}
           </CardDescription>
         </div>
         
         {view === 'list' && (
           <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
-            {activeFilter === 'landing' && (
-              <Button 
-                variant="outline" 
-                onClick={handleMigrateSlugs} 
-                disabled={migrating}
-                className="border-primary text-primary hover:bg-primary/10 flex items-center justify-center gap-2"
-              >
-                {migrating ? <Loader2 className="h-4 w-4 animate-spin" /> : <Rocket className="h-4 w-4" />}
-                ترحيل الروابط
-              </Button>
-            )}
-
             <Button onClick={handleOpenCreate} className="bg-primary hover:bg-primary/90 text-primary-foreground flex items-center justify-center gap-2">
               <Plus className="h-4 w-4" />
               {activeFilter === 'landing' ? 'إضافة صفحة هبوط جديدة' : activeFilter === 'adpages' ? 'إنشاء صفحة إعلانية جديدة' : 'إضافة صفحة جديدة'}
@@ -915,7 +851,7 @@ export default function PageManager({ initialFilter = 'all' }: PageManagerProps)
               variant={activeFilter === 'all' ? 'default' : 'outline'}
               size="sm"
               onClick={() => setActiveFilter('all')}
-              className="gap-2 rounded-xl text-xs font-semibold"
+              className="gap-2 rounded-xl text-xs font-semibold shrink-0"
             >
               الكل ({pages.length})
             </Button>
@@ -924,7 +860,7 @@ export default function PageManager({ initialFilter = 'all' }: PageManagerProps)
               variant={activeFilter === 'landing' ? 'default' : 'outline'}
               size="sm"
               onClick={() => setActiveFilter('landing')}
-              className="gap-2 rounded-xl text-xs font-semibold"
+              className="gap-2 rounded-xl text-xs font-semibold shrink-0"
             >
               <Rocket className="h-3.5 w-3.5 text-blue-400" />
               صفحات الهبوط ({landingPagesCount})
@@ -934,7 +870,7 @@ export default function PageManager({ initialFilter = 'all' }: PageManagerProps)
               variant={activeFilter === 'site' ? 'default' : 'outline'}
               size="sm"
               onClick={() => setActiveFilter('site')}
-              className="gap-2 rounded-xl text-xs font-semibold"
+              className="gap-2 rounded-xl text-xs font-semibold shrink-0"
             >
               <Building2 className="h-3.5 w-3.5 text-primary" />
               صفحات الموقع ({sitePagesCount})
@@ -944,10 +880,25 @@ export default function PageManager({ initialFilter = 'all' }: PageManagerProps)
               variant={activeFilter === 'adpages' ? 'default' : 'outline'}
               size="sm"
               onClick={() => setActiveFilter('adpages')}
-              className="gap-2 rounded-xl text-xs font-semibold"
+              className="gap-2 rounded-xl text-xs font-semibold shrink-0"
             >
               <Tag className="h-3.5 w-3.5 text-amber-500" />
               الصفحات الإعلانية ({adPagesCount})
+            </Button>
+            <Button
+              type="button"
+              variant={activeFilter === 'drafts' ? 'default' : 'outline'}
+              size="sm"
+              onClick={() => setActiveFilter('drafts')}
+              className={cn(
+                "gap-2 rounded-xl text-xs font-semibold shrink-0",
+                activeFilter === 'drafts' 
+                  ? "bg-yellow-500 hover:bg-yellow-600 text-black font-bold border-yellow-500" 
+                  : "text-yellow-600 dark:text-yellow-400 border-yellow-500/30 hover:bg-yellow-500/10"
+              )}
+            >
+              <FileLock className="h-3.5 w-3.5" />
+              المسودات ({draftsCount})
             </Button>
           </div>
         )}
@@ -1065,37 +1016,67 @@ export default function PageManager({ initialFilter = 'all' }: PageManagerProps)
                           {(page.views || 0).toLocaleString('en-US')}
                         </td>
                         <td className="py-4 text-center">
-                          {page.isPublished ? (
-                            <span className="inline-flex items-center gap-1 bg-green-500/10 text-green-500 px-2.5 py-0.5 rounded-full text-xs font-medium border border-green-500/20">
-                              <Globe className="h-3 w-3" />
-                              منشورة
-                            </span>
-                          ) : (
-                            <span className="inline-flex items-center gap-1 bg-yellow-500/10 text-yellow-500 px-2.5 py-0.5 rounded-full text-xs font-medium border border-yellow-500/20">
-                              <FileLock className="h-3 w-3" />
-                              مسودة
-                            </span>
-                          )}
+                          <button
+                            type="button"
+                            onClick={() => handleTogglePublish(page)}
+                            disabled={actionLoading}
+                            title={page.isPublished ? "انقر لتحويل الصفحة إلى مسودة (إخفاء عن الزوار)" : "انقر لنشر الصفحة (إتاحتها للزوار)"}
+                            className={cn(
+                              "inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold border transition-all cursor-pointer select-none",
+                              page.isPublished 
+                                ? "bg-green-500/10 text-green-600 border-green-500/25 hover:bg-yellow-500/15 hover:text-yellow-600 hover:border-yellow-500/30" 
+                                : "bg-yellow-500/10 text-yellow-600 border-yellow-500/25 hover:bg-green-500/15 hover:text-green-600 hover:border-green-500/30"
+                            )}
+                          >
+                            {page.isPublished ? (
+                              <>
+                                <Globe className="h-3 w-3" />
+                                <span>منشورة</span>
+                              </>
+                            ) : (
+                              <>
+                                <FileLock className="h-3 w-3" />
+                                <span>مسودة</span>
+                              </>
+                            )}
+                          </button>
                         </td>
                         <td className="py-4 text-left">
-                          <div className="flex justify-end gap-2">
-                            {page.isPublished && (
-                              <Button 
-                                variant="ghost" 
-                                size="icon" 
-                                asChild 
-                                title="معاينة الصفحة"
-                                className="h-8 w-8 text-muted-foreground hover:text-foreground"
+                          <div className="flex justify-end items-center gap-1 sm:gap-1.5">
+                            {/* زر المعاينة - يعمل للصفحات المنشورة وللمسودات عبر وضع المعاينة */}
+                            <Button 
+                              variant="ghost" 
+                              size="icon" 
+                              asChild 
+                              title={page.isPublished ? "معاينة الصفحة المنشورة" : "معاينة المسودة (وضع المعاينة الإداري)"}
+                              className="h-8 w-8 text-muted-foreground hover:text-foreground"
+                            >
+                              <a 
+                                href={page.isPublished ? pageUrl : `${pageUrl}?preview=true`} 
+                                target="_blank" 
+                                rel="noopener noreferrer"
                               >
-                                <a 
-                                  href={pageUrl} 
-                                  target="_blank" 
-                                  rel="noopener noreferrer"
-                                >
-                                  <Eye className="h-4 w-4" />
-                                </a>
-                              </Button>
-                            )}
+                                <Eye className="h-4 w-4" />
+                              </a>
+                            </Button>
+
+                            {/* زر التبديل السريع بين النشر والمسودة */}
+                            <Button 
+                              variant="ghost" 
+                              size="icon" 
+                              onClick={() => handleTogglePublish(page)} 
+                              disabled={actionLoading}
+                              title={page.isPublished ? "تحويل إلى مسودة (إخفاء الصفحة)" : "نشر الصفحة الآن"}
+                              className={cn(
+                                "h-8 w-8 transition-colors",
+                                page.isPublished 
+                                  ? "text-yellow-600 hover:bg-yellow-500/10 hover:text-yellow-700" 
+                                  : "text-green-600 hover:bg-green-500/10 hover:text-green-700"
+                              )}
+                            >
+                              {page.isPublished ? <FileLock className="h-4 w-4" /> : <Globe className="h-4 w-4" />}
+                            </Button>
+
                             <Button 
                               variant="ghost" 
                               size="icon" 
@@ -1127,17 +1108,50 @@ export default function PageManager({ initialFilter = 'all' }: PageManagerProps)
           <form onSubmit={handleSave} className="space-y-6 text-right" dir="rtl">
             {/* Floating Sticky Save Bar */}
             <div className="sticky top-20 z-30 bg-card/95 backdrop-blur-md border border-border/80 p-3.5 rounded-xl shadow-lg flex items-center justify-between gap-4 transition-all">
-              <div className="flex items-center gap-2 overflow-hidden">
+              <div className="flex items-center gap-2.5 overflow-hidden">
                 <FileText className="h-5 w-5 text-primary flex-shrink-0" />
                 <span className="font-bold text-sm md:text-base text-foreground truncate">
                   {title ? `${view === 'edit' ? 'تعديل' : 'إنشاء'}: ${title}` : (view === 'edit' ? 'تعديل الصفحة' : 'صفحة جديدة')}
+                </span>
+                {/* Status indicator badge in editor header */}
+                <span className={cn(
+                  "hidden sm:inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold border",
+                  isPublished 
+                    ? "bg-green-500/10 text-green-600 border-green-500/30" 
+                    : "bg-yellow-500/10 text-yellow-600 border-yellow-500/30"
+                )}>
+                  {isPublished ? <Globe className="h-3 w-3" /> : <FileLock className="h-3 w-3" />}
+                  {isPublished ? "منشورة" : "مسودة"}
                 </span>
               </div>
               <div className="flex items-center gap-2 flex-shrink-0">
                 <Button type="button" variant="outline" onClick={() => setView('list')} disabled={actionLoading} size="sm">
                   إلغاء
                 </Button>
-                <Button type="submit" disabled={actionLoading} size="sm" className="bg-primary text-primary-foreground flex items-center gap-1.5 px-4 shadow-sm hover:opacity-90">
+                
+                {/* زر مخصص: حفظ كمسودة */}
+                <Button 
+                  type="button" 
+                  variant="outline"
+                  onClick={() => handleSave(undefined, false)} 
+                  disabled={actionLoading} 
+                  size="sm"
+                  className="border-yellow-500/40 text-yellow-600 dark:text-yellow-400 hover:bg-yellow-500/10 flex items-center gap-1.5 shadow-xs"
+                  title="حفظ الصفحة كمسودة (مخفية عن الزوار لحين نشرها)"
+                >
+                  <FileLock className="h-4 w-4" />
+                  <span>حفظ كمسودة</span>
+                </Button>
+
+                {/* زر أساسي: حفظ ونشر للزوار */}
+                <Button 
+                  type="button" 
+                  onClick={() => handleSave(undefined, true)}
+                  disabled={actionLoading} 
+                  size="sm" 
+                  className="bg-primary text-primary-foreground flex items-center gap-1.5 px-4 shadow-sm hover:opacity-90"
+                  title="حفظ الصفحة ونشرها لجميع الزوار فورياً"
+                >
                   {actionLoading ? (
                     <>
                       <Loader2 className="h-4 w-4 animate-spin" />
@@ -1145,8 +1159,8 @@ export default function PageManager({ initialFilter = 'all' }: PageManagerProps)
                     </>
                   ) : (
                     <>
-                      <Save className="h-4 w-4" />
-                      {view === 'edit' ? 'حفظ التعديلات' : 'إنشاء الصفحة'}
+                      <Globe className="h-4 w-4" />
+                      {view === 'edit' ? 'حفظ ونشر' : 'إنشاء ونشر'}
                     </>
                   )}
                 </Button>

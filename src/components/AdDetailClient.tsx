@@ -271,7 +271,6 @@ export default function AdDetailClient({ initialAd }: { initialAd: Ad }) {
   const effectiveUserId = ad.userId || ad.user?.id || 'owner';
   const isOwner = user?.uid === ad.userId || (ad.user?.id && user?.uid === ad.user.id);
   const isAdmin = userProfile?.role === 'admin';
-  const canViewLog = isOwner || isAdmin;
 
   const isBoostActive = Boolean(
     (ad.featuredTier === 'gold' || ad.featuredTier === 'silver') && 
@@ -326,21 +325,6 @@ export default function AdDetailClient({ initialAd }: { initialAd: Ad }) {
                           </div>
 
                           <div className="flex items-center gap-2">
-                            {canViewLog && (
-                              <Button
-                                asChild
-                                variant="outline"
-                                size="sm"
-                                className="border-primary/40 bg-primary/5 hover:bg-primary/15 text-primary font-bold gap-1.5 shadow-sm text-xs"
-                                title="سجل نشاط وإحصائيات الإعلان"
-                              >
-                                <Link href={`/ad/${effectiveUserId}/${ad.id}/log${isAdmin ? '?from=admin' : ''}`}>
-                                  <Activity className="h-3.5 w-3.5 text-primary" />
-                                  <span>سجل الإعلان</span>
-                                </Link>
-                              </Button>
-                            )}
-
                             {isOwner && (
                               <PromoteAdDialog
                                 ad={ad}
