@@ -33,7 +33,6 @@ import AdFallbackPlaceholder from '@/components/AdPlaceholder';
 import AdSlot from '@/components/AdSlot';
 import { safeParseDate, cn, formatWhatsAppNumber } from '@/lib/utils';
 import { logAdActivity } from '@/lib/ad-log-service';
-import PromoteAdDialog from '@/components/PromoteAdDialog';
 import RequireAuthModal from '@/components/RequireAuthModal';
 import { formatAdPrice } from '@/lib/currency-service';
 
@@ -326,19 +325,17 @@ export default function AdDetailClient({ initialAd }: { initialAd: Ad }) {
 
                           <div className="flex items-center gap-2">
                             {isOwner && (
-                              <PromoteAdDialog
-                                ad={ad}
-                                trigger={
-                                  <Button
-                                    variant="outline"
-                                    size="sm"
-                                    className="border-amber-500/50 bg-amber-500/10 hover:bg-amber-500/20 text-amber-700 dark:text-amber-300 font-bold gap-1.5 shadow-sm text-xs"
-                                  >
-                                    <Rocket className="h-3.5 w-3.5 text-amber-500" />
-                                    <span>ترقية وتمييز 🚀</span>
-                                  </Button>
-                                }
-                              />
+                              <Link href="/pricing">
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  className="border-amber-500/50 bg-amber-500/10 hover:bg-amber-500/20 text-amber-700 dark:text-amber-300 font-bold gap-1.5 shadow-sm text-xs cursor-pointer"
+                                  title="عرض باقات تمييز الإعلانات والأسعار"
+                                >
+                                  <Rocket className="h-3.5 w-3.5 text-amber-500" />
+                                  <span>تمييز الإعلان 🚀</span>
+                                </Button>
+                              </Link>
                             )}
                           </div>
                         </div>
