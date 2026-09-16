@@ -3,7 +3,7 @@ import type { Ad, UserProfile } from '@/lib/types';
 import Image from 'next/image';
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { MapPin, Tag, Star, Wrench, Handshake, ShoppingCart, PlusCircle, Store, Share2, Facebook, Twitter, ImageIcon, Eye, MousePointerClick, BadgeCheck, Crown, Sparkles } from 'lucide-react';
+import { MapPin, Tag, Star, ShoppingCart, PlusCircle, Store, Share2, Facebook, Twitter, Eye, MousePointerClick, BadgeCheck, Crown, Sparkles } from 'lucide-react';
 import Link from 'next/link';
 import { useMarket } from '@/context/MarketContext';
 import { useAuth } from '@/context/AuthContext';
@@ -173,10 +173,14 @@ function AdCard({ ad, priority = false }: AdCardProps) {
 
   // صياغة الموقع المحلي (المحافظة، المدينة / الحي، أو القرية)
   // استثناء: في حال لم يحدد المعلن محافظة أو مدينة (مثل إعلان على مستوى كامل الدولة)، يتم إظهار اسم الدولة بجانب أيقونة الموقع
+  // حماية من البيانات الموروثة سابقاً: إذا كانت الدولة ليست مصر يتم تجاهل أي قرية
+  const isForeignAd = Boolean(ad.country && ad.country !== 'مصر' && ad.country !== 'eg');
+  const safeVillage = isForeignAd ? '' : (ad.village || '');
+
   const locationParts = [
     ad.governorate || ad.province,
     ad.city,
-    ad.village
+    safeVillage
   ].filter((p): p is string => Boolean(p && typeof p === 'string' && p.trim().length > 0 && p !== ad.country));
 
   const uniqueLocationParts = Array.from(new Set(locationParts));

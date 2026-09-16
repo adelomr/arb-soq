@@ -53,8 +53,8 @@ export const metadata: Metadata = {
     description: 'بيع واشتري كل شيء في منطقتك. سيارات، عقارات، وتوظيف مجاناً.',
     images: [
       {
-        url: 'https://www.arb-soq.com/og-image.png?v=2',
-        secureUrl: 'https://www.arb-soq.com/og-image.png?v=2',
+        url: 'https://www.arb-soq.com/og-image.png',
+        secureUrl: 'https://www.arb-soq.com/og-image.png',
         width: 1200,
         height: 630,
         type: 'image/png',
@@ -66,7 +66,7 @@ export const metadata: Metadata = {
     card: 'summary_large_image',
     title: 'سوق العرب - بيع واشتري في منطقتك',
     description: 'أفضل العروض والخدمات في الوطن العربي والخليج.',
-    images: ['https://www.arb-soq.com/og-image.png?v=2'],
+    images: ['https://www.arb-soq.com/og-image.png'],
   },
   robots: {
     index: true,

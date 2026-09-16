@@ -104,7 +104,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
   const description = rawDescParts.join(' — ').substring(0, 160);
 
-  const imageUrl = ad.imageUrls && ad.imageUrls.length > 0 ? ad.imageUrls[0] : 'https://www.arb-soq.com/og-image.png?v=2';
+  const imageUrl = ad.imageUrls && ad.imageUrls.length > 0 ? ad.imageUrls[0] : 'https://www.arb-soq.com/og-image.png';
   const canonicalUserId = ad.userId || (userId !== 'owner' ? userId : 'item');
   const canonicalUrl = `https://www.arb-soq.com/ad/${canonicalUserId}/${ad.id || adId}`;
 

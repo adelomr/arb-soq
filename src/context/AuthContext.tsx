@@ -910,9 +910,9 @@ const addAd = useCallback(async (adData: any, imageFiles: File[], user: User, pr
         // حماية إضافية: تحويل معرّف السوق إلى اسم الدولة العربي إن كان لا يزال كمعرّف
         // التطبيق يبحث بـ "مصر" وليس بـ "eg"
         const resolvedCountry = (() => {
-            const raw = adData.country || userProfile.country || '';
-            const found = markets.find(m => m.id === raw);
-            return found ? found.name.ar : raw;
+            const raw = adData.country || adData.market || '';
+            const found = markets.find(m => m.id === raw || m.name.ar === raw);
+            return found ? found.name.ar : (raw || userProfile.country || '');
         })();
 
         // تحويل نوع الإعلان إلى العربي لتوافق التطبيق
@@ -939,9 +939,10 @@ const addAd = useCallback(async (adData: any, imageFiles: File[], user: User, pr
             clicks: 0,
             // حقل country يحتوي على اسم الدولة بالعربي دائماً (مصر، السعودية،...) وليس كمعرّف (eg, sa, ...)
             country: resolvedCountry,
-            governorate: adData.governorate || userProfile.province || '',
-            city: adData.city || userProfile.city || '',
-            village: adData.village || userProfile.village || '',
+            // فصل عنوان المستخدم في البروفايل تماماً عن عنوان الإعلان: يجب الالتزام بما يحدده المستخدم في الإعلان فقط وعدم سحب عنوان المستخدم الشخصي
+            governorate: adData.governorate || '',
+            city: adData.city || '',
+            village: adData.village || '',
             // حقل التوافق مع التطبيق: نوع الإعلان بالعربي
             ...(adData.adType ? { adTypeAr: adTypeArMap[adData.adType] || adData.adType } : {}),
         };

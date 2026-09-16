@@ -22,7 +22,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 import { useToast } from '@/hooks/use-toast';
-import { DollarSign, FileUp, Sparkles, Send, MapPin, ShoppingBag, Wrench, Handshake, Loader2, CreditCard, Map, Store, PlusCircle, Trash2, X, Globe, Info, Hash, Package, Tv, ImageIcon, Phone, Tag, BadgeDollarSign, AlertCircle, CarFront } from 'lucide-react';
+import { DollarSign, Sparkles, Send, MapPin, Loader2, Map, Store, PlusCircle, X, Globe, Info, Hash, Tv, Phone, BadgeDollarSign, AlertCircle, CarFront } from 'lucide-react';
 import { useState, useMemo, useEffect, Suspense } from 'react';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import type { AdType, AdCondition, Category } from '@/lib/types';
@@ -249,11 +249,6 @@ const getAdFormSchema = (t: typeof translations.ar, isStoreProduct: boolean) => 
 });
 
 
-const LocationPicker = dynamic(() => import('./LocationPicker'), {
-  ssr: false,
-  loading: () => <div className="h-96 flex items-center justify-center"><Loader2 className="h-8 w-8 animate-spin" /></div>
-});
-
 function AdFormContent({ adId, userId, isEditMode, onSuccess }: { adId?: string | null, userId?: string | null, isEditMode: boolean, onSuccess?: () => void }) {
   const { market } = useMarket();
   const { user, userProfile, addAd, updateAd, deleteAd, getAdById, categories, professions, getUserActiveAdsCount } = useAuth();
@@ -276,7 +271,6 @@ function AdFormContent({ adId, userId, isEditMode, onSuccess }: { adId?: string 
     newAdData: any;
     newImageFiles: File[];
   } | null>(null);
-  const [isMapOpen, setMapOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState<Category | null>(null);
   const [isLoadingAd, setIsLoadingAd] = useState(isEditMode);
@@ -296,7 +290,7 @@ function AdFormContent({ adId, userId, isEditMode, onSuccess }: { adId?: string 
       price: 0,
       productCode: '',
       images: [],
-      market: userProfile?.country || market.id,
+      market: market.id || (userProfile?.country ? (markets.find(m => m.id === userProfile.country || m.name.ar === userProfile.country)?.id || userProfile.country) : 'sa'),
       province: '',
       location: '',
       category: isStoreProduct ? 'store-product' : undefined,
@@ -306,8 +300,11 @@ function AdFormContent({ adId, userId, isEditMode, onSuccess }: { adId?: string 
       videoSource: 'single',
       websiteUrl: '',
       locationScope: 'city',
+      governorate: 'country',
+      city: '',
+      village: '',
       phoneNumber: '',
-      currency: markets.find(m => m.id === (userProfile?.country || market.id))?.currency || 'EGP',
+      currency: markets.find(m => m.id === (market.id || userProfile?.country))?.currency || 'SAR',
     },
   });
 
@@ -367,14 +364,8 @@ function AdFormContent({ adId, userId, isEditMode, onSuccess }: { adId?: string 
         const fetchAd = async () => {
             const ad = await getAdById(userId, adId, isStoreProduct);
             if (ad) {
-                const normalizedMarket = markets.find(m => m.id === ad.market || m.name.ar === ad.market)?.id || ad.market || userProfile?.country || market.id;
-                let inferredScope = (ad as any).locationScope;
-                if (!inferredScope) {
-                    if (ad.village) inferredScope = 'village';
-                    else if (ad.city) inferredScope = 'city';
-                    else if (ad.governorate && ad.governorate !== 'country') inferredScope = 'governorate';
-                    else inferredScope = 'country';
-                }
+                const normalizedMarket = markets.find(m => m.id === ad.market || m.name.ar === ad.market)?.id || ad.market || market.id;
+                let inferredScope = (ad as any).locationScope || 'city';
 
                 form.reset({
                     adType: ad.adType as any,
@@ -395,11 +386,11 @@ function AdFormContent({ adId, userId, isEditMode, onSuccess }: { adId?: string 
                     videoSource: ad.playlistUrl ? 'playlist' : 'single',
                     videoUrl: ad.videoUrl || '',
                     playlistUrl: ad.playlistUrl || '',
-                    governorate: ad.governorate || '',
+                    governorate: ad.governorate || 'country',
                     city: ad.city || '',
-                    village: ad.village || '',
+                    village: '',
                     locationScope: inferredScope,
-                    currency: ad.currency || 'EGP',
+                    currency: ad.currency || 'SAR',
                     phoneNumber: ad.phoneNumber || '',
                 });
                 
@@ -426,35 +417,33 @@ function AdFormContent({ adId, userId, isEditMode, onSuccess }: { adId?: string 
   const categoryValue = form.watch('category');
   const subcategoryValue = form.watch('subcategory');
   const marketValue = form.watch('market');
-  const locationScope = form.watch('locationScope');
-  const selectedMarket = useMemo(() => markets.find(m => m.id === marketValue), [marketValue]);
+  const selectedGov = form.watch('governorate');
+  const districtValue = form.watch('city');
+  const selectedMarket = useMemo(() => markets.find(m => m.id === marketValue) || markets.find(m => m.id === market.id) || markets[0], [marketValue, market.id]);
 
-  // معرف بلد المستخدم الأصلي
-  const userHomeCountryId = useMemo(() => {
-    if (!userProfile?.country) return market.id;
-    const found = markets.find(m => m.id === userProfile.country || m.name.ar === userProfile.country);
-    return found ? found.id : userProfile.country;
-  }, [userProfile, market.id]);
+  // معاينة الموقع الحية كما ستظهر في بطاقة الإعلان للمشترين
+  const liveLocationDisplay = useMemo(() => {
+    const countryName = selectedMarket?.name.ar || 'الدولة';
+    const isAllCountry = !selectedGov || selectedGov === 'country' || selectedGov === 'all';
+    
+    if (isAllCountry) {
+      return `${countryName} (كل المدن)`;
+    }
+    const cleanDistrict = (districtValue || '').trim();
+    if (cleanDistrict) {
+      return `${countryName} - ${selectedGov} (${cleanDistrict})`;
+    }
+    return `${countryName} - ${selectedGov}`;
+  }, [selectedMarket, selectedGov, districtValue]);
 
-  const userGovName = useMemo(() => userProfile?.province || userProfile?.governorate || '', [userProfile]);
-  const userCityName = useMemo(() => userProfile?.city || '', [userProfile]);
-  const userVillageName = useMemo(() => userProfile?.village || '', [userProfile]);
-
-  const isHomeCountryTarget = useMemo(() => {
-    const currentMarket = marketValue || userHomeCountryId;
-    const normalizedCurrent = markets.find(m => m.id === currentMarket || m.name.ar === currentMarket)?.id || currentMarket;
-    return !currentMarket || normalizedCurrent === userHomeCountryId;
-  }, [marketValue, userHomeCountryId]);
-
-  // ضبط التحديد الافتراضي لبلد المستخدم الأصلي
+  // ضبط التحديد الافتراضي لسوق الدولة عند فتح النموذج
   useEffect(() => {
-    if (!isEditMode && userProfile?.country) {
-      const userHome = markets.find(m => m.id === userProfile.country || m.name.ar === userProfile.country)?.id || userProfile.country;
-      if (userHome && markets.some(m => m.id === userHome)) {
-        form.setValue('market', userHome);
+    if (!isEditMode && market?.id) {
+      if (markets.some(m => m.id === market.id)) {
+        form.setValue('market', market.id);
       }
     }
-  }, [userProfile, isEditMode, form]);
+  }, [market?.id, isEditMode, form]);
 
   // اختيار العملة تلقائياً عند تغيير الدولة المستهدفة
   useEffect(() => {
@@ -549,35 +538,20 @@ function AdFormContent({ adId, userId, isEditMode, onSuccess }: { adId?: string 
                     let finalCategory = data.subcategory || data.category || 'education';
                     if (isStoreProduct) finalCategory = 'store-product';
 
-                    let calculatedGov = '', calculatedCity = '', calculatedVillage = '';
-                    const isHomeTarget = (data.market || userHomeCountryId) === userHomeCountryId;
+                    const marketArabicName = markets.find(m => m.id === data.market)?.name.ar || selectedMarket?.name.ar || '';
+                    const chosenCity = (data.governorate && data.governorate !== 'country' && data.governorate !== 'all') ? data.governorate.trim() : '';
+                    const chosenDistrict = (data.city || '').trim();
 
-                    if (isHomeTarget) {
-                        if (data.locationScope === 'village') {
-                            calculatedGov = userGovName || data.governorate || '';
-                            calculatedCity = userCityName || data.city || '';
-                            calculatedVillage = userVillageName || data.village || '';
-                        } else if (data.locationScope === 'city') {
-                            calculatedGov = userGovName || data.governorate || '';
-                            calculatedCity = userCityName || data.city || '';
-                        } else if (data.locationScope === 'governorate') {
-                            calculatedGov = userGovName || data.governorate || '';
-                        }
+                    const calculatedGov = chosenCity;
+                    const calculatedCity = chosenDistrict;
+                    const calculatedVillage = '';
+
+                    let pureLocationName = '';
+                    if (chosenCity) {
+                        pureLocationName = chosenDistrict ? `${marketArabicName}، ${chosenCity} (${chosenDistrict})` : `${marketArabicName}، ${chosenCity}`;
                     } else {
-                        if (data.governorate && data.governorate !== 'country') {
-                            calculatedGov = data.governorate;
-                        }
+                        pureLocationName = `${marketArabicName} (كل المدن)`;
                     }
-
-                    const marketArabicName = markets.find(m => m.id === data.market)?.name.ar || userProfile?.country || '';
-                    const pureLocationName = isHomeTarget ? (
-                        data.locationScope === 'village' ? (calculatedVillage || calculatedCity || calculatedGov || marketArabicName) : 
-                        data.locationScope === 'city' ? (calculatedCity || calculatedGov || marketArabicName) : 
-                        data.locationScope === 'governorate' ? (calculatedGov || marketArabicName) : 
-                        marketArabicName
-                    ) : (
-                        calculatedGov || marketArabicName
-                    );
                                   
                     // تحويل نوع الإعلان إلى العربي للتوافق مع التطبيق
                     const adTypeArMap: Record<string, string> = {
@@ -647,47 +621,20 @@ function AdFormContent({ adId, userId, isEditMode, onSuccess }: { adId?: string 
             .filter(img => img.file === null || img.file === undefined)
             .map(img => img.url);
 
-        let calculatedGov = '', calculatedCity = '', calculatedVillage = '';
-        const isHomeTarget = (data.market || userHomeCountryId) === userHomeCountryId;
+        const marketArabicName = markets.find(m => m.id === data.market)?.name.ar || selectedMarket?.name.ar || '';
+        const chosenCity = (data.governorate && data.governorate !== 'country' && data.governorate !== 'all') ? data.governorate.trim() : '';
+        const chosenDistrict = (data.city || '').trim();
 
-        if (isHomeTarget) {
-            if (data.locationScope === 'village') {
-                calculatedGov = userGovName || data.governorate || '';
-                calculatedCity = userCityName || data.city || '';
-                calculatedVillage = userVillageName || data.village || '';
-            } else if (data.locationScope === 'city') {
-                calculatedGov = userGovName || data.governorate || '';
-                calculatedCity = userCityName || data.city || '';
-                calculatedVillage = ''; 
-            } else if (data.locationScope === 'governorate') {
-                calculatedGov = userGovName || data.governorate || '';
-                calculatedCity = ''; 
-                calculatedVillage = '';
-            } else {
-                calculatedGov = ''; calculatedCity = ''; calculatedVillage = '';
-            }
+        const calculatedGov = chosenCity;
+        const calculatedCity = chosenDistrict;
+        const calculatedVillage = '';
+
+        let pureLocationName = '';
+        if (chosenCity) {
+            pureLocationName = chosenDistrict ? `${marketArabicName}، ${chosenCity} (${chosenDistrict})` : `${marketArabicName}، ${chosenCity}`;
         } else {
-            if (data.governorate && data.governorate !== 'country') {
-                calculatedGov = data.governorate;
-                calculatedCity = data.city || '';
-                calculatedVillage = '';
-            } else {
-                calculatedGov = ''; 
-                calculatedCity = data.city || ''; 
-                calculatedVillage = '';
-            }
+            pureLocationName = `${marketArabicName} (كل المدن)`;
         }
-
-        const marketArabicName = markets.find(m => m.id === data.market)?.name.ar || userProfile?.country || '';
-
-        const pureLocationName = isHomeTarget ? (
-            data.locationScope === 'village' ? (calculatedVillage || calculatedCity || calculatedGov || marketArabicName) : 
-            data.locationScope === 'city' ? (calculatedCity || calculatedGov || marketArabicName) : 
-            data.locationScope === 'governorate' ? (calculatedGov || marketArabicName) : 
-            marketArabicName
-        ) : (
-            calculatedCity ? (calculatedGov && calculatedGov !== 'country' ? `${calculatedGov} - ${calculatedCity}` : calculatedCity) : (calculatedGov || marketArabicName)
-        );
 
         // تحويل نوع الإعلان إلى العربي للتوافق مع التطبيق
         const adTypeArMap: Record<string, string> = {
@@ -905,7 +852,7 @@ function AdFormContent({ adId, userId, isEditMode, onSuccess }: { adId?: string 
                                     <SelectValue placeholder={t.categoryPlaceholder} />
                                     </SelectTrigger>
                                 </FormControl>
-                                <SelectContent>
+                                <SelectContent className="max-h-64 max-w-[calc(100vw-2rem)]">
                                     {categories.filter(c => c.id !== 'store-product' && c.id !== 'stores').map(cat => (
                                     <SelectItem key={cat.id} value={cat.id}>{cat.name?.ar || cat.id}</SelectItem>
                                     ))}
@@ -930,7 +877,7 @@ function AdFormContent({ adId, userId, isEditMode, onSuccess }: { adId?: string 
                                     <SelectValue placeholder={t.subcategoryPlaceholder} />
                                     </SelectTrigger>
                                 </FormControl>
-                                <SelectContent>
+                                <SelectContent className="max-h-64 max-w-[calc(100vw-2rem)]">
                                     {selectedCategory.subcategories?.map(sub => (
                                     <SelectItem key={sub.id} value={sub.id}>{sub.name?.ar || sub.id}</SelectItem>
                                     ))}
@@ -1346,49 +1293,45 @@ function AdFormContent({ adId, userId, isEditMode, onSuccess }: { adId?: string 
 
 
 
-        {/* مربع الاستهداف (Targeting Box) */}
+        {/* مربع الاستهداف الجغرافي الاحترافي (Professional Targeting Box) */}
         <div className="space-y-6 pt-6 border-t">
-            <h3 className="text-lg font-bold flex items-center gap-2">
-                <Globe className="h-5 w-5 text-primary" />
-                مربع الاستهداف
-            </h3>
+            <div className="flex items-center justify-between">
+                <h3 className="text-lg font-bold flex items-center gap-2">
+                    <Globe className="h-5 w-5 text-primary" />
+                    موقع الإعلان والاستهداف الجغرافي
+                </h3>
+                <Badge variant="outline" className="text-xs text-muted-foreground font-normal bg-secondary/50">
+                    معايير المنصات الاحترافية
+                </Badge>
+            </div>
             
-            {/* 1. قائمة اختيار الدولة المستهدفة (الافتراضي: بلد المستخدم) */}
+            {/* 1. قائمة الدولة المستهدفة */}
             <FormField
                 control={form.control}
                 name="market"
                 render={({ field }) => (
                     <FormItem>
-                        <FormLabel className="text-md font-semibold">الدولة المستهدفة</FormLabel>
+                        <FormLabel className="text-sm font-semibold">
+                            1. الدولة
+                        </FormLabel>
                         <Select
                             onValueChange={(val) => {
                                 field.onChange(val);
-                                if (val !== userHomeCountryId) {
-                                    form.setValue('locationScope', 'country');
-                                    form.setValue('governorate', '');
-                                } else {
-                                    form.setValue('locationScope', 'country');
-                                }
+                                form.setValue('governorate', 'country');
+                                form.setValue('city', '');
                             }}
-                            value={field.value || userHomeCountryId}
+                            value={field.value || market.id}
                             dir={direction}
                         >
                             <FormControl>
-                                <SelectTrigger className="h-12 text-base font-semibold">
+                                <SelectTrigger className="h-12 text-base font-semibold bg-background">
                                     <SelectValue placeholder="اختر الدولة" />
                                 </SelectTrigger>
                             </FormControl>
-                            <SelectContent>
+                            <SelectContent className="max-h-64 max-w-[calc(100vw-2rem)]">
                                 {markets.map(m => (
                                     <SelectItem key={m.id} value={m.id} className="text-base py-2.5">
-                                        <div className="flex items-center gap-2">
-                                            <span>{m.name.ar}</span>
-                                            {m.id === userHomeCountryId && (
-                                                <span className="text-xs bg-primary/10 text-primary px-2 py-0.5 rounded-full font-normal">
-                                                    (بلدك الأصلي)
-                                                </span>
-                                            )}
-                                        </div>
+                                        <span className="font-medium">{m.name.ar}</span>
                                     </SelectItem>
                                 ))}
                             </SelectContent>
@@ -1398,224 +1341,84 @@ function AdFormContent({ adId, userId, isEditMode, onSuccess }: { adId?: string 
                 )}
             />
 
-            {/* 2. إذا تم اختيار بلد المستخدم الأصلي -> تظهر 4 اختيارات محددة تلقائياً من بيانات المستخدم */}
-            {isHomeCountryTarget ? (
-                <div className="space-y-4 pt-2">
-                    <FormLabel className="text-md font-semibold flex items-center gap-2">
-                        <MapPin className="h-4 w-4 text-primary" />
-                        اختر المكان الذي تريد أن يظهر إعلانك فيه
-                    </FormLabel>
-                    <FormField
-                        control={form.control}
-                        name="locationScope"
-                        render={({ field }) => (
-                            <FormItem className="space-y-3">
-                                <FormControl>
-                                    <RadioGroup
-                                        onValueChange={field.onChange}
-                                        value={field.value || 'country'}
-                                        className="grid grid-cols-1 sm:grid-cols-2 gap-3"
-                                    >
-                                        {/* الخيار 1: الدولة بالكامل */}
-                                        <FormItem>
-                                            <FormControl>
-                                                <RadioGroupItem value="country" id="scope-country" className="sr-only" />
-                                            </FormControl>
-                                            <FormLabel
-                                                htmlFor="scope-country"
-                                                className={cn(
-                                                    "flex items-center justify-between rounded-xl border-2 p-4 cursor-pointer transition-all hover:bg-accent/40",
-                                                    (field.value === 'country' || !field.value) ? "border-primary bg-primary/5 shadow-sm" : "border-border/60"
-                                                )}
-                                            >
-                                                <div className="flex items-center gap-3">
-                                                    <div className={cn("w-4 h-4 rounded-full border-2 flex items-center justify-center", (field.value === 'country' || !field.value) ? "border-primary bg-primary" : "border-muted-foreground")}>
-                                                        {(field.value === 'country' || !field.value) && <div className="w-1.5 h-1.5 rounded-full bg-white" />}
-                                                    </div>
-                                                    <span className="font-bold text-sm">الدولة بالكامل</span>
-                                                </div>
-                                                <span className="text-xs font-semibold text-muted-foreground bg-secondary px-2 py-1 rounded-md">
-                                                    {selectedMarket?.name.ar || userProfile?.country || 'كل المحافظات'}
-                                                </span>
-                                            </FormLabel>
-                                        </FormItem>
+            {/* 2. المدينة / المنطقة المستهدفة في الدولة المختارة */}
+            <FormField
+                control={form.control}
+                name="governorate"
+                render={({ field }) => (
+                    <FormItem>
+                        <FormLabel className="text-sm font-semibold">
+                            2. المدينة / المحافظة في {selectedMarket?.name.ar}
+                        </FormLabel>
+                        <Select
+                            onValueChange={(val) => {
+                                field.onChange(val);
+                            }}
+                            value={field.value || 'country'}
+                            dir={direction}
+                        >
+                            <FormControl>
+                                <SelectTrigger className="h-12 text-base font-semibold bg-background">
+                                    <SelectValue placeholder="اختر المدينة (أو كل مدن الدولة)" />
+                                </SelectTrigger>
+                            </FormControl>
+                            <SelectContent className="max-h-64 max-w-[calc(100vw-2rem)]">
+                                <SelectItem value="country" className="font-bold py-2.5 text-primary">
+                                    الدولة بالكامل (عرض في جميع مدن {selectedMarket?.name.ar})
+                                </SelectItem>
+                                {selectedMarket?.majorCities && selectedMarket.majorCities.map((cityName) => (
+                                    <SelectItem key={cityName} value={cityName} className="py-2.5 text-base">
+                                        {cityName}
+                                    </SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+                        <FormDescription className="text-xs text-muted-foreground">
+                            يمكنك اختيار "الدولة بالكامل" للخدمات العامة، أو اختيار مدينتك المستهدفة بدقة.
+                        </FormDescription>
+                        <FormMessage />
+                    </FormItem>
+                )}
+            />
 
-                                        {/* الخيار 2: المحافظة بالكامل */}
-                                        <FormItem>
-                                            <FormControl>
-                                                <RadioGroupItem value="governorate" id="scope-gov" className="sr-only" />
-                                            </FormControl>
-                                            <FormLabel
-                                                htmlFor="scope-gov"
-                                                className={cn(
-                                                    "flex items-center justify-between rounded-xl border-2 p-4 cursor-pointer transition-all hover:bg-accent/40",
-                                                    field.value === 'governorate' ? "border-primary bg-primary/5 shadow-sm" : "border-border/60"
-                                                )}
-                                            >
-                                                <div className="flex items-center gap-3">
-                                                    <div className={cn("w-4 h-4 rounded-full border-2 flex items-center justify-center", field.value === 'governorate' ? "border-primary bg-primary" : "border-muted-foreground")}>
-                                                        {field.value === 'governorate' && <div className="w-1.5 h-1.5 rounded-full bg-white" />}
-                                                    </div>
-                                                    <span className="font-bold text-sm">المحافظة بالكامل</span>
-                                                </div>
-                                                <span className="text-xs font-semibold text-primary bg-primary/10 px-2 py-1 rounded-md max-w-[130px] truncate">
-                                                    {userGovName || form.watch('governorate') || 'غير محددة'}
-                                                </span>
-                                            </FormLabel>
-                                        </FormItem>
+            {/* 3. الحي / المنطقة الفرعية (اختياري) */}
+            <FormField
+                control={form.control}
+                name="city"
+                render={({ field }) => (
+                    <FormItem>
+                        <FormLabel className="text-sm font-semibold flex items-center gap-2 text-foreground">
+                            <MapPin className="h-4 w-4 text-muted-foreground" />
+                            <span>3. الحي أو المنطقة الفرعية (اختياري)</span>
+                        </FormLabel>
+                        <FormControl>
+                            <div className="relative">
+                                <Input
+                                    placeholder="مثال: حي شهار / شارع التحلية / حي العليا"
+                                    {...field}
+                                    className="h-11 text-sm bg-background pl-10 placeholder:text-muted-foreground/60"
+                                />
+                                <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                            </div>
+                        </FormControl>
+                        <FormMessage />
+                    </FormItem>
+                )}
+            />
 
-                                        {/* الخيار 3: المدينة بالكامل */}
-                                        <FormItem>
-                                            <FormControl>
-                                                <RadioGroupItem value="city" id="scope-city" className="sr-only" />
-                                            </FormControl>
-                                            <FormLabel
-                                                htmlFor="scope-city"
-                                                className={cn(
-                                                    "flex items-center justify-between rounded-xl border-2 p-4 cursor-pointer transition-all hover:bg-accent/40",
-                                                    field.value === 'city' ? "border-primary bg-primary/5 shadow-sm" : "border-border/60"
-                                                )}
-                                            >
-                                                <div className="flex items-center gap-3">
-                                                    <div className={cn("w-4 h-4 rounded-full border-2 flex items-center justify-center", field.value === 'city' ? "border-primary bg-primary" : "border-muted-foreground")}>
-                                                        {field.value === 'city' && <div className="w-1.5 h-1.5 rounded-full bg-white" />}
-                                                    </div>
-                                                    <span className="font-bold text-sm">المدينة بالكامل</span>
-                                                </div>
-                                                <span className="text-xs font-semibold text-primary bg-primary/10 px-2 py-1 rounded-md max-w-[130px] truncate">
-                                                    {userCityName || form.watch('city') || 'غير محددة'}
-                                                </span>
-                                            </FormLabel>
-                                        </FormItem>
-
-                                        {/* الخيار 4: القرية بالكامل */}
-                                        <FormItem>
-                                            <FormControl>
-                                                <RadioGroupItem value="village" id="scope-village" className="sr-only" />
-                                            </FormControl>
-                                            <FormLabel
-                                                htmlFor="scope-village"
-                                                className={cn(
-                                                    "flex items-center justify-between rounded-xl border-2 p-4 cursor-pointer transition-all hover:bg-accent/40",
-                                                    field.value === 'village' ? "border-primary bg-primary/5 shadow-sm" : "border-border/60"
-                                                )}
-                                            >
-                                                <div className="flex items-center gap-3">
-                                                    <div className={cn("w-4 h-4 rounded-full border-2 flex items-center justify-center", field.value === 'village' ? "border-primary bg-primary" : "border-muted-foreground")}>
-                                                        {field.value === 'village' && <div className="w-1.5 h-1.5 rounded-full bg-white" />}
-                                                    </div>
-                                                    <span className="font-bold text-sm">القرية بالكامل</span>
-                                                </div>
-                                                <span className="text-xs font-semibold text-primary bg-primary/10 px-2 py-1 rounded-md max-w-[130px] truncate">
-                                                    {userVillageName || form.watch('village') || 'غير محددة'}
-                                                </span>
-                                            </FormLabel>
-                                        </FormItem>
-                                    </RadioGroup>
-                                </FormControl>
-                                <FormMessage />
-                            </FormItem>
-                        )}
-                    />
-
-                    {/* حقول أدخل المكان مباشرة لو لم تكن متوفرة بملف المستخدم */}
-                    {locationScope === 'governorate' && !userGovName && (
-                        <FormField
-                            control={form.control}
-                            name="governorate"
-                            render={({ field }) => (
-                                <FormItem className="pt-2 animate-in fade-in">
-                                    <FormLabel className="text-xs text-muted-foreground">اسم المحافظة / المنطقة</FormLabel>
-                                    <FormControl><Input placeholder="مثال: منطقة الرياض / محافظة القاهرة" {...field} /></FormControl>
-                                </FormItem>
-                            )}
-                        />
-                    )}
-                    {locationScope === 'city' && !userCityName && (
-                        <FormField
-                            control={form.control}
-                            name="city"
-                            render={({ field }) => (
-                                <FormItem className="pt-2 animate-in fade-in">
-                                    <FormLabel className="text-xs text-muted-foreground">اسم المدينة / الشارع الرئيسي</FormLabel>
-                                    <FormControl><Input placeholder="مثال: الرياض - شارع الملك فهد" {...field} /></FormControl>
-                                </FormItem>
-                            )}
-                        />
-                    )}
-                    {locationScope === 'village' && !userVillageName && (
-                        <FormField
-                            control={form.control}
-                            name="village"
-                            render={({ field }) => (
-                                <FormItem className="pt-2 animate-in fade-in">
-                                    <FormLabel className="text-xs text-muted-foreground">اسم الحي / الشارع التفصيلي</FormLabel>
-                                    <FormControl><Input placeholder="مثال: حي العليا - شارع التحلية" {...field} /></FormControl>
-                                </FormItem>
-                            )}
-                        />
-                    )}
+            {/* 4. شريط المعاينة الحي لشكل الموقع في الإعلان */}
+            <div className="rounded-xl border border-primary/20 bg-primary/5 p-3.5 sm:p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div className="flex items-center gap-2 text-sm font-semibold text-foreground">
+                    <span className="text-xs bg-primary text-primary-foreground px-2 py-0.5 rounded-full font-bold">
+                        معاينة
+                    </span>
+                    <span>شكل الموقع في بطاقة الإعلان:</span>
                 </div>
-            ) : (
-                /* 3. إذا اختار بلد آخر غير بلده الأصلي -> يظهر له مربع اختيار المحافظة ومربع كتابة الحي/الشارع التفصيلي */
-                <div className="space-y-4 pt-2 animate-in fade-in">
-                    <FormField
-                        control={form.control}
-                        name="governorate"
-                        render={({ field }) => (
-                            <FormItem>
-                                <FormLabel className="text-md font-semibold flex items-center gap-2">
-                                    <MapPin className="h-4 w-4 text-primary" />
-                                    اختر المدينة / المحافظة المستهدفة في {selectedMarket?.name.ar}
-                                </FormLabel>
-                                <Select onValueChange={field.onChange} value={field.value || 'country'} dir={direction}>
-                                    <FormControl>
-                                        <SelectTrigger className="h-12 text-base">
-                                            <SelectValue placeholder="اختر المدينة / المحافظة" />
-                                        </SelectTrigger>
-                                    </FormControl>
-                                    <SelectContent>
-                                        <SelectItem value="country" className="font-bold py-2">
-                                            الدولة بالكامل ({selectedMarket?.name.ar})
-                                        </SelectItem>
-                                        {selectedMarket?.majorCities && selectedMarket.majorCities.map((city) => (
-                                            <SelectItem key={city} value={city} className="py-2">
-                                                {city}
-                                            </SelectItem>
-                                        ))}
-                                    </SelectContent>
-                                </Select>
-                                <FormMessage />
-                            </FormItem>
-                        )}
-                    />
-
-                    {/* حقل تفاصيل الحي أو الشارع للمستهدفين في دول أخرى */}
-                    <FormField
-                        control={form.control}
-                        name="city"
-                        render={({ field }) => (
-                            <FormItem className="pt-1">
-                                <FormLabel className="text-sm font-semibold flex items-center gap-2 text-foreground">
-                                    <MapPin className="h-3.5 w-3.5 text-primary" />
-                                    <span>إضافة حي أو شارع أو منطقة تفصيلية (اختياري)</span>
-                                </FormLabel>
-                                <FormControl>
-                                    <div className="relative">
-                                        <Input
-                                            placeholder="مثال: شارع الملك فهد - حي العليا"
-                                            {...field}
-                                            className="h-11 text-sm bg-background pl-10 placeholder:text-muted-foreground/60"
-                                        />
-                                        <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                                    </div>
-                                </FormControl>
-                                <FormMessage />
-                            </FormItem>
-                        )}
-                    />
+                <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-background border shadow-xs text-sm font-bold text-primary max-w-full truncate">
+                    <MapPin className="h-4 w-4 text-primary shrink-0" />
+                    <span className="truncate">{liveLocationDisplay}</span>
                 </div>
-            )}
+            </div>
         </div>
 
         <Button type="submit" className="w-full py-6 text-lg" size="lg" disabled={isSubmitting}>

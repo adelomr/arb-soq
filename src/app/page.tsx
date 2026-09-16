@@ -36,8 +36,8 @@ export const metadata: Metadata = {
     description: 'بيع واشتري كل شيء في منطقتك. سيارات، عقارات، وتوظيف مجاناً.',
     images: [
       {
-        url: `${BASE_URL}/og-image.png?v=2`,
-        secureUrl: `${BASE_URL}/og-image.png?v=2`,
+        url: `${BASE_URL}/og-image.png`,
+        secureUrl: `${BASE_URL}/og-image.png`,
         width: 1200,
         height: 630,
         type: 'image/png',
@@ -49,7 +49,7 @@ export const metadata: Metadata = {
     card: 'summary_large_image',
     title: 'سوق العرب - بيع واشتري في منطقتك',
     description: 'أفضل العروض والخدمات في الوطن العربي والخليج.',
-    images: [`${BASE_URL}/og-image.png?v=2`],
+    images: [`${BASE_URL}/og-image.png`],
   },
 };
 
@@ -59,7 +59,7 @@ const jsonLd = {
   '@type': 'WebSite',
   name: 'سوق العرب',
   url: BASE_URL,
-  image: `${BASE_URL}/og-image.png?v=2`,
+  image: `${BASE_URL}/og-image.png`,
   description:
     'منصة الإعلانات المبوبة الأولى في الوطن العربي. بيع واشتري السيارات، العقارات والخدمات مجاناً.',
   inLanguage: 'ar',

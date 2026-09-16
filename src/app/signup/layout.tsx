@@ -27,8 +27,8 @@ export const metadata: Metadata = {
       'سجّل دخولك الآن بضغطة واحدة باستخدام Google وابدأ الإعلان والبيع والشراء في منطقتك.',
     images: [
       {
-        url: `${BASE_URL}/og-image.png?v=2`,
-        secureUrl: `${BASE_URL}/og-image.png?v=2`,
+        url: `${BASE_URL}/og-image.png`,
+        secureUrl: `${BASE_URL}/og-image.png`,
         width: 1200,
         height: 630,
         type: 'image/png',
@@ -40,7 +40,7 @@ export const metadata: Metadata = {
     card: 'summary_large_image',
     title: 'انضم إلى سوق العرب | سجّل بضغطة واحدة مع Google',
     description: 'سجّل الآن في منصة سوق العرب للبيع والشراء في منطقتك.',
-    images: [`${BASE_URL}/og-image.png?v=2`],
+    images: [`${BASE_URL}/og-image.png`],
   },
 };
 
