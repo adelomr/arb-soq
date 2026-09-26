@@ -30,8 +30,6 @@ import { ar } from 'date-fns/locale';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { useToast } from '@/hooks/use-toast';
 import { useView } from '@/context/ViewContext';
-import PackageAdsSlider from '@/components/PackageAdsSlider';
-import { getFairRotatedAds } from '@/lib/fairRotation';
 
 const Footer = dynamic(() => import('@/components/Footer'), { ssr: false });
 const QuickOptions = dynamic(() => import('@/components/QuickOptions'), {
@@ -104,6 +102,16 @@ export default function HomeClient() {
   const [recentTopics, setRecentTopics] = useState<BlogPost[]>([]);
   const [topicsLoading, setTopicsLoading] = useState(true);
 
+  // إبقاء الصفحة في أعلى الموقع دائماً عند الفتح أو التحديث (منع القفز لأسفل أو للمدونات)
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      if ('scrollRestoration' in window.history) {
+        window.history.scrollRestoration = 'manual';
+      }
+      window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
+    }
+  }, []);
+
   // Fetch blogs for topics section
   useEffect(() => {
     let isMounted = true;
@@ -153,15 +161,13 @@ export default function HomeClient() {
       return null;
     };
 
-    // 1. Golden Package Ads (الباقة الذهبية) - الأولوية مع التدوير العادل لضمان صدارة الجميع
+    // 1. Golden Package Ads (الباقة الذهبية) - الأولوية للأحدث في الباقة الذهبية
     const golden = validAds.filter(ad => getBoostTier(ad) === 'gold');
     golden.sort((a, b) => getAdTime(b) - getAdTime(a));
-    const rotatedGolden = getFairRotatedAds(golden, 10);
 
-    // 2. Silver Package Ads (الباقة الفضية) - الأولوية مع التدوير العادل لضمان صدارة الجميع
+    // 2. Silver Package Ads (الباقة الفضية) - الأولوية للأحدث في الباقة الفضية
     const silver = validAds.filter(ad => getBoostTier(ad) === 'silver');
     silver.sort((a, b) => getAdTime(b) - getAdTime(a));
-    const rotatedSilver = getFairRotatedAds(silver, 10);
 
     // 3. Regular / Free Latest Ads (أحدث الإعلانات العادية المجانية) - الأولوية للأحدث
     const allLatest = validAds.filter(ad => getBoostTier(ad) === null);
@@ -173,8 +179,8 @@ export default function HomeClient() {
     );
     used.sort((a, b) => getAdTime(b) - getAdTime(a));
     
-    setGoldenAds(rotatedGolden);
-    setSilverAds(rotatedSilver);
+    setGoldenAds(golden);
+    setSilverAds(silver);
     setLatestAds(allLatest);
     setUsedAds(used);
     setAdsLoading(false);
@@ -243,44 +249,62 @@ export default function HomeClient() {
                       </section>
                     ) : (
                       <>
-                        {/* 1. إعلانات الباقة الذهبية - سلايدر تمرير دوري كل 5 ثوانٍ */}
+                        {/* 1. إعلانات الباقة الذهبية */}
                         {goldenAds.length > 0 && (
-                          <PackageAdsSlider 
-                            ads={goldenAds} 
-                            tier="gold" 
-                            intervalSeconds={5} 
-                            title={t.goldenAds}
-                          />
+                          <section className="mb-10">
+                            <div className="flex justify-between items-center mb-4 sm:mb-6">
+                              <h2 className="text-xl sm:text-2xl font-bold font-headline flex items-center gap-2.5 text-amber-600 dark:text-amber-400">
+                                <span className="p-1.5 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-500 flex items-center justify-center shadow-xs">
+                                  <Crown className="h-5 w-5" />
+                                </span>
+                                <span>{t.goldenAds}</span>
+                              </h2>
+                            </div>
+                            {renderAdView(goldenAds)}
+                          </section>
                         )}
 
-                        {/* 2. إعلانات الباقة الفضية - سلايدر تمرير دوري كل 6 ثوانٍ */}
+                        {/* 2. إعلانات الباقة الفضية */}
                         {silverAds.length > 0 && (
-                          <PackageAdsSlider 
-                            ads={silverAds} 
-                            tier="silver" 
-                            intervalSeconds={6} 
-                            title={t.silverAds}
-                          />
+                          <section className="mb-10">
+                            <div className="flex justify-between items-center mb-4 sm:mb-6">
+                              <h2 className="text-xl sm:text-2xl font-bold font-headline flex items-center gap-2.5 text-slate-700 dark:text-slate-200">
+                                <span className="p-1.5 rounded-xl bg-slate-500/10 border border-slate-500/20 text-slate-500 dark:text-slate-300 flex items-center justify-center shadow-xs">
+                                  <Sparkles className="h-5 w-5" />
+                                </span>
+                                <span>{t.silverAds}</span>
+                              </h2>
+                            </div>
+                            {renderAdView(silverAds)}
+                          </section>
                         )}
 
-                        {/* 3. أحدث الإعلانات العادية المجانية - تمرير دوري */}
-                        {latestAds.length > 0 && (
-                          <PackageAdsSlider 
-                            ads={latestAds} 
-                            tier="latest" 
-                            intervalSeconds={6} 
-                            title={t.latestAds}
-                          />
-                        )}
+                        {/* 3. أحدث الإعلانات العادية المجانية */}
+                        <section className="mb-10">
+                          <div className="flex justify-between items-center mb-4 sm:mb-6">
+                            <h2 className="text-xl sm:text-2xl font-bold font-headline flex items-center gap-2.5 text-foreground">
+                              <span className="p-1.5 rounded-xl bg-primary/10 text-primary flex items-center justify-center shadow-xs">
+                                <Clock className="h-5 w-5" />
+                              </span>
+                              <span>{t.latestAds}</span>
+                            </h2>
+                          </div>
+                          {renderAdView(latestAds)}
+                        </section>
                         
-                        {/* 4. سوق المستعمل - تمرير دوري */}
+                        {/* 4. سوق المستعمل */}
                         {usedAds.length > 0 && (
-                          <PackageAdsSlider 
-                            ads={usedAds} 
-                            tier="used" 
-                            intervalSeconds={7} 
-                            title={t.usedMarket}
-                          />
+                          <section className="mt-10">
+                             <div className="flex justify-between items-center mb-4 sm:mb-6">
+                               <h2 className="text-xl sm:text-2xl font-bold font-headline flex items-center gap-2.5 text-foreground">
+                                 <span className="p-1.5 rounded-xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shadow-xs">
+                                   <RotateCcw className="h-5 w-5" />
+                                 </span>
+                                 <span>{t.usedMarket}</span>
+                               </h2>
+                            </div>
+                            {renderAdView(usedAds)}
+                          </section>
                         )}
                       </>
                     )}
@@ -301,7 +325,7 @@ export default function HomeClient() {
 
         {/* Topics Section */}
         {(topicsLoading || recentTopics.length > 0) && (
-          <section className="bg-secondary/30 border-t border-b py-12 my-8 content-auto min-h-[400px]">
+          <section className="bg-secondary/30 border-t border-b py-12 my-8">
             <div className="container mx-auto px-4">
               <div className="flex justify-between items-center mb-8 text-right font-headline" dir="rtl">
                 <div>

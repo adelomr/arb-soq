@@ -30,6 +30,7 @@ export function MarketProvider({ children }: { children: ReactNode }) {
     if (typeof window !== 'undefined') {
       // نحفظ فقط تحت مفتاح "اختيار المستخدم اليدوي" الصريح
       localStorage.setItem('userSelectedMarketId', newMarket.id);
+      window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
     }
   }, []);
 

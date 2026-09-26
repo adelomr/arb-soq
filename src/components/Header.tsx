@@ -292,7 +292,7 @@ export default function Header() {
           </Link>
         </div>
       )}
-      <header className="sticky top-0 z-40 w-full max-w-full overflow-hidden border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+      <header className="sticky top-0 z-40 w-full max-w-full overflow-x-clip border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
         <div className="container flex h-20 items-center justify-between gap-2 sm:gap-4">
           <div className="flex items-center gap-2 md:gap-6">
             <Link href="/" className="flex items-center gap-2 font-bold text-lg font-headline group/logo">
@@ -378,7 +378,7 @@ export default function Header() {
               <span className="sr-only">{currentLabels.toggleTheme}</span>
             </Button>
             
-            <DropdownMenu>
+            <DropdownMenu modal={false}>
               <DropdownMenuTrigger asChild>
                 <Button variant="outline" className="h-9 sm:h-10 px-2 sm:px-3 justify-between max-w-[120px] xs:max-w-none">
                     <span className="hidden xs:inline flex-1 text-left truncate">{market.name.ar}</span>
@@ -419,7 +419,7 @@ export default function Header() {
                   </Link>
                 )}
 
-                <DropdownMenu onOpenChange={handleOpenNotifications}>
+                <DropdownMenu modal={false} onOpenChange={handleOpenNotifications}>
                   <DropdownMenuTrigger asChild>
                     <Button variant="ghost" size="icon" className="relative h-9 w-9 sm:h-10 sm:w-10">
                       <Bell className="h-5 w-5" />
@@ -491,7 +491,7 @@ export default function Header() {
                   </DropdownMenuContent>
                 </DropdownMenu>
 
-                <DropdownMenu>
+                <DropdownMenu modal={false}>
                   <DropdownMenuTrigger asChild>
                     <Button variant="ghost" className="relative h-10 w-10 rounded-full">
                       <Avatar className="h-10 w-10">

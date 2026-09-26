@@ -119,6 +119,22 @@ export default function RootLayout({
             />
           </>
         )}
+        <script
+          id="scroll-restoration-fix"
+          dangerouslySetInnerHTML={{
+            __html: `
+              if (typeof window !== 'undefined') {
+                if ('scrollRestoration' in history) {
+                  history.scrollRestoration = 'manual';
+                }
+                window.scrollTo(0, 0);
+                window.addEventListener('beforeunload', function() {
+                  window.scrollTo(0, 0);
+                });
+              }
+            `,
+          }}
+        />
       </head>
       <body className={`${cairo.variable} min-h-screen w-full max-w-full overflow-x-clip bg-background font-body text-base flex flex-col antialiased`} suppressHydrationWarning>
         <Script
