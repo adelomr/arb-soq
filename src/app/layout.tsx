@@ -119,8 +119,11 @@ export default function RootLayout({
             />
           </>
         )}
-        <script
+      </head>
+      <body className={`${cairo.variable} min-h-screen w-full max-w-full overflow-x-clip bg-background font-body text-base flex flex-col antialiased`} suppressHydrationWarning>
+        <Script
           id="scroll-restoration-fix"
+          strategy="beforeInteractive"
           dangerouslySetInnerHTML={{
             __html: `
               if (typeof window !== 'undefined') {
@@ -135,8 +138,6 @@ export default function RootLayout({
             `,
           }}
         />
-      </head>
-      <body className={`${cairo.variable} min-h-screen w-full max-w-full overflow-x-clip bg-background font-body text-base flex flex-col antialiased`} suppressHydrationWarning>
         <Script
           id="google-gtm"
           async
