@@ -1,6 +1,5 @@
-import type { NextConfig } from 'next';
-
-const nextConfig: NextConfig = {
+/** @type {import('next').NextConfig} */
+const nextConfig = {
   compress: true,
   poweredByHeader: false,
   allowedDevOrigins: ['192.168.1.3', '192.168.1.6', 'localhost'],
@@ -110,12 +109,10 @@ const nextConfig: NextConfig = {
     ];
 
     return [
-      // رؤوس الأمان لجميع الصفحات
       {
         source: '/(.*)',
         headers: securityHeaders,
       },
-      // كاش الأصول الثابتة
       {
         source: '/:all*(svg|jpg|png|webp|avif|woff2)',
         headers: [
@@ -129,4 +126,4 @@ const nextConfig: NextConfig = {
   },
 };
 
-export default nextConfig;
+module.exports = nextConfig;
