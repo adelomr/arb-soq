@@ -135,10 +135,25 @@ export default function HomeClient() {
 
     const getAdTime = (ad: any): number => {
       if (ad.postedAt) {
+        if (typeof ad.postedAt?.toDate === 'function') {
+          try { return ad.postedAt.toDate().getTime(); } catch {}
+        }
+        if (typeof ad.postedAt === 'object' && 'seconds' in ad.postedAt) {
+          return ad.postedAt.seconds * 1000;
+        }
         const t = new Date(ad.postedAt).getTime();
         if (!isNaN(t) && t > 0) return t;
       }
       if (ad.createdAt) {
+        if (typeof ad.createdAt?.toDate === 'function') {
+          try { return ad.createdAt.toDate().getTime(); } catch {}
+        }
+        if (typeof ad.createdAt?.toMillis === 'function') {
+          try { return ad.createdAt.toMillis(); } catch {}
+        }
+        if (typeof ad.createdAt === 'object' && 'seconds' in ad.createdAt) {
+          return ad.createdAt.seconds * 1000;
+        }
         const t = new Date(ad.createdAt).getTime();
         if (!isNaN(t) && t > 0) return t;
       }
@@ -169,14 +184,12 @@ export default function HomeClient() {
     const silver = validAds.filter(ad => getBoostTier(ad) === 'silver');
     silver.sort((a, b) => getAdTime(b) - getAdTime(a));
 
-    // 3. Regular / Free Latest Ads (أحدث الإعلانات العادية المجانية) - الأولوية للأحدث
-    const allLatest = validAds.filter(ad => getBoostTier(ad) === null);
+    // 3. Latest Ads (أحدث الإعلانات) - حفظ ترتيب الإعلان حسب تاريخ إنشائه حتى بعد ترقيته للباقة الفضية أو الذهبية
+    const allLatest = [...validAds];
     allLatest.sort((a, b) => getAdTime(b) - getAdTime(a));
 
     // 4. Used Market Ads (سوق المستعمل) - الأولوية للأحدث
-    const used = validAds.filter(ad => 
-      ad.condition === 'used' && getBoostTier(ad) === null
-    );
+    const used = validAds.filter(ad => ad.condition === 'used');
     used.sort((a, b) => getAdTime(b) - getAdTime(a));
     
     setGoldenAds(golden);

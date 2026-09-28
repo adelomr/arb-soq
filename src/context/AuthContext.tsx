@@ -1469,11 +1469,38 @@ const getAds = useCallback((
       allAds = [...allAds, ...taggedAds];
       
       let finalAds = uniqueByKey(allAds, 'id');
-      finalAds.sort((a, b) => {
-          const dateA = a.postedAt ? new Date(a.postedAt).getTime() : 0;
-          const dateB = b.postedAt ? new Date(b.postedAt).getTime() : 0;
-          return dateB - dateA;
-      });
+      const getAdTimeMs = (x: any): number => {
+        if (x.postedAt) {
+          if (typeof x.postedAt?.toDate === 'function') {
+            try { return x.postedAt.toDate().getTime(); } catch {}
+          }
+          if (typeof x.postedAt === 'object' && 'seconds' in x.postedAt) {
+            return x.postedAt.seconds * 1000;
+          }
+          const t = new Date(x.postedAt).getTime();
+          if (!isNaN(t) && t > 0) return t;
+        }
+        if (x.createdAt) {
+          if (typeof x.createdAt?.toDate === 'function') {
+            try { return x.createdAt.toDate().getTime(); } catch {}
+          }
+          if (typeof x.createdAt?.toMillis === 'function') {
+            try { return x.createdAt.toMillis(); } catch {}
+          }
+          if (typeof x.createdAt === 'object' && 'seconds' in x.createdAt) {
+            return x.createdAt.seconds * 1000;
+          }
+          const t = new Date(x.createdAt).getTime();
+          if (!isNaN(t) && t > 0) return t;
+        }
+        if (x.timestamp) {
+          const t = Number(x.timestamp);
+          if (!isNaN(t) && t > 0) return t;
+        }
+        return 0;
+      };
+
+      finalAds.sort((a, b) => getAdTimeMs(b) - getAdTimeMs(a));
       
       if (filters.categories && !filters.userId && !filters.categories.includes('store-product')) {
           finalAds = finalAds.filter(ad => filters.categories?.includes(ad.category));

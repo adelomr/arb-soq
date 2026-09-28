@@ -156,7 +156,8 @@ export default function SooqBaladnaClient() {
         );
       });
 
-      const regular = validAds.filter((ad) => !isBoostActive(ad));
+      // تشمل أحدث الإعلانات جميع الإعلانات حتى بعد ترقيتها مع الحفاظ على ترتيب الأحدث
+      const regular = [...validAds];
 
       setPromotedAds(promoted);
       setLatestAds(regular);

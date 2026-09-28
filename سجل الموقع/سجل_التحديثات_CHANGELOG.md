@@ -2,6 +2,18 @@
 
 هذا السجل يوثق التعديلات والتحسينات المعمارية والبرمجية المنجزة لتكون مرجعاً دائمًا لفريق التطوير.
 
+## [إصلاح اختفاء الإعلانات من قسم أحدث الإعلانات عند ترقيتها للباقة الفضية أو الذهبية] - 2026-09-29
+
+### 1. حفظ الترتيب الزمني الدقيق للإعلان في أحدث الإعلانات وفق تاريخ إنشائه حتى بعد الترقية
+- **السبب الجذري:** كان كود تصفية أحدث الإعلانات في الصفحة الرئيسية يستثني صراحةً أي إعلان يمتلك باقة تمييز نشطة (`getBoostTier(ad) === null`)، مما أدى لاختفاء الإعلانات المرقاة فوراً من قسم «أحدث الإعلانات» وكذلك قسم «سوق المستعمل».
+- **التعديلات المنفذة:**
+  - في [HomeClient.tsx](file:///d:/mashro3/mashroh/arb-soq/arb_soq.wap/arb_soq.wap/src/app/HomeClient.tsx): شمل جميع الإعلانات في مصفوفة أحدث الإعلانات وترتيبها تنازلياً وفق تاريخ الإنشاء الأصلي، وإلغاء استبعاد الباقات من قسم المستعمل، وتطوير دالة `getAdTime` لتتعامل بمرونة واحترافية مع كائنات `Timestamp` و `Date` ونصوص التواريخ.
+  - في [SooqBaladnaClient.tsx](file:///d:/mashro3/mashroh/arb-soq/arb_soq.wap/arb_soq.wap/src/app/sooq-baladna/SooqBaladnaClient.tsx): شمل كافة الإعلانات في قسم أحدث الإعلانات دون استبعاد الإعلانات المميزة.
+  - في [AuthContext.tsx](file:///d:/mashro3/mashroh/arb-soq/arb_soq.wap/arb_soq.wap/src/context/AuthContext.tsx): تحسين معالجة تواريخ الإنشاء والنشر عند فرز الإعلانات المسترجعة عبر `getAds`.
+  - توثيق تفاصيل الإصلاح في [BUG-013](file:///d:/mashro3/mashroh/arb-soq/arb_soq.wap/arb_soq.wap/سجل%20الموقع/تاريخ_الأخطاء_والإصلاحات/BUG-013-upgraded-ads-disappearing-from-latest-ads.md).
+
+---
+
 ## [إصلاح انهيار الخادم السحابي وخطأ 500 بعد النشر - تحويل next.config.ts إلى next.config.js] - 2026-09-27
 
 ### 1. حل خطأ 500 Internal Server Error الصادر من Firebase Cloud Functions
