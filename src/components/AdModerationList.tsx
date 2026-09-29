@@ -1,5 +1,5 @@
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { useAuth } from '@/context/AuthContext';
@@ -66,6 +66,7 @@ import {
 } from '@/components/ui/dialog';
 import AdForm from '@/components/AdForm';
 import AdminFeatureAdDialog from '@/components/AdminFeatureAdDialog';
+import { detectCountry, ALL_COUNTRIES } from '@/lib/country-helpers';
 
 const translations = {
   ar: {
@@ -286,6 +287,20 @@ export default function AdModerationList() {
     return 'all';
   });
 
+  const [selectedTimeframe, setSelectedTimeframe] = useState<string>(() => {
+    if (typeof window !== 'undefined') {
+      return sessionStorage.getItem('admin_mod_timeframe') || 'all';
+    }
+    return 'all';
+  });
+
+  const [selectedCountry, setSelectedCountry] = useState<string>(() => {
+    if (typeof window !== 'undefined') {
+      return sessionStorage.getItem('admin_mod_country') || 'all';
+    }
+    return 'all';
+  });
+
   const [searchQuery, setSearchQuery] = useState<string>(() => {
     if (typeof window !== 'undefined') {
       return sessionStorage.getItem('admin_mod_search') || '';
@@ -308,9 +323,78 @@ export default function AdModerationList() {
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
+      sessionStorage.setItem('admin_mod_timeframe', selectedTimeframe);
+    }
+  }, [selectedTimeframe]);
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      sessionStorage.setItem('admin_mod_country', selectedCountry);
+    }
+  }, [selectedCountry]);
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
       sessionStorage.setItem('admin_mod_search', searchQuery);
     }
   }, [searchQuery]);
+
+  // دالة مساعدة لاستخراج دولة الإعلان بدقة
+  const getAdCountry = (ad: AdWithId) => {
+    return detectCountry({
+      country: (ad as any).country || ad.user?.country,
+      market: ad.market || (ad.user as any)?.market,
+      phoneNumber: (ad as any).phoneNumber || (ad as any).phone || ad.user?.phoneNumber,
+      location: ad.location,
+      province: ad.province,
+      governorate: (ad as any).governorate,
+      city: (ad as any).city,
+    });
+  };
+
+  // حساب أعداد الإعلانات لكل دولة للأعلام
+  const activeAdCountries = useMemo(() => {
+    const list: { id: string; name: string; flag: string; count: number }[] = [];
+    ALL_COUNTRIES.forEach((c) => {
+      const count = ads.filter((ad) => getAdCountry(ad).id === c.id).length;
+      if (count > 0) {
+        list.push({ id: c.id, name: c.name, flag: c.flag, count });
+      }
+    });
+
+    const otherCount = ads.filter((ad) => getAdCountry(ad).id === 'other').length;
+    if (otherCount > 0) {
+      list.push({ id: 'other', name: 'أخرى', flag: '🌐', count: otherCount });
+    }
+
+    return list.sort((a, b) => b.count - a.count);
+  }, [ads]);
+
+  // حساب أعداد الإعلانات المضافة حديثاً حسب الفترات الزمنية
+  const timeCounts = useMemo(() => {
+    const now = new Date();
+    const twentyFourHoursAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+    const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0, 0);
+    const startOfYear = new Date(now.getFullYear(), 0, 1, 0, 0, 0, 0);
+
+    let count24h = 0;
+    let count7d = 0;
+    let countMonth = 0;
+    let countYear = 0;
+
+    ads.forEach((ad) => {
+      const adDate = safeParseDate(ad.postedAt || ad.timestamp);
+      if (adDate) {
+        if (adDate >= twentyFourHoursAgo) count24h++;
+        if (adDate >= sevenDaysAgo) count7d++;
+        if (adDate >= startOfMonth) countMonth++;
+        if (adDate >= startOfYear) countYear++;
+      }
+    });
+
+    return { count24h, count7d, countMonth, countYear };
+  }, [ads]);
 
   const { language, direction } = useLanguage();
   const { toast } = useToast();
@@ -487,14 +571,43 @@ export default function AdModerationList() {
       }
     }
 
-    // 3. Search Query Filter
+    // 3. Timeframe Filter (تاريخ إضافة الإعلان)
+    if (selectedTimeframe !== 'all') {
+      const now = new Date();
+      const adDate = safeParseDate(ad.postedAt || ad.timestamp);
+      if (!adDate) return false;
+
+      if (selectedTimeframe === '24h') {
+        const twentyFourHoursAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+        if (adDate < twentyFourHoursAgo) return false;
+      } else if (selectedTimeframe === '7d') {
+        const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+        if (adDate < sevenDaysAgo) return false;
+      } else if (selectedTimeframe === 'month') {
+        const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0, 0);
+        if (adDate < startOfMonth) return false;
+      } else if (selectedTimeframe === 'year') {
+        const startOfYear = new Date(now.getFullYear(), 0, 1, 0, 0, 0, 0);
+        if (adDate < startOfYear) return false;
+      }
+    }
+
+    // 4. Country Filter (فلتر الدولة بالأعلام)
+    if (selectedCountry !== 'all') {
+      const adCountry = getAdCountry(ad);
+      if (adCountry.id !== selectedCountry) return false;
+    }
+
+    // 5. Search Query Filter
     if (searchQuery.trim()) {
       const q = searchQuery.toLowerCase().trim();
+      const adCountry = getAdCountry(ad);
       const titleMatch = (ad.title || '').toLowerCase().includes(q);
       const userMatch = (ad.user?.name || ad.userId || '').toLowerCase().includes(q);
       const locationMatch = (ad.location || '').toLowerCase().includes(q);
       const idMatch = (ad.id || '').toLowerCase().includes(q);
-      if (!titleMatch && !userMatch && !locationMatch && !idMatch) {
+      const countryMatch = adCountry.name.toLowerCase().includes(q);
+      if (!titleMatch && !userMatch && !locationMatch && !idMatch && !countryMatch) {
         return false;
       }
     }
@@ -514,15 +627,19 @@ export default function AdModerationList() {
     { id: 'needs_update', name: '⚠️ بحاجة لتحديث الفئة', count: needsCategoryUpdateCount },
   ];
 
-  const hasActiveFilters = selectedCategory !== 'all' || selectedStatus !== 'all' || searchQuery.trim() !== '';
+  const hasActiveFilters = selectedCategory !== 'all' || selectedStatus !== 'all' || selectedTimeframe !== 'all' || selectedCountry !== 'all' || searchQuery.trim() !== '';
 
   const resetFilters = () => {
     setSelectedCategory('all');
     setSelectedStatus('all');
+    setSelectedTimeframe('all');
+    setSelectedCountry('all');
     setSearchQuery('');
     if (typeof window !== 'undefined') {
       sessionStorage.removeItem('admin_mod_category');
       sessionStorage.removeItem('admin_mod_status');
+      sessionStorage.removeItem('admin_mod_timeframe');
+      sessionStorage.removeItem('admin_mod_country');
       sessionStorage.removeItem('admin_mod_search');
     }
   };
@@ -623,8 +740,93 @@ export default function AdModerationList() {
               </div>
             </div>
 
+            {/* أزرار فلترة تاريخ الإضافة السريعة (آخر 24 ساعة، آخر 7 أيام، الشهر الحالي، هذا العام) */}
+            <div className="flex flex-wrap items-center gap-1.5 pt-2 border-t border-border/40 text-xs">
+              <span className="text-muted-foreground font-semibold ml-2 flex items-center gap-1">
+                <Clock className="h-3.5 w-3.5 text-primary" />
+                <span>تاريخ الإضافة:</span>
+              </span>
+              {[
+                { id: 'all', label: 'كل الأوقات', count: ads.length },
+                { id: '24h', label: 'آخر 24 ساعة ⚡', count: timeCounts.count24h },
+                { id: '7d', label: 'آخر 7 أيام ⏱️', count: timeCounts.count7d },
+                { id: 'month', label: 'الشهر الحالي 📅', count: timeCounts.countMonth },
+                { id: 'year', label: 'هذا العام 🗓️', count: timeCounts.countYear },
+              ].map((tf) => (
+                <button
+                  key={tf.id}
+                  onClick={() => setSelectedTimeframe(tf.id)}
+                  className={cn(
+                    "px-3 py-1 rounded-lg transition-all font-medium flex items-center gap-1.5",
+                    selectedTimeframe === tf.id
+                      ? "bg-primary text-primary-foreground shadow-sm font-bold"
+                      : "bg-background hover:bg-muted text-muted-foreground border border-border/60"
+                  )}
+                >
+                  <span>{tf.label}</span>
+                  <span className={cn(
+                    "text-2xs px-1.5 py-0.2 rounded-full",
+                    selectedTimeframe === tf.id 
+                      ? "bg-primary-foreground/20 text-primary-foreground" 
+                      : "bg-muted text-muted-foreground"
+                  )}>
+                    {tf.count}
+                  </span>
+                </button>
+              ))}
+            </div>
+
+            {/* 🌍 أزرار فلترة الدولة بالأعلام مع إظهار عدد الإعلانات لكل دولة */}
+            <div className="flex flex-wrap items-center gap-1.5 pt-2 border-t border-border/40 text-xs">
+              <span className="text-muted-foreground font-semibold ml-2 flex items-center gap-1">
+                <span>الدولة:</span>
+              </span>
+              <button
+                onClick={() => setSelectedCountry('all')}
+                className={cn(
+                  "px-3 py-1 rounded-lg transition-all font-medium flex items-center gap-1.5",
+                  selectedCountry === 'all'
+                    ? "bg-primary text-primary-foreground shadow-sm font-bold"
+                    : "bg-background hover:bg-muted text-muted-foreground border border-border/60"
+                )}
+              >
+                <span>جميع الدول 🌐</span>
+                <span className={cn(
+                  "text-2xs px-1.5 py-0.2 rounded-full",
+                  selectedCountry === 'all' 
+                    ? "bg-primary-foreground/20 text-primary-foreground" 
+                    : "bg-muted text-muted-foreground"
+                )}>
+                  {ads.length}
+                </span>
+              </button>
+              {activeAdCountries.map((c) => (
+                <button
+                  key={c.id}
+                  onClick={() => setSelectedCountry(c.id)}
+                  className={cn(
+                    "px-3 py-1 rounded-lg transition-all font-medium flex items-center gap-1.5",
+                    selectedCountry === c.id
+                      ? "bg-primary text-primary-foreground shadow-sm font-bold"
+                      : "bg-background hover:bg-muted text-muted-foreground border border-border/60"
+                  )}
+                >
+                  <span className="text-sm">{c.flag}</span>
+                  <span>{c.name}</span>
+                  <span className={cn(
+                    "text-2xs px-1.5 py-0.2 rounded-full",
+                    selectedCountry === c.id 
+                      ? "bg-primary-foreground/20 text-primary-foreground" 
+                      : "bg-muted text-muted-foreground"
+                  )}>
+                    {c.count}
+                  </span>
+                </button>
+              ))}
+            </div>
+
             {/* أزرار فلترة الحالة السريعة */}
-            <div className="flex flex-wrap items-center gap-1.5 pt-1 border-t border-border/40 text-xs">
+            <div className="flex flex-wrap items-center gap-1.5 pt-2 border-t border-border/40 text-xs">
               <span className="text-muted-foreground font-semibold ml-2 flex items-center gap-1">
                 <Filter className="h-3.5 w-3.5" />
                 <span>الحالة:</span>
@@ -695,6 +897,7 @@ export default function AdModerationList() {
                       const hasImage = (ad.imageUrls && ad.imageUrls.length > 0) || (ad as any).imageUrl;
                       const imageSrc = (ad.imageUrls && ad.imageUrls.length > 0) ? ad.imageUrls[0] : (ad as any).imageUrl;
                       const needsCatUpdate = checkNeedsCategoryUpdate(ad, categories);
+                      const adCountry = getAdCountry(ad);
 
                       const isBoostActive = Boolean(
                         (ad.featuredTier === 'gold' || ad.featuredTier === 'silver') &&
@@ -720,10 +923,21 @@ export default function AdModerationList() {
                             )}
                           </TableCell>
 
-                          {/* Title Cell مع عداد الوقت أسفل العنوان */}
+                          {/* Title Cell مع رمز العلم وعدّاد الوقت أسفل العنوان */}
                           <TableCell className="font-medium">
                             <div className="flex flex-col gap-1.5 items-start">
-                              <span className="font-semibold text-foreground">{ad.title}</span>
+                              <div className="flex items-center gap-1.5 flex-wrap">
+                                <span className="text-base select-none" title={`الدولة: ${adCountry.name}`}>
+                                  {adCountry.flag}
+                                </span>
+                                <span className="font-semibold text-foreground">{ad.title}</span>
+                              </div>
+                              {ad.location && (
+                                <span className="text-2xs text-muted-foreground flex items-center gap-1">
+                                  <span>📍</span>
+                                  <span>{ad.location}</span>
+                                </span>
+                              )}
                               {isBoostActive && ad.featuredUntil && (
                                 <FeaturedCountdownBadge
                                   featuredUntil={ad.featuredUntil}

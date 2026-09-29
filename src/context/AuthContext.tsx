@@ -137,6 +137,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       profession: data.profession || '',
       specialization: data.specialization || '',
       portfolioImages: [],
+      createdAt: serverTimestamp(),
     };
     await setDoc(doc(firestore, 'users', uid), userProfileData);
     setUserProfile({ id: uid, ...userProfileData });
@@ -148,6 +149,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     
     if (userDoc.exists()) {
       const profileData = { id: userDoc.id, ...userDoc.data() } as Omit<UserProfile, 'store'>;
+      
+      // إذا لم يكن العضو يمتلك تاريخ تسجيل، يتم حفظ تاريخ إنشائه الفعلي من فايربيس أو تاريخ حديث وتحديثه في قاعدة البيانات
+      if (!profileData.createdAt) {
+        const creationTime = firebaseUser.metadata.creationTime 
+          ? new Date(firebaseUser.metadata.creationTime).toISOString() 
+          : new Date().toISOString();
+        profileData.createdAt = creationTime;
+        try {
+          await updateDoc(userDocRef, { createdAt: creationTime });
+        } catch (e) {
+          console.warn("Could not backfill user createdAt in userDoc:", e);
+        }
+      }
       
       try {
           const adminDocRef = doc(firestore, 'admins', firebaseUser.uid);
@@ -196,6 +210,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         profession: '',
         specialization: '',
         portfolioImages: [],
+        createdAt: firebaseUser.metadata.creationTime ? new Date(firebaseUser.metadata.creationTime).toISOString() : serverTimestamp(),
       };
 
       try {

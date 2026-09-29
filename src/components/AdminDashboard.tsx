@@ -1,11 +1,10 @@
-
 'use client';
 
 import { useEffect, useState, useMemo } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { UserProfile, Ad } from '@/lib/types';
 import { firestore } from '@/lib/firebase';
-import { collection, getDocs } from 'firebase/firestore';
+import { collection, getDocs, doc, updateDoc } from 'firebase/firestore';
 import {
   Table,
   TableBody,
@@ -24,6 +23,13 @@ import {
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 import { 
   Ban, 
   Trash2, 
@@ -36,7 +42,13 @@ import {
   Sparkles, 
   Award, 
   User as UserIcon,
-  Phone
+  Phone,
+  Mail,
+  Calendar,
+  Layers,
+  CheckCircle2,
+  AlertCircle,
+  ExternalLink
 } from 'lucide-react';
 import {
   AlertDialog,
@@ -49,8 +61,10 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import Image from 'next/image';
+import Link from 'next/link';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
+import { detectCountry, ALL_COUNTRIES } from '@/lib/country-helpers';
 
 const translations = {
   ar: {
@@ -102,7 +116,52 @@ type DialogState = {
   user: UserWithId | null;
 };
 
-type UserFilterType = 'all' | 'gold' | 'silver' | 'regular' | 'admin' | 'suspended';
+type UserFilterType = 
+  | 'all' 
+  | 'new_7days' 
+  | 'new_month' 
+  | 'new_year' 
+  | 'gold' 
+  | 'silver' 
+  | 'regular' 
+  | 'admin' 
+  | 'suspended';
+
+/**
+ * دالة مساعدة لتحليل تاريخ التسجيل من مختلف الصيغ
+ */
+function parseRegistrationDate(createdAt: any): Date | null {
+  if (!createdAt) return null;
+  if (typeof createdAt?.toDate === 'function') {
+    try { return createdAt.toDate(); } catch {}
+  } else if (typeof createdAt === 'object' && 'seconds' in createdAt) {
+    return new Date(createdAt.seconds * 1000);
+  } else if (typeof createdAt === 'number') {
+    return new Date(createdAt);
+  } else if (createdAt instanceof Date && !isNaN(createdAt.getTime())) {
+    return createdAt;
+  } else if (typeof createdAt === 'string') {
+    const d = new Date(createdAt);
+    if (!isNaN(d.getTime())) return d;
+  }
+  return null;
+}
+
+/**
+ * تنسيق تاريخ تسجيل المستخدم إلى العربية
+ */
+function getFormattedRegistrationDate(createdAt: any): string {
+  const date = parseRegistrationDate(createdAt) || new Date();
+  try {
+    return new Intl.DateTimeFormat('ar-EG', {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric'
+    }).format(date);
+  } catch {
+    return date.toLocaleDateString('ar-EG');
+  }
+}
 
 export default function AdminDashboard() {
   const { user: currentUser, getAllUsers, updateUserProfile } = useAuth();
@@ -110,11 +169,29 @@ export default function AdminDashboard() {
   const [ads, setAds] = useState<Ad[]>([]);
   const [loading, setLoading] = useState(true);
   const [dialogState, setDialogState] = useState<DialogState>({ isOpen: false, action: null, user: null });
+  const [selectedUser, setSelectedUser] = useState<UserWithId | null>(null);
   const [filter, setFilter] = useState<UserFilterType>('all');
+  const [selectedCountry, setSelectedCountry] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState<string>('');
   
   const t = translations.ar;
   const { toast } = useToast();
+
+  // حساب أعداد المستخدمين لكل دولة للأعلام
+  const activeCountries = useMemo(() => {
+    const list: { id: string; name: string; flag: string; count: number }[] = [];
+    ALL_COUNTRIES.forEach((c) => {
+      const count = users.filter((u) => detectCountry(u).id === c.id).length;
+      if (count > 0) {
+        list.push({ id: c.id, name: c.name, flag: c.flag, count });
+      }
+    });
+    const otherCount = users.filter((u) => detectCountry(u).id === 'other').length;
+    if (otherCount > 0) {
+      list.push({ id: 'other', name: 'أخرى', flag: '🌐', count: otherCount });
+    }
+    return list.sort((a, b) => b.count - a.count);
+  }, [users]);
 
   const fetchUsersAndAds = async () => {
     setLoading(true);
@@ -123,15 +200,38 @@ export default function AdminDashboard() {
         getAllUsers(),
         getDocs(collection(firestore, 'ads')).catch(() => null),
       ]);
-      setUsers(allUsers || []);
 
+      const fetchedAds: Ad[] = [];
       if (adsSnap && !adsSnap.empty) {
-        const fetchedAds: Ad[] = [];
         adsSnap.forEach((docSnap) => {
           fetchedAds.push({ id: docSnap.id, ...docSnap.data() } as Ad);
         });
         setAds(fetchedAds);
       }
+
+      // إثبات تاريخ التسجيل للأعضاء غير معروف تاريخهم بتاريخ حديث وحفظه بقاعدة البيانات
+      const processedUsers = (allUsers || []).map((u) => {
+        if (!u.createdAt) {
+          const userAds = fetchedAds.filter((a) => a.userId === u.id || a.user?.id === u.id);
+          let assignedDateStr = new Date().toISOString();
+          if (userAds.length > 0) {
+            const firstAd = userAds[userAds.length - 1];
+            if (firstAd?.postedAt || firstAd?.timestamp) {
+              assignedDateStr = new Date(firstAd.postedAt || firstAd.timestamp!).toISOString();
+            }
+          }
+
+          // تثبيت التاريخ في Firestore بشكل دائم
+          updateDoc(doc(firestore, 'users', u.id), { createdAt: assignedDateStr }).catch((err) => {
+            console.warn(`Could not backfill createdAt for user ${u.id}:`, err);
+          });
+
+          return { ...u, createdAt: assignedDateStr };
+        }
+        return u;
+      });
+
+      setUsers(processedUsers);
     } catch (e) {
       console.error(e);
       toast({ title: t.error, description: t.errorOccurred, variant: 'destructive' });
@@ -220,17 +320,25 @@ export default function AdminDashboard() {
       hasGold,
       hasSilver,
       isRegular,
+      userAds,
     };
   };
 
   // حساب الإحصائيات الكلية للباقات والمستخدمين
   const stats = useMemo(() => {
     const now = new Date();
+    const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+    const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+    const startOfYear = new Date(now.getFullYear(), 0, 1, 0, 0, 0, 0);
+
     let goldSubscribers = 0;
     let silverSubscribers = 0;
     let regularUsers = 0;
     let adminUsers = 0;
     let suspendedUsers = 0;
+    let new7DaysCount = 0;
+    let newMonthCount = 0;
+    let newYearCount = 0;
 
     let totalGoldAds = 0;
     let totalSilverAds = 0;
@@ -246,6 +354,13 @@ export default function AdminDashboard() {
     users.forEach((u) => {
       if (u.role === 'admin') adminUsers++;
       if (u.status === 'suspended' || u.status === 'deleted') suspendedUsers++;
+
+      const uDate = parseRegistrationDate(u.createdAt);
+      if (uDate) {
+        if (uDate >= sevenDaysAgo) new7DaysCount++;
+        if (uDate >= thirtyDaysAgo) newMonthCount++;
+        if (uDate >= startOfYear) newYearCount++;
+      }
 
       const uAds = ads.filter((a) => a.userId === u.id || a.user?.id === u.id);
       const isGold = uAds.some((a) => a.featuredTier === 'gold' && (!a.featuredUntil || new Date(a.featuredUntil) > now));
@@ -265,13 +380,31 @@ export default function AdminDashboard() {
       suspendedUsers,
       totalGoldAds,
       totalSilverAds,
+      new7DaysCount,
+      newMonthCount,
+      newYearCount,
     };
   }, [users, ads]);
 
   // تصفية المستخدمين بناءً على الفلتر والبحث
   const filteredUsers = useMemo(() => {
+    const now = new Date();
+    const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+    const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+    const startOfYear = new Date(now.getFullYear(), 0, 1, 0, 0, 0, 0);
+
     return users.filter((u) => {
       const userStat = getUserStats(u.id);
+      const uDate = parseRegistrationDate(u.createdAt);
+      const userCountry = detectCountry(u);
+
+      // تطبيق فلتر الدولة بالأعلام
+      if (selectedCountry !== 'all' && userCountry.id !== selectedCountry) return false;
+
+      // تطبيق فلاتر الأعضاء الجدد حسب الفترة الزمنية
+      if (filter === 'new_7days' && (!uDate || uDate < sevenDaysAgo)) return false;
+      if (filter === 'new_month' && (!uDate || uDate < thirtyDaysAgo)) return false;
+      if (filter === 'new_year' && (!uDate || uDate < startOfYear)) return false;
 
       // تطبيق فلتر الباقة / الحالة
       if (filter === 'gold' && !userStat.hasGold) return false;
@@ -286,12 +419,13 @@ export default function AdminDashboard() {
         const matchName = (u.name || '').toLowerCase().includes(query);
         const matchEmail = (u.email || '').toLowerCase().includes(query);
         const matchPhone = (u.phoneNumber || '').includes(query);
-        return matchName || matchEmail || matchPhone;
+        const matchCountry = userCountry.name.toLowerCase().includes(query);
+        return matchName || matchEmail || matchPhone || matchCountry;
       }
 
       return true;
     });
-  }, [users, ads, filter, searchQuery]);
+  }, [users, ads, filter, selectedCountry, searchQuery]);
 
   if (loading) {
     return (
@@ -445,6 +579,51 @@ export default function AdminDashboard() {
               </Button>
 
               <Button
+                variant={filter === 'new_7days' ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => setFilter('new_7days')}
+                className={cn(
+                  "h-8 text-xs font-bold rounded-xl gap-1.5 transition-all",
+                  filter === 'new_7days'
+                    ? "bg-emerald-600 hover:bg-emerald-700 text-white"
+                    : "border-emerald-500/40 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-500/10"
+                )}
+              >
+                <span>آخر 7 أيام ⏱️</span>
+                <span className="text-2xs opacity-80">({stats.new7DaysCount})</span>
+              </Button>
+
+              <Button
+                variant={filter === 'new_month' ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => setFilter('new_month')}
+                className={cn(
+                  "h-8 text-xs font-bold rounded-xl gap-1.5 transition-all",
+                  filter === 'new_month'
+                    ? "bg-sky-600 hover:bg-sky-700 text-white"
+                    : "border-sky-500/40 text-sky-700 dark:text-sky-300 hover:bg-sky-500/10"
+                )}
+              >
+                <span>آخر شهر 📅</span>
+                <span className="text-2xs opacity-80">({stats.newMonthCount})</span>
+              </Button>
+
+              <Button
+                variant={filter === 'new_year' ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => setFilter('new_year')}
+                className={cn(
+                  "h-8 text-xs font-bold rounded-xl gap-1.5 transition-all",
+                  filter === 'new_year'
+                    ? "bg-purple-600 hover:bg-purple-700 text-white"
+                    : "border-purple-500/40 text-purple-700 dark:text-purple-300 hover:bg-purple-500/10"
+                )}
+              >
+                <span>هذا العام 🗓️</span>
+                <span className="text-2xs opacity-80">({stats.newYearCount})</span>
+              </Button>
+
+              <Button
                 variant={filter === 'gold' ? 'default' : 'outline'}
                 size="sm"
                 onClick={() => setFilter('gold')}
@@ -526,6 +705,45 @@ export default function AdminDashboard() {
               />
             </div>
           </div>
+
+          {/* 🌍 شريط فلترة الدول بالأعلام */}
+          <div className="flex flex-wrap items-center gap-1.5 pt-2 border-t border-border/40 text-xs">
+            <span className="text-muted-foreground font-semibold ml-1 flex items-center gap-1">
+              <span>الدولة:</span>
+            </span>
+            <Button
+              variant={selectedCountry === 'all' ? 'default' : 'outline'}
+              size="sm"
+              onClick={() => setSelectedCountry('all')}
+              className="h-7 text-xs font-bold rounded-lg px-2.5 gap-1"
+            >
+              <span>جميع الدول 🌐</span>
+              <span className="text-2xs opacity-80">({users.length})</span>
+            </Button>
+            {activeCountries.map((c) => (
+              <Button
+                key={c.id}
+                variant={selectedCountry === c.id ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => setSelectedCountry(c.id)}
+                className={cn(
+                  "h-7 text-xs font-semibold rounded-lg px-2.5 gap-1.5 transition-all",
+                  selectedCountry === c.id
+                    ? "bg-primary text-primary-foreground font-bold shadow-sm"
+                    : "bg-background hover:bg-muted text-foreground border border-border/70"
+                )}
+              >
+                <span className="text-sm">{c.flag}</span>
+                <span>{c.name}</span>
+                <span className={cn(
+                  "text-2xs px-1 rounded-full",
+                  selectedCountry === c.id ? "bg-primary-foreground/20 text-primary-foreground" : "bg-muted text-muted-foreground"
+                )}>
+                  {c.count}
+                </span>
+              </Button>
+            ))}
+          </div>
         </CardHeader>
 
         <CardContent className="p-0">
@@ -552,6 +770,7 @@ export default function AdminDashboard() {
                   filteredUsers.map((user) => {
                     const userStat = getUserStats(user.id);
                     const isCurrentAuthUser = user.id === currentUser?.uid;
+                    const userCountry = detectCountry(user);
 
                     return (
                       <TableRow 
@@ -561,18 +780,27 @@ export default function AdminDashboard() {
                           isCurrentAuthUser && "bg-primary/5 font-semibold"
                         )}
                       >
-                        {/* المستخدم */}
+                        {/* المستخدم مع إمكانية الضغط على الصورة وعلم الدولة */}
                         <TableCell>
                           <div className="flex items-center gap-3">
-                            <Image
-                              alt={user.name || user.email || 'صورة المستخدم'}
-                              className="aspect-square rounded-full object-cover border border-border/80"
-                              height={38}
-                              src={user.avatarUrl || `https://avatar.vercel.sh/${user.id}.png`}
-                              width={38}
-                            />
+                            <div 
+                              className="relative cursor-pointer group flex-shrink-0"
+                              onClick={() => setSelectedUser(user)}
+                              title="اضغط على الصورة لعرض تفاصيل المستخدم"
+                            >
+                              <Image
+                                alt={user.name || user.email || 'صورة المستخدم'}
+                                className="aspect-square rounded-full object-cover border border-border/80 group-hover:ring-2 group-hover:ring-primary transition-all duration-200"
+                                height={38}
+                                src={user.avatarUrl || `https://avatar.vercel.sh/${user.id}.png`}
+                                width={38}
+                              />
+                            </div>
                             <div>
-                              <div className="font-bold text-sm text-foreground flex items-center gap-1.5">
+                              <div className="font-bold text-sm text-foreground flex items-center gap-1.5 flex-wrap">
+                                <span className="text-base" title={`الدولة: ${userCountry.name}`}>
+                                  {userCountry.flag}
+                                </span>
                                 <span>{user.name || 'مستخدم بدون اسم'}</span>
                                 {isCurrentAuthUser && (
                                   <Badge variant="outline" className="text-3xs px-1.5 py-0 bg-primary/10 text-primary border-primary/20">
@@ -736,6 +964,191 @@ export default function AdminDashboard() {
           </div>
         </CardContent>
       </Card>
+
+      {/* 🖼️ نافذة معلومات المستخدم عند الضغط على الصورة */}
+      <Dialog open={!!selectedUser} onOpenChange={(open) => !open && setSelectedUser(null)}>
+        <DialogContent className="max-w-lg max-h-[88vh] overflow-y-auto rounded-3xl p-6" dir="rtl">
+          {selectedUser && (() => {
+            const userStat = getUserStats(selectedUser.id);
+            const regDateStr = getFormattedRegistrationDate(selectedUser.createdAt);
+            const isPhoneVerified = Boolean(selectedUser.phoneVerified);
+
+            return (
+              <div className="flex flex-col items-center text-center space-y-4 pt-2">
+                {/* صورة المستخدم */}
+                <div className="relative">
+                  <Image
+                    alt={selectedUser.name || 'المستخدم'}
+                    src={selectedUser.avatarUrl || `https://avatar.vercel.sh/${selectedUser.id}.png`}
+                    width={90}
+                    height={90}
+                    className="rounded-full object-cover border-2 border-primary/30 shadow-md aspect-square"
+                  />
+                  {selectedUser.role === 'admin' && (
+                    <Badge className="absolute -bottom-2 left-1/2 -translate-x-1/2 bg-blue-600 text-white text-3xs px-2 py-0.5">
+                      مشرف
+                    </Badge>
+                  )}
+                </div>
+
+                {/* الاسم ومعرف الحساب وعلم الدولة */}
+                <div>
+                  <DialogTitle className="text-xl font-bold font-headline flex items-center justify-center gap-2">
+                    <span className="text-2xl">{detectCountry(selectedUser).flag}</span>
+                    <span>{selectedUser.name || 'مستخدم بدون اسم'}</span>
+                  </DialogTitle>
+                  <DialogDescription className="text-xs text-muted-foreground mt-0.5">
+                    الدولة: {detectCountry(selectedUser).name} | معرف الحساب: {selectedUser.id}
+                  </DialogDescription>
+                </div>
+
+                {/* بطاقات البيانات المطلوبة: الإيميل، رقم الهاتف، عدد الإعلانات، تاريخ التسجيل */}
+                <div className="w-full space-y-2.5 pt-2 text-right">
+                  
+                  {/* الإيميل */}
+                  <div className="flex items-center justify-between p-3 rounded-2xl bg-muted/40 border border-border/60">
+                    <span className="text-xs text-muted-foreground font-medium flex items-center gap-2">
+                      <Mail className="h-4 w-4 text-primary" />
+                      <span>البريد الإلكتروني:</span>
+                    </span>
+                    <span className="text-xs font-semibold text-foreground truncate max-w-[200px]" dir="ltr">
+                      {selectedUser.email || 'غير مسجل'}
+                    </span>
+                  </div>
+
+                  {/* رقم الهاتف وتأكيده */}
+                  <div className="flex items-center justify-between p-3 rounded-2xl bg-muted/40 border border-border/60">
+                    <span className="text-xs text-muted-foreground font-medium flex items-center gap-2">
+                      <Phone className="h-4 w-4 text-primary" />
+                      <span>رقم الهاتف:</span>
+                    </span>
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs font-mono font-bold text-foreground" dir="ltr">
+                        {selectedUser.phoneNumber || 'غير مسجل'}
+                      </span>
+                      {selectedUser.phoneNumber && (
+                        isPhoneVerified ? (
+                          <Badge className="text-3xs font-bold px-1.5 py-0 bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border-emerald-500/30 gap-1">
+                            <CheckCircle2 className="h-2.5 w-2.5" />
+                            <span>مؤكد</span>
+                          </Badge>
+                        ) : (
+                          <Badge variant="outline" className="text-3xs font-medium px-1.5 py-0 bg-amber-500/10 text-amber-700 dark:text-amber-300 border-amber-500/30 gap-1">
+                            <AlertCircle className="h-2.5 w-2.5" />
+                            <span>غير مؤكد</span>
+                          </Badge>
+                        )
+                      )}
+                    </div>
+                  </div>
+
+                  {/* عدد الإعلانات */}
+                  <div className="flex items-center justify-between p-3 rounded-2xl bg-muted/40 border border-border/60">
+                    <span className="text-xs text-muted-foreground font-medium flex items-center gap-2">
+                      <Layers className="h-4 w-4 text-primary" />
+                      <span>عدد الإعلانات:</span>
+                    </span>
+                    <Badge className="text-xs font-bold px-2.5 py-0.5 bg-primary/10 text-primary border-primary/20">
+                      {userStat.totalAds} {userStat.totalAds === 1 ? 'إعلان' : 'إعلانات'}
+                    </Badge>
+                  </div>
+
+                  {/* تاريخ التسجيل */}
+                  <div className="flex items-center justify-between p-3 rounded-2xl bg-muted/40 border border-border/60">
+                    <span className="text-xs text-muted-foreground font-medium flex items-center gap-2">
+                      <Calendar className="h-4 w-4 text-primary" />
+                      <span>تاريخ التسجيل:</span>
+                    </span>
+                    <span className="text-xs font-semibold text-foreground">
+                      {regDateStr}
+                    </span>
+                  </div>
+                </div>
+
+                {/* 🖼️ قسم إعلانات المستخدم كصور مصغرة للمراجعة السريعة */}
+                <div className="w-full pt-3 border-t border-border/60 text-right space-y-2.5">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-bold text-foreground flex items-center gap-1.5">
+                      <Layers className="h-4 w-4 text-primary" />
+                      <span>إعلانات المستخدم ({userStat.totalAds}):</span>
+                    </span>
+                    {userStat.totalAds > 0 && (
+                      <span className="text-3xs text-muted-foreground">انقر على الإعلان لمعاينته</span>
+                    )}
+                  </div>
+
+                  {userStat.userAds.length === 0 ? (
+                    <div className="text-center py-4 bg-muted/20 border border-dashed border-border/60 rounded-2xl text-2xs text-muted-foreground">
+                      لا توجد إعلانات منشورة لهذا المستخدم بعد.
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-3 sm:grid-cols-4 gap-2.5 max-h-56 overflow-y-auto p-1">
+                      {userStat.userAds.map((ad) => {
+                        const thumbUrl = ad.imageUrls?.[0] || ad.imageUrl || (ad as any).videoThumbnail || `https://avatar.vercel.sh/${ad.id}.png`;
+
+                        return (
+                          <Link
+                            key={ad.id}
+                            href={`/ad/${ad.userId || selectedUser.id}/${ad.id}`}
+                            target="_blank"
+                            className="group relative flex flex-col rounded-xl overflow-hidden border border-border/80 bg-card hover:border-primary hover:shadow-md transition-all text-right"
+                            title={`${ad.title} - انقر للمعاينة`}
+                          >
+                            <div className="relative aspect-square w-full bg-muted overflow-hidden">
+                              <Image
+                                src={thumbUrl}
+                                alt={ad.title || 'إعلان'}
+                                fill
+                                className="object-cover group-hover:scale-105 transition-transform duration-200"
+                              />
+                              {ad.featuredTier === 'gold' && (
+                                <span className="absolute top-1 right-1 bg-amber-500 text-white text-3xs font-bold px-1 rounded shadow">
+                                  🥇
+                                </span>
+                              )}
+                              {ad.featuredTier === 'silver' && (
+                                <span className="absolute top-1 right-1 bg-slate-500 text-white text-3xs font-bold px-1 rounded shadow">
+                                  🥈
+                                </span>
+                              )}
+                              {ad.status !== 'active' && (
+                                <span className="absolute bottom-1 right-1 bg-black/75 text-white text-3xs px-1 rounded">
+                                  {ad.status === 'sold' ? 'مباع' : (ad.status === 'rejected' ? 'مرفوض' : 'معلق')}
+                                </span>
+                              )}
+                            </div>
+                            <div className="p-1.5 space-y-0.5">
+                              <p className="text-3xs font-semibold text-foreground truncate group-hover:text-primary transition-colors">
+                                {ad.title || 'إعلان بدون عنوان'}
+                              </p>
+                              {typeof ad.price === 'number' && (
+                                <p className="text-3xs font-bold text-primary font-mono truncate" dir="ltr">
+                                  {ad.price.toLocaleString('en-US')} {ad.currency || 'ج.م'}
+                                </p>
+                              )}
+                            </div>
+                          </Link>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+
+                {/* زر الإغلاق */}
+                <div className="w-full pt-2">
+                  <Button
+                    variant="outline"
+                    className="w-full rounded-xl font-bold text-xs"
+                    onClick={() => setSelectedUser(null)}
+                  >
+                    إغلاق
+                  </Button>
+                </div>
+              </div>
+            );
+          })()}
+        </DialogContent>
+      </Dialog>
 
       {/* نافذة التأكيد قبل تنفيذ الإجراء */}
       <AlertDialog open={dialogState.isOpen} onOpenChange={closeDialog}>
