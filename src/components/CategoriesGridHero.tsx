@@ -224,7 +224,7 @@ export default function CategoriesGridHero() {
         <div className="relative z-30 flex flex-col md:flex-row md:items-center justify-between gap-3 sm:gap-4 mb-4 pb-3 border-b border-border/50">
           <div className="flex items-center gap-3">
             <h1 className="text-lg sm:text-xl md:text-2xl font-extrabold text-foreground font-headline tracking-tight">
-              استكشف أكبر سوق في <span className="text-primary">{market.name.ar}</span>
+              سوق العرب | استكشف أكبر سوق للإعلانات في <span className="text-primary">{market.name.ar}</span>
             </h1>
           </div>
 

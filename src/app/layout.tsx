@@ -177,22 +177,6 @@ export default function RootLayout({
                               <ErrorWatcher />
                               <AdminNodeInitializer />
                               <LinkInterceptor />
-                              <script
-                                type="application/ld+json"
-                                dangerouslySetInnerHTML={{
-                                  __html: JSON.stringify({
-                                    "@context": "https://schema.org",
-                                    "@type": "WebSite",
-                                    "name": "سوق العرب",
-                                    "url": "https://www.arb-soq.com",
-                                    "potentialAction": {
-                                      "@type": "SearchAction",
-                                      "target": "https://www.arb-soq.com/?q={search_term_string}",
-                                      "query-input": "required name=search_term_string"
-                                    }
-                                  })
-                                }}
-                              />
                               {children}
                               <CookieConsent />
                               <div id="recaptcha-container"></div>
