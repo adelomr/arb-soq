@@ -36,7 +36,7 @@ import { cn } from '@/lib/utils';
 import { Skeleton } from './ui/skeleton';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Separator } from './ui/separator';
-import { markets } from '@/lib/markets';
+import { markets, getMarketByCountry } from '@/lib/markets';
 import { isPhysicalGoodsCategory } from '@/lib/category-utils';
 import { isVehicleCategory, POPULAR_CAR_BRANDS } from '@/lib/car-brands';
 import {
@@ -281,6 +281,10 @@ function AdFormContent({ adId, userId, isEditMode, onSuccess }: { adId?: string 
   const hasPaymentMethod = true;
 
   const { toast } = useToast();
+  const defaultUserMarket = userProfile?.country ? getMarketByCountry(userProfile.country) : null;
+  const initialMarketId = defaultUserMarket?.id || market?.id || 'sa';
+  const initialCurrency = markets.find(m => m.id === initialMarketId)?.currency || 'SAR';
+
   const form = useForm<AdFormValues>({
     resolver: zodResolver(adFormSchema),
     defaultValues: {
@@ -290,7 +294,7 @@ function AdFormContent({ adId, userId, isEditMode, onSuccess }: { adId?: string 
       price: 0,
       productCode: '',
       images: [],
-      market: market.id || (userProfile?.country ? (markets.find(m => m.id === userProfile.country || m.name.ar === userProfile.country)?.id || userProfile.country) : 'sa'),
+      market: initialMarketId,
       province: '',
       location: '',
       category: isStoreProduct ? 'store-product' : undefined,
@@ -303,8 +307,8 @@ function AdFormContent({ adId, userId, isEditMode, onSuccess }: { adId?: string 
       governorate: 'country',
       city: '',
       village: '',
-      phoneNumber: '',
-      currency: markets.find(m => m.id === (market.id || userProfile?.country))?.currency || 'SAR',
+      phoneNumber: userProfile?.phoneNumber || '',
+      currency: initialCurrency,
     },
   });
 
@@ -436,14 +440,25 @@ function AdFormContent({ adId, userId, isEditMode, onSuccess }: { adId?: string 
     return `${countryName} - ${selectedGov}`;
   }, [selectedMarket, selectedGov, districtValue]);
 
-  // ضبط التحديد الافتراضي لسوق الدولة عند فتح النموذج
+  // ملء الدولة ورقم الهاتف تلقائياً من الملف الشخصي للمستخدم عند فتح نموذج إضافة إعلان جديد
   useEffect(() => {
-    if (!isEditMode && market?.id) {
-      if (markets.some(m => m.id === market.id)) {
-        form.setValue('market', market.id);
+    if (isEditMode) return;
+
+    // 1. ملء الدولة من الملف الشخصي للمستخدم إن كانت محفوظة، أو اعتماد سوق التصفح الحالي
+    if (userProfile?.country) {
+      const userMarket = getMarketByCountry(userProfile.country);
+      if (userMarket) {
+        form.setValue('market', userMarket.id);
       }
+    } else if (market?.id && markets.some(m => m.id === market.id)) {
+      form.setValue('market', market.id);
     }
-  }, [market?.id, isEditMode, form]);
+
+    // 2. ملء رقم الهاتف تلقائياً من الملف الشخصي إذا كان محفوظاً ولم يقم المستخدم بتغييره بعد
+    if (userProfile?.phoneNumber && !form.getValues('phoneNumber')) {
+      form.setValue('phoneNumber', userProfile.phoneNumber);
+    }
+  }, [userProfile, market?.id, isEditMode, form]);
 
   // اختيار العملة تلقائياً عند تغيير الدولة المستهدفة
   useEffect(() => {
@@ -1188,10 +1203,17 @@ function AdFormContent({ adId, userId, isEditMode, onSuccess }: { adId?: string 
                     name="phoneNumber"
                     render={({ field }) => (
                         <FormItem>
-                            <FormLabel className="flex items-center gap-2 text-base font-bold text-foreground">
-                                <Phone className="h-4 w-4 text-primary" />
-                                <span>رقم الهاتف / واتساب</span>
-                            </FormLabel>
+                            <div className="flex flex-wrap items-center justify-between gap-1.5">
+                                <FormLabel className="flex items-center gap-2 text-base font-bold text-foreground">
+                                    <Phone className="h-4 w-4 text-primary" />
+                                    <span>رقم الهاتف / واتساب</span>
+                                </FormLabel>
+                                {userProfile?.phoneNumber && field.value === userProfile.phoneNumber && (
+                                    <span className="text-2xs bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 px-2 py-0.5 rounded-full font-medium">
+                                        تم الملء تلقائياً من حسابك (يمكنك تغييره)
+                                    </span>
+                                )}
+                            </div>
                             <FormControl>
                                 <div className="relative">
                                     <Input
@@ -1203,6 +1225,9 @@ function AdFormContent({ adId, userId, isEditMode, onSuccess }: { adId?: string 
                                     <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                                 </div>
                             </FormControl>
+                            <FormDescription className="text-2xs text-muted-foreground">
+                                رقم التواصل المعتمد لهذا الإعلان. يمكنك تغييره بحرية إذا رغبت في التواصل برقم آخر.
+                            </FormDescription>
                             <FormMessage />
                         </FormItem>
                     )}
@@ -1311,9 +1336,16 @@ function AdFormContent({ adId, userId, isEditMode, onSuccess }: { adId?: string 
                 name="market"
                 render={({ field }) => (
                     <FormItem>
-                        <FormLabel className="text-sm font-semibold">
-                            1. الدولة
-                        </FormLabel>
+                        <div className="flex flex-wrap items-center justify-between gap-1.5">
+                            <FormLabel className="text-sm font-semibold">
+                                1. الدولة
+                            </FormLabel>
+                            {userProfile?.country && selectedMarket && (selectedMarket.name.ar === userProfile.country || selectedMarket.id === userProfile.country) && (
+                                <span className="text-2xs bg-primary/10 text-primary px-2 py-0.5 rounded-full font-medium">
+                                    تم التحديد تلقائياً من حسابك (يمكنك تغييرها)
+                                </span>
+                            )}
+                        </div>
                         <Select
                             onValueChange={(val) => {
                                 field.onChange(val);
