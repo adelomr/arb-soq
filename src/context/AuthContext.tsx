@@ -129,6 +129,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       phoneNumber: data.phoneNumber || '',
       avatarUrl: finalAvatarUrl,
       phoneVerified: false,
+      hasCompletedProfile: true,
+      isNewUser: false,
       role: role,
       status: 'active',
       walletBalance: 0,

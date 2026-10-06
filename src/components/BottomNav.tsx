@@ -13,7 +13,7 @@ import { cn } from '@/lib/utils';
 export default function BottomNav() {
   const pathname = usePathname();
   const router = useRouter();
-  const { user, userProfile, getUserNotifications } = useAuth();
+  const { user, userProfile, getUserNotifications, loading } = useAuth();
   const [unreadCount, setUnreadCount] = useState(0);
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [showSettingsModal, setShowSettingsModal] = useState(false);
@@ -110,6 +110,7 @@ export default function BottomNav() {
 
   const handleAddClick = (e: React.MouseEvent) => {
     e.preventDefault();
+    if (loading) return;
     if (isAuthenticated) {
       router.push('/submit');
     } else {

@@ -164,7 +164,7 @@ const NotificationBar = () => {
 export default function Header() {
   const [isClient, setIsClient] = useState(false);
   const pathname = usePathname();
-  const { user, userProfile, signOutUser, getUserNotifications, deleteNotification, markNotificationsAsRead } = useAuth();
+  const { user, userProfile, signOutUser, getUserNotifications, deleteNotification, markNotificationsAsRead, loading } = useAuth();
   const { theme, setTheme } = useTheme();
   const { increase: increaseFontSize, decrease: decreaseFontSize, reset: resetFontSize } = useFontSize();
   const { view, setView } = useView();
@@ -233,6 +233,7 @@ export default function Header() {
 
   const handleAddAdClick = (e?: React.MouseEvent) => {
     if (e) e.preventDefault();
+    if (loading) return;
     if (isAuthenticated) {
       router.push('/submit');
     } else {

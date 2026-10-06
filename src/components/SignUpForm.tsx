@@ -28,11 +28,11 @@ import {
   Sparkles,
 } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import Link from 'next/link';
 import { Label } from '@/components/ui/label';
 import { useLanguage } from '@/context/LanguageContext';
-import { markets } from '@/lib/markets';
+import { markets, getGovernoratesForCountry, getMarketByCountry } from '@/lib/markets';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { detectUserLocation, buildFullAddress } from '@/lib/locationEngine';
 
@@ -112,10 +112,28 @@ export default function SignUpForm() {
     },
   });
 
+  const watchedCountry = form.watch('country');
+  const availableGovernorates = useMemo(() => {
+    return getGovernoratesForCountry(watchedCountry);
+  }, [watchedCountry]);
+
+  // تحديث كود الدولة للهاتف تلقائياً وتفعيل المحافظات عند اختيار الدولة
+  const handleCountryChange = (countryName: string) => {
+    form.setValue('country', countryName, { shouldValidate: true });
+    const m = getMarketByCountry(countryName);
+    if (m) {
+      form.setValue('phoneCountryCode', m.id, { shouldValidate: true });
+      const currentProvince = form.getValues('province');
+      const govs = m.majorCities || [];
+      if (currentProvince && !govs.includes(currentProvince)) {
+        form.setValue('province', '', { shouldValidate: true });
+      }
+    }
+  };
+
   const selectedPhoneCountryId = form.watch('phoneCountryCode');
   const selectedPhoneCountry = markets.find(m => m.id === selectedPhoneCountryId);
 
-  const watchedCountry = form.watch('country');
   const watchedProvince = form.watch('province');
   const watchedCity = form.watch('city');
   const watchedVillage = form.watch('village');
@@ -135,7 +153,7 @@ export default function SignUpForm() {
       const loc = await detectUserLocation();
 
       if (loc.country && loc.country !== 'غير محدد') {
-        form.setValue('country', loc.country, { shouldValidate: true });
+        handleCountryChange(loc.country);
       }
       if (loc.governorate && loc.governorate !== 'غير محدد') {
         form.setValue('province', loc.governorate, { shouldValidate: true });
@@ -297,11 +315,27 @@ export default function SignUpForm() {
                 <FormItem className="p-3 rounded-2xl bg-card border border-border/70 space-y-1">
                   <FormLabel className="text-xs font-bold text-muted-foreground flex items-center gap-1.5">
                     <Globe className="w-3.5 h-3.5 text-primary" />
-                    {t.country}
+                    1. الدولة
                   </FormLabel>
-                  <FormControl>
-                    <Input placeholder={t.countryPlaceholder} {...field} className="h-9 text-xs border-border/60" />
-                  </FormControl>
+                  <Select
+                    onValueChange={(val) => handleCountryChange(val)}
+                    value={field.value || ''}
+                    dir={direction}
+                  >
+                    <FormControl>
+                      <SelectTrigger className="h-10 text-xs border-border/60 bg-background">
+                        <SelectValue placeholder="اختر الدولة" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent className="max-h-64">
+                      {markets.map((m) => (
+                        <SelectItem key={m.id} value={m.name.ar} className="text-xs py-2">
+                          <span className="font-medium">{m.name.ar}</span>
+                          <span className="text-muted-foreground mr-2 font-mono" dir="ltr">({m.phoneCode})</span>
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                   <FormMessage />
                 </FormItem>
               )}
@@ -315,11 +349,27 @@ export default function SignUpForm() {
                 <FormItem className="p-3 rounded-2xl bg-card border border-border/70 space-y-1">
                   <FormLabel className="text-xs font-bold text-muted-foreground flex items-center gap-1.5">
                     <Building2 className="w-3.5 h-3.5 text-primary" />
-                    {t.province}
+                    2. المحافظة / المنطقة
                   </FormLabel>
-                  <FormControl>
-                    <Input placeholder={t.provincePlaceholder} {...field} className="h-9 text-xs border-border/60" />
-                  </FormControl>
+                  <Select
+                    disabled={!watchedCountry || availableGovernorates.length === 0}
+                    onValueChange={field.onChange}
+                    value={field.value || ''}
+                    dir={direction}
+                  >
+                    <FormControl>
+                      <SelectTrigger className="h-10 text-xs border-border/60 bg-background disabled:opacity-50">
+                        <SelectValue placeholder={!watchedCountry ? 'اختر الدولة أولاً' : 'اختر المحافظة'} />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent className="max-h-64">
+                      {availableGovernorates.map((gov) => (
+                        <SelectItem key={gov} value={gov} className="text-xs py-2">
+                          {gov}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                   <FormMessage />
                 </FormItem>
               )}
@@ -333,17 +383,17 @@ export default function SignUpForm() {
                 <FormItem className="p-3 rounded-2xl bg-card border border-border/70 space-y-1">
                   <FormLabel className="text-xs font-bold text-muted-foreground flex items-center gap-1.5">
                     <Building className="w-3.5 h-3.5 text-primary" />
-                    {t.city}
+                    3. المدينة / المركز (كتابة يدوية)
                   </FormLabel>
                   <FormControl>
-                    <Input placeholder={t.cityPlaceholder} {...field} className="h-9 text-xs border-border/60" />
+                    <Input placeholder="مثال: وسط البلد / الحي الشرقي / لواء الحسا" {...field} className="h-10 text-xs border-border/60" />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
               )}
             />
 
-            {/* 4. الحي / القرية */}
+            {/* 4. الحي / القرية / العنوان */}
             <FormField
               control={form.control}
               name="village"
@@ -351,10 +401,10 @@ export default function SignUpForm() {
                 <FormItem className="p-3 rounded-2xl bg-card border border-border/70 space-y-1">
                   <FormLabel className="text-xs font-bold text-muted-foreground flex items-center gap-1.5">
                     <Home className="w-3.5 h-3.5 text-primary" />
-                    {t.village}
+                    4. العنوان / الحي / الشارع (اختياري)
                   </FormLabel>
                   <FormControl>
-                    <Input placeholder={t.villagePlaceholder} {...field} className="h-9 text-xs border-border/60" />
+                    <Input placeholder="مثال: شارع الجامعة / قرب المسجد" {...field} className="h-10 text-xs border-border/60" />
                   </FormControl>
                   <FormMessage />
                 </FormItem>

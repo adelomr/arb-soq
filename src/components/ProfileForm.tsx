@@ -28,7 +28,7 @@ import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
 import { User, Save, FileUp, Loader2, Phone, MessageSquare, BadgeCheck, MapPin, Store, Trash2, Briefcase, Eye, EyeOff, Pencil, LocateFixed, Globe, Building2, Building, Home, Sparkles } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from './ui/avatar';
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState, useRef, useMemo } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import type { UserProfile } from '@/lib/types';
 import { Skeleton } from './ui/skeleton';
@@ -42,7 +42,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { Label } from './ui/label';
 import { useMarket } from '@/context/MarketContext';
-import { markets, Market } from '@/lib/markets';
+import { markets, Market, getGovernoratesForCountry, getMarketByCountry } from '@/lib/markets';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import Image from 'next/image';
 import { detectUserLocation, buildFullAddress, saveAndSyncLocation, LocationData, loadSavedLocation } from '@/lib/locationEngine';
@@ -183,6 +183,25 @@ export default function ProfileForm({ isSignupMode = false }: { isSignupMode?: b
     },
   });
 
+  const watchedCountry = form.watch('country');
+  const availableGovernorates = useMemo(() => {
+    return getGovernoratesForCountry(watchedCountry);
+  }, [watchedCountry]);
+
+  // تحديث كود الدولة للهاتف تلقائياً وتفعيل المحافظات عند اختيار الدولة
+  const handleCountryChange = (countryName: string) => {
+    form.setValue('country', countryName, { shouldValidate: true });
+    const m = getMarketByCountry(countryName);
+    if (m) {
+      form.setValue('phoneCountryCode', m.id, { shouldValidate: true });
+      const currentProvince = form.getValues('province');
+      const govs = m.majorCities || [];
+      if (currentProvince && !govs.includes(currentProvince)) {
+        form.setValue('province', '', { shouldValidate: true });
+      }
+    }
+  };
+
   const selectedPhoneCountryId = form.watch('phoneCountryCode') || market?.id;
   const selectedPhoneCountry = markets.find(m => m.id === selectedPhoneCountryId) || market || markets[0];
   const watchedPhoneNumber = form.watch('phoneNumber');
@@ -279,7 +298,7 @@ export default function ProfileForm({ isSignupMode = false }: { isSignupMode?: b
     try {
       const loc = await detectUserLocation();
       if (loc.country && loc.country !== 'غير محدد') {
-        form.setValue('country', loc.country, { shouldValidate: true });
+        handleCountryChange(loc.country);
       }
       if (loc.governorate && loc.governorate !== 'غير محدد') {
         form.setValue('province', loc.governorate, { shouldValidate: true });
@@ -463,10 +482,13 @@ export default function ProfileForm({ isSignupMode = false }: { isSignupMode?: b
         const provinceVal = form.getValues('province') || userProfile?.province || '';
         const cityVal = form.getValues('city') || userProfile?.city || '';
         const villageVal = form.getValues('village') || userProfile?.village || '';
+        const professionVal = form.getValues('profession') || userProfile?.profession || '';
+        const specializationVal = form.getValues('specialization') || userProfile?.specialization || '';
         const isDataComplete = Boolean(nameVal && countryVal && provinceVal && cityVal);
 
         if (user?.uid) {
             await updateUserProfile(user.uid, { 
+              name: nameVal,
               phoneNumber: fullPhoneNumber, 
               phoneVerified: true,
               country: countryVal,
@@ -474,6 +496,10 @@ export default function ProfileForm({ isSignupMode = false }: { isSignupMode?: b
               governorate: provinceVal,
               city: cityVal,
               village: villageVal,
+              profession: professionVal,
+              specialization: specializationVal,
+              hasCompletedProfile: true,
+              isNewUser: false,
               ...(isDataComplete ? { verified: true } : {})
             });
         }
@@ -562,6 +588,8 @@ export default function ProfileForm({ isSignupMode = false }: { isSignupMode?: b
             avatarUrl: newAvatarUrl,
             profession: data.profession,
             specialization: data.specialization,
+            hasCompletedProfile: true,
+            isNewUser: false,
             ...(isFullyVerified ? { verified: true } : {})
         };
         
@@ -719,9 +747,25 @@ export default function ProfileForm({ isSignupMode = false }: { isSignupMode?: b
                     <Globe className="w-3.5 h-3.5 text-primary" />
                     1. الدولة
                   </FormLabel>
-                  <FormControl>
-                    <Input placeholder={t.countryPlaceholder} {...field} className="h-9 text-xs border-border/60" />
-                  </FormControl>
+                  <Select
+                    onValueChange={(val) => handleCountryChange(val)}
+                    value={field.value || ''}
+                    dir={direction}
+                  >
+                    <FormControl>
+                      <SelectTrigger className="h-10 text-xs border-border/60 bg-background">
+                        <SelectValue placeholder="اختر الدولة" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent className="max-h-64">
+                      {markets.map((m) => (
+                        <SelectItem key={m.id} value={m.name.ar} className="text-xs py-2">
+                          <span className="font-medium">{m.name.ar}</span>
+                          <span className="text-muted-foreground mr-2 font-mono" dir="ltr">({m.phoneCode})</span>
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                   <FormMessage />
                 </FormItem>
               )}
@@ -737,9 +781,25 @@ export default function ProfileForm({ isSignupMode = false }: { isSignupMode?: b
                     <Building2 className="w-3.5 h-3.5 text-primary" />
                     2. المحافظة / المنطقة
                   </FormLabel>
-                  <FormControl>
-                    <Input placeholder={t.provincePlaceholder} {...field} className="h-9 text-xs border-border/60" />
-                  </FormControl>
+                  <Select
+                    disabled={!watchedCountry || availableGovernorates.length === 0}
+                    onValueChange={field.onChange}
+                    value={field.value || ''}
+                    dir={direction}
+                  >
+                    <FormControl>
+                      <SelectTrigger className="h-10 text-xs border-border/60 bg-background disabled:opacity-50">
+                        <SelectValue placeholder={!watchedCountry ? 'اختر الدولة أولاً' : 'اختر المحافظة'} />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent className="max-h-64">
+                      {availableGovernorates.map((gov) => (
+                        <SelectItem key={gov} value={gov} className="text-xs py-2">
+                          {gov}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                   <FormMessage />
                 </FormItem>
               )}
@@ -753,17 +813,17 @@ export default function ProfileForm({ isSignupMode = false }: { isSignupMode?: b
                 <FormItem className="p-3 rounded-2xl bg-card border border-border/70 space-y-1">
                   <FormLabel className="text-xs font-bold text-muted-foreground flex items-center gap-1.5">
                     <Building className="w-3.5 h-3.5 text-primary" />
-                    3. المدينة / المركز
+                    3. المدينة / المركز (كتابة يدوية)
                   </FormLabel>
                   <FormControl>
-                    <Input placeholder={t.cityPlaceholder} {...field} className="h-9 text-xs border-border/60" />
+                    <Input placeholder="مثال: وسط البلد / الحي الشرقي / لواء الحسا" {...field} className="h-10 text-xs border-border/60" />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
               )}
             />
 
-            {/* 4. الحي / القرية */}
+            {/* 4. الحي / القرية / العنوان */}
             <FormField
               control={form.control}
               name="village"
@@ -771,10 +831,10 @@ export default function ProfileForm({ isSignupMode = false }: { isSignupMode?: b
                 <FormItem className="p-3 rounded-2xl bg-card border border-border/70 space-y-1">
                   <FormLabel className="text-xs font-bold text-muted-foreground flex items-center gap-1.5">
                     <Home className="w-3.5 h-3.5 text-primary" />
-                    4. القرية / الحي
+                    4. العنوان / الحي / الشارع (اختياري)
                   </FormLabel>
                   <FormControl>
-                    <Input placeholder={t.villagePlaceholder} {...field} className="h-9 text-xs border-border/60" />
+                    <Input placeholder="مثال: شارع الجامعة / قرب المسجد" {...field} className="h-10 text-xs border-border/60" />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
