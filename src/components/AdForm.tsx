@@ -1203,17 +1203,10 @@ function AdFormContent({ adId, userId, isEditMode, onSuccess }: { adId?: string 
                     name="phoneNumber"
                     render={({ field }) => (
                         <FormItem>
-                            <div className="flex flex-wrap items-center justify-between gap-1.5">
-                                <FormLabel className="flex items-center gap-2 text-base font-bold text-foreground">
-                                    <Phone className="h-4 w-4 text-primary" />
-                                    <span>رقم الهاتف / واتساب</span>
-                                </FormLabel>
-                                {userProfile?.phoneNumber && field.value === userProfile.phoneNumber && (
-                                    <span className="text-2xs bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 px-2 py-0.5 rounded-full font-medium">
-                                        تم الملء تلقائياً من حسابك (يمكنك تغييره)
-                                    </span>
-                                )}
-                            </div>
+                            <FormLabel className="flex items-center gap-2 text-base font-bold text-foreground">
+                                <Phone className="h-4 w-4 text-primary" />
+                                <span>رقم الهاتف / واتساب</span>
+                            </FormLabel>
                             <FormControl>
                                 <div className="relative">
                                     <Input
@@ -1225,9 +1218,6 @@ function AdFormContent({ adId, userId, isEditMode, onSuccess }: { adId?: string 
                                     <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                                 </div>
                             </FormControl>
-                            <FormDescription className="text-2xs text-muted-foreground">
-                                رقم التواصل المعتمد لهذا الإعلان. يمكنك تغييره بحرية إذا رغبت في التواصل برقم آخر.
-                            </FormDescription>
                             <FormMessage />
                         </FormItem>
                     )}
@@ -1325,9 +1315,6 @@ function AdFormContent({ adId, userId, isEditMode, onSuccess }: { adId?: string 
                     <Globe className="h-5 w-5 text-primary" />
                     موقع الإعلان والاستهداف الجغرافي
                 </h3>
-                <Badge variant="outline" className="text-xs text-muted-foreground font-normal bg-secondary/50">
-                    معايير المنصات الاحترافية
-                </Badge>
             </div>
             
             {/* 1. قائمة الدولة المستهدفة */}
@@ -1336,16 +1323,9 @@ function AdFormContent({ adId, userId, isEditMode, onSuccess }: { adId?: string 
                 name="market"
                 render={({ field }) => (
                     <FormItem>
-                        <div className="flex flex-wrap items-center justify-between gap-1.5">
-                            <FormLabel className="text-sm font-semibold">
-                                1. الدولة
-                            </FormLabel>
-                            {userProfile?.country && selectedMarket && (selectedMarket.name.ar === userProfile.country || selectedMarket.id === userProfile.country) && (
-                                <span className="text-2xs bg-primary/10 text-primary px-2 py-0.5 rounded-full font-medium">
-                                    تم التحديد تلقائياً من حسابك (يمكنك تغييرها)
-                                </span>
-                            )}
-                        </div>
+                        <FormLabel className="text-sm font-semibold">
+                            1. الدولة
+                        </FormLabel>
                         <Select
                             onValueChange={(val) => {
                                 field.onChange(val);
