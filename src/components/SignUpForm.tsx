@@ -318,7 +318,11 @@ export default function SignUpForm() {
                     1. الدولة
                   </FormLabel>
                   <Select
-                    onValueChange={(val) => handleCountryChange(val)}
+                    key={`country-${field.value || 'none'}`}
+                    onValueChange={(val) => {
+                      field.onChange(val);
+                      handleCountryChange(val);
+                    }}
                     value={field.value || ''}
                     dir={direction}
                   >
@@ -334,6 +338,11 @@ export default function SignUpForm() {
                           <span className="text-muted-foreground mr-2 font-mono" dir="ltr">({m.phoneCode})</span>
                         </SelectItem>
                       ))}
+                      {field.value && !markets.some(m => m.name.ar === field.value) && (
+                        <SelectItem key={field.value} value={field.value} className="text-xs py-2">
+                          <span className="font-medium">{field.value}</span>
+                        </SelectItem>
+                      )}
                     </SelectContent>
                   </Select>
                   <FormMessage />
@@ -352,6 +361,7 @@ export default function SignUpForm() {
                     2. المحافظة / المنطقة
                   </FormLabel>
                   <Select
+                    key={`prov-${watchedCountry || 'none'}-${field.value || 'none'}`}
                     disabled={!watchedCountry || availableGovernorates.length === 0}
                     onValueChange={field.onChange}
                     value={field.value || ''}
@@ -368,6 +378,11 @@ export default function SignUpForm() {
                           {gov}
                         </SelectItem>
                       ))}
+                      {field.value && !availableGovernorates.includes(field.value) && (
+                        <SelectItem key={field.value} value={field.value} className="text-xs py-2">
+                          {field.value}
+                        </SelectItem>
+                      )}
                     </SelectContent>
                   </Select>
                   <FormMessage />

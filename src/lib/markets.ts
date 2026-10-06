@@ -256,25 +256,30 @@ export const markets: Market[] = [
   },
 ];
 
-export function getGovernoratesForCountry(countryNameOrId?: string | null): string[] {
-  if (!countryNameOrId) return [];
-  const normalized = countryNameOrId.trim().toLowerCase();
-  const m = markets.find(
-    market =>
-      market.id.toLowerCase() === normalized ||
-      market.name.ar.toLowerCase() === normalized ||
-      market.flagCode.toLowerCase() === normalized
-  );
-  return m?.majorCities || [];
+export function normalizeArabicText(str: string): string {
+  return str
+    .trim()
+    .toLowerCase()
+    .replace(/[أإآ]/g, 'ا')
+    .replace(/ة/g, 'ه')
+    .replace(/[\u064B-\u065F]/g, ''); // إزالة التشكيل (الفتحة، الضمة، الكسرة، إلخ)
 }
 
 export function getMarketByCountry(countryNameOrId?: string | null): Market | undefined {
   if (!countryNameOrId) return undefined;
-  const normalized = countryNameOrId.trim().toLowerCase();
+  const raw = countryNameOrId.trim().toLowerCase();
+  const norm = normalizeArabicText(countryNameOrId);
   return markets.find(
     market =>
-      market.id.toLowerCase() === normalized ||
-      market.name.ar.toLowerCase() === normalized ||
-      market.flagCode.toLowerCase() === normalized
+      market.id.toLowerCase() === raw ||
+      market.flagCode.toLowerCase() === raw ||
+      market.name.ar.toLowerCase() === raw ||
+      normalizeArabicText(market.name.ar) === norm
   );
 }
+
+export function getGovernoratesForCountry(countryNameOrId?: string | null): string[] {
+  const m = getMarketByCountry(countryNameOrId);
+  return m?.majorCities || [];
+}
+

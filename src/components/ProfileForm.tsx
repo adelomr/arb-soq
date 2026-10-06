@@ -167,20 +167,57 @@ export default function ProfileForm({ isSignupMode = false }: { isSignupMode?: b
   const COOLDOWN_SECONDS = 60;
   const COOLDOWN_STORAGE_KEY = 'phoneVerificationCooldown';
 
+  function normalizeGovernorate(rawGov?: string | null, availableGovs: string[] = []): string {
+    if (!rawGov || !rawGov.trim()) return '';
+    const clean = rawGov.trim();
+    if (availableGovs.includes(clean)) return clean;
+    const cleanNorm = clean.replace(/[أإآ]/g, 'ا').replace(/ة/g, 'ه').replace(/[\u064B-\u065F]/g, '');
+    const found = availableGovs.find(g => {
+      const gNorm = g.replace(/[أإآ]/g, 'ا').replace(/ة/g, 'ه').replace(/[\u064B-\u065F]/g, '');
+      return gNorm === cleanNorm || gNorm.includes(cleanNorm) || cleanNorm.includes(gNorm);
+    });
+    return found || clean;
+  }
+
+  const initialData = useMemo(() => {
+    const savedLoc = loadSavedLocation();
+    const marketObj = getMarketByCountry(userProfile?.country || (savedLoc?.country !== 'غير محدد' ? savedLoc?.country : ''));
+    const countryName = marketObj ? marketObj.name.ar : (userProfile?.country || (savedLoc?.country !== 'غير محدد' ? savedLoc?.country : '') || '');
+    const rawProv = userProfile?.province || (userProfile as any)?.governorate || (savedLoc?.governorate !== 'غير محدد' ? savedLoc?.governorate : '') || '';
+    const govs = getGovernoratesForCountry(countryName);
+    const provinceName = normalizeGovernorate(rawProv, govs);
+    const cityName = userProfile?.city || (savedLoc?.city !== 'غير محدد' ? savedLoc?.city : '') || '';
+    const villageName = userProfile?.village || (savedLoc?.village !== 'غير محدد' ? savedLoc?.village : '') || '';
+
+    let phoneCountry: Market | null = null;
+    let phoneNum = userProfile?.phoneNumber || '';
+    for (const m of markets) {
+      if (phoneNum.startsWith(m.phoneCode)) {
+        phoneCountry = m;
+        phoneNum = phoneNum.substring(m.phoneCode.length);
+        break;
+      }
+    }
+    const activeMarket = marketObj || phoneCountry || market || markets[0];
+
+    return {
+      name: userProfile?.name || user?.displayName || '',
+      country: countryName,
+      province: provinceName,
+      city: cityName,
+      village: villageName,
+      phoneCountryCode: activeMarket.id,
+      phoneNumber: phoneNum,
+      profession: userProfile?.profession || '',
+      specialization: userProfile?.specialization || '',
+      verificationCode: '',
+    };
+  }, [userProfile, user, market]);
+
   const form = useForm<ProfileFormValues>({
     resolver: zodResolver(profileFormSchema),
-    defaultValues: {
-      name: '',
-      country: '',
-      province: '',
-      city: '',
-      village: '',
-      phoneCountryCode: market?.id || markets[0].id,
-      phoneNumber: '',
-      verificationCode: '',
-      profession: '',
-      specialization: '',
-    },
+    defaultValues: initialData,
+    values: initialData,
   });
 
   const watchedCountry = form.watch('country');
@@ -190,14 +227,14 @@ export default function ProfileForm({ isSignupMode = false }: { isSignupMode?: b
 
   // تحديث كود الدولة للهاتف تلقائياً وتفعيل المحافظات عند اختيار الدولة
   const handleCountryChange = (countryName: string) => {
-    form.setValue('country', countryName, { shouldValidate: true });
+    form.setValue('country', countryName, { shouldValidate: true, shouldDirty: true });
     const m = getMarketByCountry(countryName);
     if (m) {
-      form.setValue('phoneCountryCode', m.id, { shouldValidate: true });
+      form.setValue('phoneCountryCode', m.id, { shouldValidate: true, shouldDirty: true });
       const currentProvince = form.getValues('province');
       const govs = m.majorCities || [];
       if (currentProvince && !govs.includes(currentProvince)) {
-        form.setValue('province', '', { shouldValidate: true });
+        form.setValue('province', '', { shouldValidate: true, shouldDirty: true });
       }
     }
   };
@@ -212,44 +249,10 @@ export default function ProfileForm({ isSignupMode = false }: { isSignupMode?: b
 
   useEffect(() => {
     setIsClient(true);
-    if (userProfile) {
-      const phone = userProfile.phoneNumber || '';
-      let phoneCountry : Market | null = null;
-      let phoneNum = phone;
-
-      for (const m of markets) {
-          if (phone.startsWith(m.phoneCode)) {
-              phoneCountry = m;
-              phoneNum = phone.substring(m.phoneCode.length);
-              break;
-          }
-      }
-
-      const savedLoc = loadSavedLocation();
-      const initialCountry = userProfile.country || (savedLoc?.country !== 'غير محدد' ? savedLoc?.country : '') || '';
-      const initialProvince = userProfile.province || (userProfile as any).governorate || (savedLoc?.governorate !== 'غير محدد' ? savedLoc?.governorate : '') || '';
-      const initialCity = userProfile.city || (savedLoc?.city !== 'غير محدد' ? savedLoc?.city : '') || '';
-      const initialVillage = userProfile.village || (savedLoc?.village !== 'غير محدد' ? savedLoc?.village : '') || '';
-
-      const activeMarket = phoneCountry || market || markets[0];
-
-      form.reset({
-        name: userProfile.name || user?.displayName || '',
-        country: initialCountry,
-        province: initialProvince,
-        city: initialCity,
-        village: initialVillage,
-        phoneCountryCode: activeMarket.id,
-        phoneNumber: phoneNum,
-        profession: userProfile.profession || '',
-        specialization: userProfile.specialization || '',
-        verificationCode: '',
-      });
-      if(userProfile.avatarUrl) {
-        setAvatarPreview(userProfile.avatarUrl);
-      }
+    if (userProfile?.avatarUrl) {
+      setAvatarPreview(userProfile.avatarUrl);
     }
-  }, [userProfile, user, market, form]);
+  }, [userProfile]);
   
   useEffect(() => {
     const cooldownEndTime = localStorage.getItem(COOLDOWN_STORAGE_KEY);
@@ -748,7 +751,11 @@ export default function ProfileForm({ isSignupMode = false }: { isSignupMode?: b
                     1. الدولة
                   </FormLabel>
                   <Select
-                    onValueChange={(val) => handleCountryChange(val)}
+                    key={`country-${field.value || 'none'}`}
+                    onValueChange={(val) => {
+                      field.onChange(val);
+                      handleCountryChange(val);
+                    }}
                     value={field.value || ''}
                     dir={direction}
                   >
@@ -764,6 +771,11 @@ export default function ProfileForm({ isSignupMode = false }: { isSignupMode?: b
                           <span className="text-muted-foreground mr-2 font-mono" dir="ltr">({m.phoneCode})</span>
                         </SelectItem>
                       ))}
+                      {field.value && !markets.some(m => m.name.ar === field.value) && (
+                        <SelectItem key={field.value} value={field.value} className="text-xs py-2">
+                          <span className="font-medium">{field.value}</span>
+                        </SelectItem>
+                      )}
                     </SelectContent>
                   </Select>
                   <FormMessage />
@@ -782,6 +794,7 @@ export default function ProfileForm({ isSignupMode = false }: { isSignupMode?: b
                     2. المحافظة / المنطقة
                   </FormLabel>
                   <Select
+                    key={`prov-${watchedCountry || 'none'}-${field.value || 'none'}`}
                     disabled={!watchedCountry || availableGovernorates.length === 0}
                     onValueChange={field.onChange}
                     value={field.value || ''}
@@ -798,6 +811,11 @@ export default function ProfileForm({ isSignupMode = false }: { isSignupMode?: b
                           {gov}
                         </SelectItem>
                       ))}
+                      {field.value && !availableGovernorates.includes(field.value) && (
+                        <SelectItem key={field.value} value={field.value} className="text-xs py-2">
+                          {field.value}
+                        </SelectItem>
+                      )}
                     </SelectContent>
                   </Select>
                   <FormMessage />

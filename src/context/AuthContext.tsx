@@ -501,6 +501,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const userDocRef = doc(firestore, 'users', uid);
   
     await setDoc(userDocRef, data, { merge: true });
+    setUserProfile(prev => prev ? { ...prev, ...data } : null);
     await refreshUserProfile();
   }, [refreshUserProfile]);
 
