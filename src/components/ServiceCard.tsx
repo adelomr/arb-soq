@@ -24,13 +24,6 @@ type ServiceCardProps = {
 export default function ServiceCard({ service }: ServiceCardProps) {
   const { market } = useMarket();
 
-  const currencyFormatter = new Intl.NumberFormat('ar-SA', {
-    style: 'currency',
-    currency: market.currency,
-    maximumFractionDigits: 0,
-    numberingSystem: 'latn' // Force Latin numerals
-  });
-  
   const hasImage = service.imageUrls && service.imageUrls.length > 0 && service.imageUrls[0];
 
   return (

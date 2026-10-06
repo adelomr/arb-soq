@@ -72,15 +72,20 @@ export default function CartPage() {
   const cartCurrency = cart.length > 0 ? resolveAdCurrencyCode(cart[0], market.currency) : market.currency;
   const cartCurrencySymbol = cart.length > 0 ? getAdCurrencySymbol(cart[0], market.currency) : market.currency;
 
-  const currencyFormatter = new Intl.NumberFormat(
-    'ar-SA',
-    {
+  let currencyFormatter: Intl.NumberFormat;
+  try {
+    currencyFormatter = new Intl.NumberFormat('ar-SA', {
       style: 'currency',
-      currency: cartCurrency,
+      currency: cartCurrency || 'SAR',
+      minimumFractionDigits: 0,
       maximumFractionDigits: 2,
       numberingSystem: 'latn',
-    }
-  );
+    });
+  } catch {
+    currencyFormatter = {
+      format: (val: number) => `${val.toLocaleString('en-US')} ${cartCurrencySymbol || ''}`.trim(),
+    } as Intl.NumberFormat;
+  }
 
   const subtotal = cart.reduce(
     (acc, item) => acc + (item.price || 0) * item.quantity,

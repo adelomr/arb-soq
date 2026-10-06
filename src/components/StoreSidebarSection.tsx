@@ -38,13 +38,6 @@ export default function StoreSidebarSection() {
     return () => unsubscribe();
   }, [getAds, market.id]);
 
-  const currencyFormatter = new Intl.NumberFormat('ar-SA', {
-    style: 'currency',
-    currency: market.currency,
-    maximumFractionDigits: 0,
-    numberingSystem: 'latn'
-  });
-
   const renderProductPair = (index: number) => {
     const product1 = storeProducts[index];
     const product2 = storeProducts[index + 1];

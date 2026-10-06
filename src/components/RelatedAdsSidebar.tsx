@@ -90,13 +90,6 @@ export default function RelatedAdsSidebar({
     });
   };
 
-  const currencyFormatter = new Intl.NumberFormat('ar-SA', {
-    style: 'currency',
-    currency: market?.currency || 'SAR',
-    maximumFractionDigits: 0,
-    numberingSystem: 'latn',
-  });
-
   const categoryHint = [brand || subcategory || category, city ? `في ${city}` : '']
     .filter(Boolean)
     .join(' ');

@@ -401,13 +401,6 @@ export default function AdModerationList() {
   const t = translations.ar;
   const dateLocale = ar;
 
-  const currencyFormatter = new Intl.NumberFormat('ar-SA', {
-    style: 'currency',
-    currency: market?.currency || 'EGP',
-    maximumFractionDigits: 0,
-    numberingSystem: 'latn',
-  });
-
   useEffect(() => {
     const unsubscribe = getAdsForModeration(setAds, setLoading);
     return () => unsubscribe();

@@ -88,13 +88,6 @@ function AdRow({ ad, priority = false }: AdRowProps) {
   const shareText = encodeURIComponent(ad.title);
   const encodedAdUrl = encodeURIComponent(adUrl);
 
-  const currencyFormatter = new Intl.NumberFormat('ar-SA', {
-    style: 'currency',
-    currency: market.currency,
-    maximumFractionDigits: 0,
-    numberingSystem: 'latn' // Force Latin numerals
-  });
-
   const hasImage = ad.imageUrls && ad.imageUrls.length > 0 && ad.imageUrls[0];
 
   const realRating = (ad as any).rating || 0;

@@ -257,13 +257,6 @@ const AdTable = ({ ads, isLoading, isAdmin, noItemsMessage, isStoreProduct = fal
         });
     };
 
-    const currencyFormatter = new Intl.NumberFormat('ar-SA', {
-        style: 'currency',
-        currency: market.currency,
-        maximumFractionDigits: 0,
-        numberingSystem: 'latn'
-    });
-
     const getStatusBadge = (status: Ad['status']) => {
       switch (status) {
           case 'active':

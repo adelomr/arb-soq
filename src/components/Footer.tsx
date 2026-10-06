@@ -76,7 +76,11 @@ export default function Footer() {
     }, []);
 
     const formatNumber = (num: number) => {
-        return new Intl.NumberFormat('en-US', { numberingSystem: 'latn' }).format(num);
+        try {
+            return new Intl.NumberFormat('en-US', { numberingSystem: 'latn' }).format(num || 0);
+        } catch {
+            return String(num || 0);
+        }
     }
 
   return (

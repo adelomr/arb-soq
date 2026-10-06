@@ -287,6 +287,7 @@ export function formatAdPrice(
     return new Intl.NumberFormat('ar-SA', {
       style: 'currency',
       currency: currencyCode,
+      minimumFractionDigits: 0,
       maximumFractionDigits: 0,
       numberingSystem: 'latn',
     }).format(price);

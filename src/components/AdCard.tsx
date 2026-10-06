@@ -130,13 +130,6 @@ function AdCard({ ad, priority = false }: AdCardProps) {
   }, [ad.user, ad.userId, getUserById]);
 
 
-  const currencyFormatter = new Intl.NumberFormat('ar-SA', {
-    style: 'currency',
-    currency: market.currency,
-    maximumFractionDigits: 0,
-    numberingSystem: 'latn' // Force Latin numerals
-  });
-
   const isStoreProduct = ad.category === 'store-product';
   const isInCart = cart.some(item => item.id === ad.id);
   const hasImage = ad.imageUrls && ad.imageUrls.length > 0 && ad.imageUrls[0];
