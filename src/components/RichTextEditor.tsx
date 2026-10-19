@@ -26,13 +26,13 @@ import SpellCheckExtension, { spellCheckKey } from './SpellCheckExtension';
 import SpellCheckPopup from './SpellCheckPopup';
 import {
     Bold, Italic, List, ListOrdered, Image as ImageIcon, Link as LinkIcon,
-    Heading1, Heading2, Heading3, Undo, Redo, Loader2, AlignLeft, AlignCenter,
-    AlignRight, Unlink, Paperclip, Underline as UnderlineIcon, Strikethrough,
-    Highlighter, Quote, Minus, Palette, Type, X, Check, Settings2, Download,
-    Code, Phone, MessageCircle, Plus, Eraser, Maximize2, Minimize2, Copy,
-    Table2, Youtube as YoutubeIcon, Smile, Subscript as SubscriptIcon,
-    Superscript as SuperscriptIcon, Trash2, ChevronDown, ChevronUp,
-    ChevronLeft, ChevronRight,
+    Heading1, Heading2, Heading3, Heading4, Pilcrow, Undo, Redo, Loader2,
+    AlignLeft, AlignCenter, AlignRight, AlignJustify, Unlink, Paperclip,
+    Underline as UnderlineIcon, Strikethrough, Highlighter, Quote, Minus,
+    Palette, Type, X, Check, Settings2, Download, Code, Phone, MessageCircle,
+    Plus, Eraser, Maximize2, Minimize2, Copy, Table2, Youtube as YoutubeIcon,
+    Smile, Subscript as SubscriptIcon, Superscript as SuperscriptIcon, Trash2,
+    ChevronDown, ChevronUp, ChevronLeft, ChevronRight,
 } from 'lucide-react';
 
 // ──────────────── Interfaces ────────────────
@@ -211,10 +211,279 @@ function ImagePanel({ onClose, onApply, onDelete, currentAlt, currentSize }: Ima
 
 // ──────────────── Anchor type for fixed popovers ────────────────
 interface Anchor { top: number; left: number; }
-function getAnchor(btn: HTMLButtonElement | null): Anchor | null {
+function getAnchor(btn: HTMLButtonElement | null, width = 220): Anchor | null {
     if (!btn) return null;
     const r = btn.getBoundingClientRect();
-    return { top: r.bottom + 4, left: Math.min(r.left, window.innerWidth - 240) };
+    let left = r.right - width;
+    if (left < 8) left = 8;
+    if (left + width > window.innerWidth - 8) {
+        left = window.innerWidth - width - 8;
+    }
+    return { top: r.bottom + 6, left };
+}
+
+// ──────────────── Heading Picker (قائمة الفقرات والعناوين مثل بلوجر) ────────────────
+interface HeadingPickerProps {
+    editor: any;
+    onClose: () => void;
+    anchor: Anchor;
+}
+function HeadingPicker({ editor, onClose, anchor }: HeadingPickerProps) {
+    const HEADING_OPTIONS = [
+        {
+            label: 'العنوان الرئيسي',
+            desc: 'عنوان المقال أو القسم الأساسي (H1)',
+            badge: 'H1',
+            style: 'text-base font-bold text-foreground',
+            action: () => editor.chain().focus().toggleHeading({ level: 1 }).run(),
+            isActive: editor.isActive('heading', { level: 1 }),
+        },
+        {
+            label: 'العنوان',
+            desc: 'عنوان الفقرة أو القسم الرئيسي (H2)',
+            badge: 'H2',
+            style: 'text-sm font-bold text-foreground',
+            action: () => editor.chain().focus().toggleHeading({ level: 2 }).run(),
+            isActive: editor.isActive('heading', { level: 2 }),
+        },
+        {
+            label: 'العنوان الفرعي',
+            desc: 'عنوان فرعي داخل القسم (H3)',
+            badge: 'H3',
+            style: 'text-xs font-semibold text-foreground',
+            action: () => editor.chain().focus().toggleHeading({ level: 3 }).run(),
+            isActive: editor.isActive('heading', { level: 3 }),
+        },
+        {
+            label: 'العنوان الثانوي',
+            desc: 'عنوان ثانوي جانبي إضافي (H4)',
+            badge: 'H4',
+            style: 'text-xs font-medium text-foreground',
+            action: () => editor.chain().focus().toggleHeading({ level: 4 }).run(),
+            isActive: editor.isActive('heading', { level: 4 }),
+        },
+        {
+            label: 'فقرة عادية',
+            desc: 'نص عادي بدون تنسيق عنوان',
+            badge: 'P',
+            style: 'text-xs text-foreground/80',
+            action: () => editor.chain().focus().setParagraph().run(),
+            isActive: !editor.isActive('heading'),
+        },
+    ];
+
+    return (
+        <div
+            className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl shadow-2xl p-2 w-64 z-[9999]"
+            style={{ position: 'fixed', top: anchor.top, left: anchor.left }}
+            dir="rtl"
+        >
+            <div className="flex items-center justify-between px-2 py-1 mb-1.5 border-b border-slate-100 dark:border-slate-800">
+                <span className="text-xs font-semibold text-muted-foreground flex items-center gap-1.5">
+                    <Type className="w-3.5 h-3.5 text-primary" /> نوع الفقرة / العنوان
+                </span>
+                <button type="button" onClick={onClose} className="text-muted-foreground hover:text-foreground">
+                    <X className="h-3.5 w-3.5" />
+                </button>
+            </div>
+            <div className="space-y-1">
+                {HEADING_OPTIONS.map((opt) => (
+                    <button
+                        key={opt.label}
+                        type="button"
+                        onClick={() => {
+                            opt.action();
+                            onClose();
+                        }}
+                        className={`w-full text-right px-2.5 py-1.5 rounded-lg flex items-center justify-between transition-colors ${
+                            opt.isActive
+                                ? 'bg-primary/10 text-primary font-semibold'
+                                : 'hover:bg-slate-100 dark:hover:bg-slate-800 text-foreground'
+                        }`}
+                    >
+                        <div className="flex items-center gap-2.5 min-w-0">
+                            <span className={`w-6 h-6 rounded flex items-center justify-center text-[10px] font-bold flex-shrink-0 ${
+                                opt.isActive ? 'bg-primary text-white' : 'bg-slate-100 dark:bg-slate-800 text-muted-foreground'
+                            }`}>
+                                {opt.badge}
+                            </span>
+                            <div className="text-right">
+                                <div className={`${opt.style} leading-tight`}>{opt.label}</div>
+                                <div className="text-[10px] text-muted-foreground">{opt.desc}</div>
+                            </div>
+                        </div>
+                        {opt.isActive && <Check className="h-4 w-4 text-primary flex-shrink-0 mr-1" />}
+                    </button>
+                ))}
+            </div>
+        </div>
+    );
+}
+
+// ──────────────── Align Picker (قائمة المحاذاة مثل بلوجر) ────────────────
+interface AlignPickerProps {
+    editor: any;
+    onClose: () => void;
+    anchor: Anchor;
+}
+function AlignPicker({ editor, onClose, anchor }: AlignPickerProps) {
+    const ALIGN_OPTIONS = [
+        {
+            label: 'محاذاة لليمين',
+            desc: 'المحاذاة الطبيعية للغة العربية',
+            icon: AlignRight,
+            action: () => editor.chain().focus().setTextAlign('right').run(),
+            isActive: editor.isActive({ textAlign: 'right' }) || (!editor.isActive({ textAlign: 'center' }) && !editor.isActive({ textAlign: 'left' }) && !editor.isActive({ textAlign: 'justify' })),
+        },
+        {
+            label: 'توسيط',
+            desc: 'محاذاة النص في المنتصف',
+            icon: AlignCenter,
+            action: () => editor.chain().focus().setTextAlign('center').run(),
+            isActive: editor.isActive({ textAlign: 'center' }),
+        },
+        {
+            label: 'محاذاة لليسار',
+            desc: 'محاذاة النص للجهة اليسرى',
+            icon: AlignLeft,
+            action: () => editor.chain().focus().setTextAlign('left').run(),
+            isActive: editor.isActive({ textAlign: 'left' }),
+        },
+        {
+            label: 'ضبط النص (Justify)',
+            desc: 'محاذاة متساوية للجانبين',
+            icon: AlignJustify,
+            action: () => editor.chain().focus().setTextAlign('justify').run(),
+            isActive: editor.isActive({ textAlign: 'justify' }),
+        },
+    ];
+
+    return (
+        <div
+            className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl shadow-2xl p-2 w-52 z-[9999]"
+            style={{ position: 'fixed', top: anchor.top, left: anchor.left }}
+            dir="rtl"
+        >
+            <div className="flex items-center justify-between px-2 py-1 mb-1.5 border-b border-slate-100 dark:border-slate-800">
+                <span className="text-xs font-semibold text-muted-foreground">محاذاة النص</span>
+                <button type="button" onClick={onClose} className="text-muted-foreground hover:text-foreground">
+                    <X className="h-3.5 w-3.5" />
+                </button>
+            </div>
+            <div className="space-y-1">
+                {ALIGN_OPTIONS.map((opt) => {
+                    const Icon = opt.icon;
+                    return (
+                        <button
+                            key={opt.label}
+                            type="button"
+                            onClick={() => {
+                                opt.action();
+                                onClose();
+                            }}
+                            className={`w-full text-right px-2.5 py-1.5 rounded-lg flex items-center justify-between transition-colors ${
+                                opt.isActive
+                                    ? 'bg-primary/10 text-primary font-semibold'
+                                    : 'hover:bg-slate-100 dark:hover:bg-slate-800 text-foreground'
+                            }`}
+                        >
+                            <div className="flex items-center gap-2">
+                                <Icon className="h-4 w-4 flex-shrink-0" />
+                                <div>
+                                    <div className="text-xs font-medium leading-tight">{opt.label}</div>
+                                    <div className="text-[10px] text-muted-foreground">{opt.desc}</div>
+                                </div>
+                            </div>
+                            {opt.isActive && <Check className="h-4 w-4 text-primary flex-shrink-0 mr-1" />}
+                        </button>
+                    );
+                })}
+            </div>
+        </div>
+    );
+}
+
+// ──────────────── List Picker (قائمة القوائم والتنظيم) ────────────────
+interface ListPickerProps {
+    editor: any;
+    onClose: () => void;
+    anchor: Anchor;
+}
+function ListPicker({ editor, onClose, anchor }: ListPickerProps) {
+    const LIST_OPTIONS = [
+        {
+            label: 'قائمة نقطية',
+            desc: 'عناصر نقطية غير مرتبة',
+            icon: List,
+            action: () => editor.chain().focus().toggleBulletList().run(),
+            isActive: editor.isActive('bulletList'),
+        },
+        {
+            label: 'قائمة مرقمة',
+            desc: 'عناصر مرقمة 1، 2، 3...',
+            icon: ListOrdered,
+            action: () => editor.chain().focus().toggleOrderedList().run(),
+            isActive: editor.isActive('orderedList'),
+        },
+        {
+            label: 'اقتباس مميز',
+            desc: 'كتلة اقتباس بنمط بارز',
+            icon: Quote,
+            action: () => editor.chain().focus().toggleBlockquote().run(),
+            isActive: editor.isActive('blockquote'),
+        },
+        {
+            label: 'خط فاصل أفقي',
+            desc: 'إدراج خط فاصل بين الفقرات',
+            icon: Minus,
+            action: () => editor.chain().focus().setHorizontalRule().run(),
+            isActive: false,
+        },
+    ];
+
+    return (
+        <div
+            className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl shadow-2xl p-2 w-52 z-[9999]"
+            style={{ position: 'fixed', top: anchor.top, left: anchor.left }}
+            dir="rtl"
+        >
+            <div className="flex items-center justify-between px-2 py-1 mb-1.5 border-b border-slate-100 dark:border-slate-800">
+                <span className="text-xs font-semibold text-muted-foreground">القوائم والفواصل</span>
+                <button type="button" onClick={onClose} className="text-muted-foreground hover:text-foreground">
+                    <X className="h-3.5 w-3.5" />
+                </button>
+            </div>
+            <div className="space-y-1">
+                {LIST_OPTIONS.map((opt) => {
+                    const Icon = opt.icon;
+                    return (
+                        <button
+                            key={opt.label}
+                            type="button"
+                            onClick={() => {
+                                opt.action();
+                                onClose();
+                            }}
+                            className={`w-full text-right px-2.5 py-1.5 rounded-lg flex items-center justify-between transition-colors ${
+                                opt.isActive
+                                    ? 'bg-primary/10 text-primary font-semibold'
+                                    : 'hover:bg-slate-100 dark:hover:bg-slate-800 text-foreground'
+                            }`}
+                        >
+                            <div className="flex items-center gap-2">
+                                <Icon className="h-4 w-4 flex-shrink-0" />
+                                <div>
+                                    <div className="text-xs font-medium leading-tight">{opt.label}</div>
+                                    <div className="text-[10px] text-muted-foreground">{opt.desc}</div>
+                                </div>
+                            </div>
+                            {opt.isActive && <Check className="h-4 w-4 text-primary flex-shrink-0 mr-1" />}
+                        </button>
+                    );
+                })}
+            </div>
+        </div>
+    );
 }
 
 // ──────────────── Color Picker ────────────────
@@ -559,8 +828,11 @@ const MenuBar = ({
     if (!editor) return null;
 
     // Refs for popover anchor buttons
-    const colorBtnRef    = useRef<HTMLButtonElement>(null);
+    const headingBtnRef  = useRef<HTMLButtonElement>(null);
     const fontSizeBtnRef = useRef<HTMLButtonElement>(null);
+    const colorBtnRef    = useRef<HTMLButtonElement>(null);
+    const alignBtnRef    = useRef<HTMLButtonElement>(null);
+    const listBtnRef     = useRef<HTMLButtonElement>(null);
     const emojiBtnRef    = useRef<HTMLButtonElement>(null);
 
     const scrollContainerRef = useRef<HTMLDivElement>(null);
@@ -584,7 +856,16 @@ const MenuBar = ({
         return () => el.removeEventListener('wheel', handleWheel);
     }, []);
 
-    // Anchor positions (fixed coordinates)
+    // Anchor positions and open states
+    const [headingOpen,    setHeadingOpen]    = useState(false);
+    const [headingAnchor,  setHeadingAnchor]  = useState<Anchor | null>(null);
+
+    const [alignOpen,      setAlignOpen]      = useState(false);
+    const [alignAnchor,    setAlignAnchor]    = useState<Anchor | null>(null);
+
+    const [listOpen,       setListOpen]       = useState(false);
+    const [listAnchor,     setListAnchor]     = useState<Anchor | null>(null);
+
     const [colorAnchor,    setColorAnchor]    = useState<Anchor | null>(null);
     const [fontSizeAnchor, setFontSizeAnchor] = useState<Anchor | null>(null);
     const [emojiAnchor,    setEmojiAnchor]    = useState<Anchor | null>(null);
@@ -602,6 +883,9 @@ const MenuBar = ({
     }, [editor]);
 
     const closeAllPopovers = () => {
+        setHeadingOpen(false);
+        setAlignOpen(false);
+        setListOpen(false);
         setColorPickerOpen(false);
         setFontSizeOpen(false);
         setImagePanelOpen(false);
@@ -610,17 +894,40 @@ const MenuBar = ({
 
     const isInTable = editor.isActive('table');
 
+    // Compute active heading label & tag (مثل بلوجر)
+    const activeHeading = (() => {
+        if (editor.isActive('heading', { level: 1 })) return { label: 'العنوان الرئيسي', tag: 'H1' };
+        if (editor.isActive('heading', { level: 2 })) return { label: 'العنوان', tag: 'H2' };
+        if (editor.isActive('heading', { level: 3 })) return { label: 'العنوان الفرعي', tag: 'H3' };
+        if (editor.isActive('heading', { level: 4 })) return { label: 'العنوان الثانوي', tag: 'H4' };
+        return { label: 'فقرة عادية', tag: 'P' };
+    })();
+
+    // Compute active alignment (مثل بلوجر)
+    const activeAlign = (() => {
+        if (editor.isActive({ textAlign: 'center' })) return { icon: AlignCenter, label: 'توسيط' };
+        if (editor.isActive({ textAlign: 'left' })) return { icon: AlignLeft, label: 'محاذاة لليسار' };
+        if (editor.isActive({ textAlign: 'justify' })) return { icon: AlignJustify, label: 'ضبط النص' };
+        return { icon: AlignRight, label: 'محاذاة لليمين' };
+    })();
+    const ActiveAlignIcon = activeAlign.icon;
+
     return (
-        <div className="border-b border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-[#0f172a] rounded-t-xl">
+        <div className="border-b border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-[#0f172a] rounded-t-xl relative">
+            {/* Backdrop to close popovers on click outside */}
+            {(colorPickerOpen || fontSizeOpen || emojiPickerOpen || headingOpen || alignOpen || listOpen) && (
+                <div className="fixed inset-0 z-[9990]" onClick={closeAllPopovers} />
+            )}
+
             <div className="flex items-center justify-between p-2 gap-2">
             {/* ── Scrollable Toolbar Area ── */}
             <div 
                 ref={scrollContainerRef}
-                className="flex items-center gap-0.5 overflow-x-auto custom-scrollbar flex-1 min-w-0 py-0.5"
+                className="flex items-center gap-1 overflow-x-auto custom-scrollbar flex-1 min-w-0 py-0.5"
             >
-                <div className="flex items-center gap-0.5 flex-shrink-0">
+                <div className="flex items-center gap-1 flex-shrink-0">
 
-                    {/* Undo / Redo */}
+                    {/* 1. تراجع / إعادة */}
                     <ToolbarBtn onClick={() => editor.chain().focus().undo().run()} disabled={!editor.can().undo() || isHtmlMode} title="تراجع (Ctrl+Z)">
                         <Undo size={16} />
                     </ToolbarBtn>
@@ -629,19 +936,70 @@ const MenuBar = ({
                     </ToolbarBtn>
                     <Sep />
 
-                    {/* Headings */}
-                    <ToolbarBtn onClick={() => editor.chain().focus().toggleHeading({ level: 1 }).run()} active={editor.isActive('heading', { level: 1 })} disabled={isHtmlMode} title="عنوان H1">
-                        <Heading1 size={16} />
-                    </ToolbarBtn>
-                    <ToolbarBtn onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()} active={editor.isActive('heading', { level: 2 })} disabled={isHtmlMode} title="عنوان H2">
-                        <Heading2 size={16} />
-                    </ToolbarBtn>
-                    <ToolbarBtn onClick={() => editor.chain().focus().toggleHeading({ level: 3 }).run()} active={editor.isActive('heading', { level: 3 })} disabled={isHtmlMode} title="عنوان H3">
-                        <Heading3 size={16} />
-                    </ToolbarBtn>
+                    {/* 2. قائمة الفقرات والعناوين المجمعة (مثل بلوجر) */}
+                    <button
+                        ref={headingBtnRef}
+                        type="button"
+                        onClick={() => {
+                            const willOpen = !headingOpen;
+                            closeAllPopovers();
+                            if (willOpen) setHeadingAnchor(getAnchor(headingBtnRef.current, 256));
+                            setHeadingOpen(willOpen);
+                        }}
+                        disabled={isHtmlMode}
+                        title="نوع الفقرة / العنوان (مثل بلوجر)"
+                        className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium transition-colors flex-shrink-0 border ${
+                            headingOpen || editor.isActive('heading')
+                                ? 'bg-primary/10 border-primary/30 text-primary font-semibold'
+                                : 'bg-white dark:bg-slate-800/80 border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:border-primary/40'
+                        } disabled:opacity-30 disabled:cursor-not-allowed`}
+                    >
+                        <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-primary/15 text-primary">
+                            {activeHeading.tag}
+                        </span>
+                        <span className="truncate max-w-[85px] sm:max-w-[100px]">{activeHeading.label}</span>
+                        <ChevronDown size={13} className="text-muted-foreground" />
+                    </button>
+                    {headingOpen && headingAnchor && (
+                        <HeadingPicker
+                            editor={editor}
+                            anchor={headingAnchor}
+                            onClose={() => setHeadingOpen(false)}
+                        />
+                    )}
+
+                    {/* 3. حجم الخط */}
+                    <button
+                        ref={fontSizeBtnRef}
+                        type="button"
+                        onClick={() => {
+                            const willOpen = !fontSizeOpen;
+                            closeAllPopovers();
+                            if (willOpen) setFontSizeAnchor(getAnchor(fontSizeBtnRef.current, 176));
+                            setFontSizeOpen(willOpen);
+                        }}
+                        disabled={isHtmlMode}
+                        title="حجم الخط"
+                        className={`flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-medium transition-colors flex-shrink-0 border ${
+                            fontSizeOpen
+                                ? 'bg-primary/10 border-primary/30 text-primary font-semibold'
+                                : 'bg-white dark:bg-slate-800/80 border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:border-primary/40'
+                        } disabled:opacity-30 disabled:cursor-not-allowed`}
+                    >
+                        <Type size={14} className="text-primary" />
+                        <span>حجم الخط</span>
+                        <ChevronDown size={12} className="text-muted-foreground" />
+                    </button>
+                    {fontSizeOpen && fontSizeAnchor && (
+                        <FontSizePicker
+                            anchor={fontSizeAnchor}
+                            onSelect={(size) => { editor.chain().focus().setMark('textStyle', { fontSize: size }).run(); }}
+                            onClose={() => setFontSizeOpen(false)}
+                        />
+                    )}
                     <Sep />
 
-                    {/* Text Styles */}
+                    {/* 4. تنسيقات الخط */}
                     <ToolbarBtn onClick={() => editor.chain().focus().toggleBold().run()} active={editor.isActive('bold')} disabled={isHtmlMode} title="عريض (Ctrl+B)">
                         <Bold size={16} />
                     </ToolbarBtn>
@@ -657,26 +1015,22 @@ const MenuBar = ({
                     <ToolbarBtn onClick={() => editor.chain().focus().toggleHighlight().run()} active={editor.isActive('highlight')} disabled={isHtmlMode} title="تمييز (Ctrl+Shift+H)">
                         <Highlighter size={16} />
                     </ToolbarBtn>
-                    <ToolbarBtn onClick={() => editor.chain().focus().toggleSubscript().run()} active={editor.isActive('subscript')} disabled={isHtmlMode} title="نص منخفض">
-                        <SubscriptIcon size={16} />
-                    </ToolbarBtn>
-                    <ToolbarBtn onClick={() => editor.chain().focus().toggleSuperscript().run()} active={editor.isActive('superscript')} disabled={isHtmlMode} title="نص مرتفع">
-                        <SuperscriptIcon size={16} />
-                    </ToolbarBtn>
-                    <Sep />
 
                     {/* Color */}
                     <button
                         ref={colorBtnRef}
                         type="button"
                         onClick={() => {
+                            const willOpen = !colorPickerOpen;
                             closeAllPopovers();
-                            if (!colorPickerOpen) setColorAnchor(getAnchor(colorBtnRef.current));
-                            setColorPickerOpen(!colorPickerOpen);
+                            if (willOpen) setColorAnchor(getAnchor(colorBtnRef.current, 224));
+                            setColorPickerOpen(willOpen);
                         }}
                         disabled={isHtmlMode}
                         title="لون الخط"
-                        className={`p-1.5 rounded transition-colors flex-shrink-0 ${colorPickerOpen ? 'bg-primary/15 text-primary' : 'text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700'} disabled:opacity-30 disabled:cursor-not-allowed`}
+                        className={`p-1.5 rounded transition-colors flex-shrink-0 ${
+                            colorPickerOpen ? 'bg-primary/15 text-primary' : 'text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700'
+                        } disabled:opacity-30 disabled:cursor-not-allowed`}
                     >
                         <Palette size={16} />
                     </button>
@@ -688,60 +1042,75 @@ const MenuBar = ({
                         />
                     )}
 
-                    {/* Font Size */}
-                    <button
-                        ref={fontSizeBtnRef}
-                        type="button"
-                        onClick={() => {
-                            closeAllPopovers();
-                            if (!fontSizeOpen) setFontSizeAnchor(getAnchor(fontSizeBtnRef.current));
-                            setFontSizeOpen(!fontSizeOpen);
-                        }}
-                        disabled={isHtmlMode}
-                        title="حجم الخط"
-                        className={`p-1.5 rounded transition-colors flex-shrink-0 ${fontSizeOpen ? 'bg-primary/15 text-primary' : 'text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700'} disabled:opacity-30 disabled:cursor-not-allowed`}
-                    >
-                        <Type size={16} />
-                    </button>
-                    {fontSizeOpen && fontSizeAnchor && (
-                        <FontSizePicker
-                            anchor={fontSizeAnchor}
-                            onSelect={(size) => { editor.chain().focus().setMark('textStyle', { fontSize: size }).run(); }}
-                            onClose={() => setFontSizeOpen(false)}
-                        />
-                    )}
-
-                    {/* Clear Formatting */}
+                    <ToolbarBtn onClick={() => editor.chain().focus().toggleSubscript().run()} active={editor.isActive('subscript')} disabled={isHtmlMode} title="نص منخفض">
+                        <SubscriptIcon size={15} />
+                    </ToolbarBtn>
+                    <ToolbarBtn onClick={() => editor.chain().focus().toggleSuperscript().run()} active={editor.isActive('superscript')} disabled={isHtmlMode} title="نص مرتفع">
+                        <SuperscriptIcon size={15} />
+                    </ToolbarBtn>
                     <ToolbarBtn onClick={() => editor.chain().focus().clearNodes().unsetAllMarks().run()} disabled={isHtmlMode} title="مسح التنسيق">
                         <Eraser size={16} />
                     </ToolbarBtn>
                     <Sep />
 
-                    {/* Alignment */}
-                    <ToolbarBtn onClick={() => editor.chain().focus().setTextAlign('right').run()} active={editor.isActive({ textAlign: 'right' })} disabled={isHtmlMode} title="محاذاة يمين">
-                        <AlignRight size={16} />
-                    </ToolbarBtn>
-                    <ToolbarBtn onClick={() => editor.chain().focus().setTextAlign('center').run()} active={editor.isActive({ textAlign: 'center' })} disabled={isHtmlMode} title="توسيط">
-                        <AlignCenter size={16} />
-                    </ToolbarBtn>
-                    <ToolbarBtn onClick={() => editor.chain().focus().setTextAlign('left').run()} active={editor.isActive({ textAlign: 'left' })} disabled={isHtmlMode} title="محاذاة يسار">
-                        <AlignLeft size={16} />
-                    </ToolbarBtn>
+                    {/* 5. قائمة المحاذاة المجمعة (مثل بلوجر) */}
+                    <button
+                        ref={alignBtnRef}
+                        type="button"
+                        onClick={() => {
+                            const willOpen = !alignOpen;
+                            closeAllPopovers();
+                            if (willOpen) setAlignAnchor(getAnchor(alignBtnRef.current, 208));
+                            setAlignOpen(willOpen);
+                        }}
+                        disabled={isHtmlMode}
+                        title={`محاذاة النص: ${activeAlign.label}`}
+                        className={`flex items-center gap-1 px-2 py-1.5 rounded-lg text-xs transition-colors flex-shrink-0 border ${
+                            alignOpen
+                                ? 'bg-primary/10 border-primary/30 text-primary font-semibold'
+                                : 'bg-white dark:bg-slate-800/80 border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:border-primary/40'
+                        } disabled:opacity-30 disabled:cursor-not-allowed`}
+                    >
+                        <ActiveAlignIcon size={16} />
+                        <ChevronDown size={12} className="text-muted-foreground" />
+                    </button>
+                    {alignOpen && alignAnchor && (
+                        <AlignPicker
+                            editor={editor}
+                            anchor={alignAnchor}
+                            onClose={() => setAlignOpen(false)}
+                        />
+                    )}
                     <Sep />
 
-                    {/* Lists */}
-                    <ToolbarBtn onClick={() => editor.chain().focus().toggleBulletList().run()} active={editor.isActive('bulletList')} disabled={isHtmlMode} title="قائمة نقطية">
-                        <List size={16} />
-                    </ToolbarBtn>
-                    <ToolbarBtn onClick={() => editor.chain().focus().toggleOrderedList().run()} active={editor.isActive('orderedList')} disabled={isHtmlMode} title="قائمة مرقمة">
-                        <ListOrdered size={16} />
-                    </ToolbarBtn>
-                    <ToolbarBtn onClick={() => editor.chain().focus().toggleBlockquote().run()} active={editor.isActive('blockquote')} disabled={isHtmlMode} title="اقتباس">
-                        <Quote size={16} />
-                    </ToolbarBtn>
-                    <ToolbarBtn onClick={() => editor.chain().focus().setHorizontalRule().run()} disabled={isHtmlMode} title="خط فاصل">
-                        <Minus size={16} />
-                    </ToolbarBtn>
+                    {/* 6. قائمة القوائم والفواصل المجمعة (مثل بلوجر) */}
+                    <button
+                        ref={listBtnRef}
+                        type="button"
+                        onClick={() => {
+                            const willOpen = !listOpen;
+                            closeAllPopovers();
+                            if (willOpen) setListAnchor(getAnchor(listBtnRef.current, 208));
+                            setListOpen(willOpen);
+                        }}
+                        disabled={isHtmlMode}
+                        title="القوائم والفواصل"
+                        className={`flex items-center gap-1 px-2 py-1.5 rounded-lg text-xs transition-colors flex-shrink-0 border ${
+                            listOpen || editor.isActive('bulletList') || editor.isActive('orderedList') || editor.isActive('blockquote')
+                                ? 'bg-primary/10 border-primary/30 text-primary font-semibold'
+                                : 'bg-white dark:bg-slate-800/80 border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:border-primary/40'
+                        } disabled:opacity-30 disabled:cursor-not-allowed`}
+                    >
+                        {editor.isActive('orderedList') ? <ListOrdered size={16} /> : <List size={16} />}
+                        <ChevronDown size={12} className="text-muted-foreground" />
+                    </button>
+                    {listOpen && listAnchor && (
+                        <ListPicker
+                            editor={editor}
+                            anchor={listAnchor}
+                            onClose={() => setListOpen(false)}
+                        />
+                    )}
                     <Sep />
 
                     {/* Table */}
@@ -961,8 +1330,12 @@ export default function RichTextEditor({ value, onChange, placeholder, stickyTop
     const editor = useEditor({
         immediatelyRender: false,
         extensions: [
-            StarterKit,
-            TextAlign.configure({ types: ['heading', 'paragraph'] }),
+            StarterKit.configure({
+                heading: {
+                    levels: [1, 2, 3, 4],
+                },
+            }),
+            TextAlign.configure({ types: ['heading', 'paragraph'], alignments: ['left', 'center', 'right', 'justify'] }),
             CustomImage.configure({
                 inline: false,
                 HTMLAttributes: {
@@ -1019,11 +1392,18 @@ export default function RichTextEditor({ value, onChange, placeholder, stickyTop
                 if (target.tagName === 'IMG') {
                     setSpellPopup(null);
                     setSelectedImageNode(target);
-                    setSelectedImagePos(pos);
+                    let exactPos = pos;
+                    try {
+                        const domPos = view.posAtDOM(target, 0);
+                        if (typeof domPos === 'number') exactPos = domPos;
+                    } catch (_) {}
+                    setSelectedImagePos(exactPos);
                     setImagePanelOpen(true);
                     try {
-                        editor?.commands.setNodeSelection(pos);
-                    } catch (e) {}
+                        editor?.commands.setNodeSelection(exactPos);
+                    } catch (e) {
+                        try { editor?.commands.setNodeSelection(pos); } catch (_) {}
+                    }
                     const rect = target.getBoundingClientRect();
                     if (wrapperRef.current) {
                         const wrapperRect = wrapperRef.current.getBoundingClientRect();
@@ -1113,7 +1493,11 @@ export default function RichTextEditor({ value, onChange, placeholder, stickyTop
             (error) => { console.error('Upload error:', error); setUploadingImage(false); },
             async () => {
                 const downloadURL = await getDownloadURL(uploadTask.snapshot.ref);
-                editor.chain().focus().setImage({ src: downloadURL, alt: file.name }).run();
+                editor.chain().focus().setImage({ 
+                    src: downloadURL, 
+                    alt: file.name,
+                    style: 'max-width: 50%; height: auto; display: block; margin: 1rem auto; border-radius: 8px; cursor: pointer;'
+                } as any).run();
                 setUploadingImage(false);
             }
         );

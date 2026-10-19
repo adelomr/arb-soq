@@ -500,15 +500,34 @@ span.contact-btn-custom:active {
   margin: 0.25rem 0 !important;
 }
 
-/* Force rich-text images to expand full width on mobile regardless of inline HTML styles */
+/* ===== تنسيق صور المحتوى الغني والمقالات ===== */
 .custom-page-content img,
 .rich-content img,
 .prose img {
-  width: 100% !important;
-  max-width: 100% !important;
   height: auto !important;
-  display: block !important;
-  margin: 1.5rem auto !important;
+}
+
+/* دعم صور المحرر وتفاعلها */
+.ProseMirror img,
+.editor-image {
+  cursor: pointer;
+  border-radius: 8px;
+  transition: outline 0.15s ease, box-shadow 0.15s ease;
+}
+
+.ProseMirror img:hover,
+.editor-image:hover {
+  outline: 2px solid hsl(var(--primary));
+  outline-offset: 2px;
+}
+
+/* على الشاشات الصغيرة (الجوال): نضمن عدم خروج الصور عن حدود الشاشة أفقياً */
+@media (max-width: 640px) {
+  .custom-page-content img,
+  .rich-content img,
+  .prose:not(.ProseMirror) img {
+    max-width: 100% !important;
+  }
 }
 
 /* Performance optimization for off-screen rendering (TBT & INP) */
