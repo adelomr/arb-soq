@@ -302,9 +302,9 @@ export default function Footer() {
                   </button>
                 </div>
                 <nav 
-                  className="flex flex-col gap-2.5 overflow-hidden transition-all duration-300"
+                  className={`flex flex-col gap-2.5 transition-all duration-300 ${blogDrawerOpen ? 'overflow-y-auto scrollbar-thin pr-1' : 'overflow-hidden'}`}
                   style={{
-                    maxHeight: blogDrawerOpen ? '380px' : '150px',
+                    maxHeight: blogDrawerOpen ? '420px' : '150px',
                     opacity: 1,
                   }}
                 >

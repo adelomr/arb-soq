@@ -224,10 +224,80 @@ export function stripArabicPrefixes(word: string): string {
   return w;
 }
 
+/**
+ * Generates root stems, singular/plural, and technical synonyms for Arabic words
+ * (e.g. ملفات <-> ملف, قنوات <-> قناة, فلاشات <-> فلاشة, شروحات <-> شرح, سوفتات <-> سوفت)
+ */
+export function getArabicWordStems(word: string): string[] {
+  const norm = normalizeArabicText(word);
+  if (!norm || norm.length < 2) return [];
+
+  const stems = new Set<string>([norm]);
+
+  // Strip prefixes (ال, و, ف, ب, ك, ل)
+  const noPrefix = stripArabicPrefixes(norm);
+  if (noPrefix && noPrefix.length >= 2) {
+    stems.add(noPrefix);
+  }
+
+  // Strip common Arabic suffixes from both original and noPrefix
+  [norm, noPrefix].forEach((w) => {
+    if (!w) return;
+    // ات (جمع مؤنث سالم: ملفات -> ملف, قنوات -> قنو, فلاشات -> فلاش, شروحات -> شروح)
+    if (w.endsWith('ات') && w.length > 4) stems.add(w.slice(0, -2));
+    // ة / ه (مؤنث: قناة -> قنا, فلاشة -> فلاش, نسخة -> نسخ)
+    if (w.endsWith('ه') && w.length > 3) stems.add(w.slice(0, -1));
+    // ي (ياء النسبة: عربي -> عرب)
+    if (w.endsWith('ي') && w.length > 3) stems.add(w.slice(0, -1));
+    // ين / ون (جمع مذكر سالم)
+    if ((w.endsWith('ين') || w.endsWith('ون')) && w.length > 4) stems.add(w.slice(0, -2));
+  });
+
+  // Common tech & satellite equivalents mapping
+  if (stems.has('ملف') || stems.has('ملفات')) {
+    stems.add('ملف');
+    stems.add('ملفات');
+  }
+  if (stems.has('قناه') || stems.has('قنا') || stems.has('قنوات') || stems.has('قنو')) {
+    stems.add('قناه');
+    stems.add('قنوات');
+  }
+  if (stems.has('فلاش') || stems.has('فلاشه') || stems.has('فلاشات')) {
+    stems.add('فلاش');
+    stems.add('فلاشه');
+    stems.add('فلاشات');
+    stems.add('flash');
+    stems.add('dump');
+  }
+  if (stems.has('شرح') || stems.has('شروحات') || stems.has('شروح')) {
+    stems.add('شرح');
+    stems.add('شروحات');
+  }
+  if (stems.has('سوفت') || stems.has('سوفتات') || stems.has('سوفتوير') || stems.has('سوفت وير')) {
+    stems.add('سوفت');
+    stems.add('سوفتوير');
+    stems.add('software');
+  }
+  if (stems.has('رسيفر') || stems.has('ريسيفر') || stems.has('رسيفرات') || stems.has('ريسيفرات')) {
+    stems.add('رسيفر');
+    stems.add('ريسيفر');
+    stems.add('receiver');
+  }
+  if (stems.has('صنبلص') || stems.has('صن بلص')) {
+    stems.add('صنبلص');
+    stems.add('sunplus');
+  }
+  if (stems.has('نايلسات') || stems.has('نايل سات')) {
+    stems.add('نايلسات');
+    stems.add('nilesat');
+  }
+
+  return Array.from(stems).filter((s) => s.length >= 2);
+}
 
 /**
  * Smart Arabic search query matcher:
- * Checks if query (or any of its synonyms/crafts) matches any text in candidateFields.
+ * Checks if query (or any of its synonyms/crafts/stems) matches any text in candidateFields.
  */
 export function matchArabicQuery(candidateFields: (string | null | undefined)[], query: string): boolean {
   const normQuery = normalizeArabicText(query);
@@ -251,19 +321,20 @@ export function matchArabicQuery(candidateFields: (string | null | undefined)[],
     }
   }
 
-  // Token-by-token matching with prefix stripping
+  const fieldWords = joinedFields.split(/[\s,()_\-–\/\\]+/).filter(Boolean);
   const queryTokens = normQuery.split(/\s+/).filter(Boolean);
+
+  // Every token in the query must match at least one word/stem in candidate fields
   return queryTokens.every(qToken => {
-    if (joinedFields.includes(qToken)) return true;
+    const qStems = getArabicWordStems(qToken);
+    
+    // Check if joined text directly includes any stem
+    if (qStems.some(stem => joinedFields.includes(stem))) return true;
 
-    const qStripped = stripArabicPrefixes(qToken);
-    if (qStripped.length >= 2 && joinedFields.includes(qStripped)) return true;
-
-    // Check individual words in fields against qStripped
-    const fieldWords = joinedFields.split(/\s+/);
+    // Check individual words against stems
     return fieldWords.some(fWord => {
-      const fStripped = stripArabicPrefixes(fWord);
-      return fWord.includes(qToken) || fWord.includes(qStripped) || (fStripped.length >= 2 && fStripped.includes(qStripped));
+      const fStems = getArabicWordStems(fWord);
+      return qStems.some(qs => fStems.some(fs => fs.includes(qs) || qs.includes(fs)));
     });
   });
 }

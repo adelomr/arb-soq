@@ -3,14 +3,10 @@
 // تجلب المقالات server-side لضمان فهرسة Google الكاملة
 // =====================================================================
 
+import { Suspense } from 'react';
 import type { Metadata } from 'next';
 import { getAllBlogs, getAuthorSettings } from '@/lib/blog-service';
 import type { BlogPost, AuthorSettings } from '@/lib/blog-service';
-import { format } from 'date-fns';
-import { ar } from 'date-fns/locale';
-import { BookOpen, User, Calendar, ArrowLeft, Eye } from 'lucide-react';
-import Image from 'next/image';
-import Link from 'next/link';
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
 import BlogListingClient from '@/components/BlogListingClient';
@@ -20,10 +16,18 @@ const BASE_URL = 'https://www.arb-soq.com';
 export const revalidate = 30; // إعادة التوليد كل 30 ثانية لتحديث المقالات فوراً
 
 export const metadata: Metadata = {
-  title: 'مدونة سوق العرب | مقالات ونصائح للبيع والشراء',
+  title: 'مدونة سوق العرب | مقالات ونصوص وشروحات وملفات قنوات',
   description:
-    'اقرأ أحدث المقالات والأخبار من مدونة سوق العرب. نصائح مفيدة للبيع والشراء، أخبار السوق، ومراجعات المنتجات في الوطن العربي.',
-  keywords: ['مدونة سوق العرب', 'مقالات', 'نصائح تسوق', 'أخبار السوق', 'بيع وشراء'],
+    'اقرأ أحدث المقالات والأخبار من مدونة سوق العرب. ملفات قنوات محدثة، فلاشات، شروحات تقنية للأجهزة، ونصائح مفيدة للبيع والشراء.',
+  keywords: [
+    'مدونة سوق العرب',
+    'ملفات قنوات',
+    'فلاشات',
+    'شروحات ريسيفرات',
+    'نايل سات',
+    'مقالات',
+    'أخبار السوق',
+  ],
   alternates: {
     canonical: `${BASE_URL}/blog`,
   },
@@ -32,9 +36,18 @@ export const metadata: Metadata = {
     locale: 'ar_SA',
     url: `${BASE_URL}/blog`,
     siteName: 'سوق العرب',
-    title: 'مدونة سوق العرب | مقالات ونصائح للبيع والشراء',
-    description: 'أحدث المقالات والأخبار التقنية ونصائح مفيدة لتجربة تسوق أفضل.',
-    images: [{ url: `${BASE_URL}/og-image.png`, secureUrl: `${BASE_URL}/og-image.png`, width: 1200, height: 630, type: 'image/png', alt: 'مدونة سوق العرب' }],
+    title: 'مدونة سوق العرب | مقالات ونصوص وشروحات وملفات قنوات',
+    description: 'أحدث المقالات والأخبار التقنية، ملفات القنوات، الفلاشات والشروحات.',
+    images: [
+      {
+        url: `${BASE_URL}/og-image.png`,
+        secureUrl: `${BASE_URL}/og-image.png`,
+        width: 1200,
+        height: 630,
+        type: 'image/png',
+        alt: 'مدونة سوق العرب',
+      },
+    ],
   },
 };
 
@@ -45,7 +58,7 @@ function getBlogListJsonLd(blogs: BlogPost[]) {
     '@type': 'Blog',
     name: 'مدونة سوق العرب',
     url: `${BASE_URL}/blog`,
-    description: 'أحدث المقالات والنصائح من سوق العرب',
+    description: 'أحدث المقالات والنصائح وملفات القنوات من سوق العرب',
     blogPost: blogs.slice(0, 10).map((blog) => ({
       '@type': 'BlogPosting',
       headline: blog.title,
@@ -59,7 +72,42 @@ function getBlogListJsonLd(blogs: BlogPost[]) {
   };
 }
 
-export default async function BlogListingPage() {
+function BlogListingLoadingFallback() {
+  return (
+    <div className="min-h-screen py-16 px-4 max-w-7xl mx-auto animate-pulse" dir="rtl">
+      <div className="h-10 w-64 bg-muted rounded-2xl mx-auto mb-4" />
+      <div className="h-6 w-96 bg-muted/60 rounded-xl mx-auto mb-10" />
+      <div className="max-w-2xl mx-auto h-12 bg-muted/50 rounded-2xl mb-12" />
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+        <div className="lg:col-span-8 grid grid-cols-1 md:grid-cols-2 gap-6">
+          {[1, 2, 3, 4].map((i) => (
+            <div key={i} className="h-80 bg-card rounded-2xl border border-border" />
+          ))}
+        </div>
+        <div className="lg:col-span-4 space-y-6">
+          <div className="h-20 bg-card rounded-2xl border border-border" />
+          <div className="h-72 bg-card rounded-2xl border border-border" />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+interface BlogPageProps {
+  searchParams?: Promise<{ [key: string]: string | string[] | undefined }>;
+}
+
+export default async function BlogListingPage(props: BlogPageProps) {
+  const searchParams = props.searchParams ? await props.searchParams : {};
+  const initialCategory =
+    typeof searchParams.category === 'string' ? searchParams.category : undefined;
+  const initialQuery =
+    typeof searchParams.q === 'string'
+      ? searchParams.q
+      : typeof searchParams.search === 'string'
+      ? searchParams.search
+      : undefined;
+
   // جلب المقالات وإعدادات المؤلف server-side
   const [blogs, authorSettings] = await Promise.all([
     getAllBlogs().catch(() => [] as BlogPost[]),
@@ -76,27 +124,14 @@ export default async function BlogListingPage() {
       <Header />
 
       <main className="flex-1 bg-background">
-        {/* Hero Section */}
-        <div className="bg-gradient-to-b from-primary/5 to-transparent border-b border-border/50 py-14 px-4">
-          <div className="max-w-6xl mx-auto text-center" dir="rtl">
-            <div className="inline-flex items-center gap-2 bg-primary/10 text-primary px-4 py-1.5 rounded-full text-sm font-medium mb-4">
-              <BookOpen className="w-4 h-4" />
-              المدونة
-            </div>
-            <h1 className="text-4xl md:text-5xl font-bold text-foreground mb-4">
-              مدونة سوق العرب
-            </h1>
-            <p className="text-muted-foreground text-lg max-w-2xl mx-auto leading-relaxed">
-              أحدث المقالات والأخبار التقنية ونصائح مفيدة لتجربة تسوق أفضل.
-            </p>
-          </div>
-        </div>
-
-        {/* Articles & Sidebar Section */}
-        <BlogListingClient 
-          initialBlogs={JSON.parse(JSON.stringify(blogs))} 
-          authorSettings={authorSettings ? JSON.parse(JSON.stringify(authorSettings)) : null} 
-        />
+        <Suspense fallback={<BlogListingLoadingFallback />}>
+          <BlogListingClient 
+            initialBlogs={JSON.parse(JSON.stringify(blogs))} 
+            authorSettings={authorSettings ? JSON.parse(JSON.stringify(authorSettings)) : null} 
+            initialCategory={initialCategory}
+            initialQuery={initialQuery}
+          />
+        </Suspense>
       </main>
 
       <Footer />
