@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { getBlogBySlug, incrementBlogViews } from '@/lib/blog-service';
+import { getBlogBySlug, incrementBlogViews, getMostViewedBlogs, getAllBlogs } from '@/lib/blog-service';
 import type { BlogPost } from '@/lib/blog-service';
 import { getAuthorSettings } from '@/lib/blog-service';
 import type { AuthorSettings } from '@/lib/blog-service';
@@ -13,6 +13,7 @@ import Link from 'next/link';
 import dynamic from 'next/dynamic';
 import CommentsSection from '@/components/CommentsSection';
 import ContentWrapper from '@/components/ContentWrapper';
+import BlogSidebar from '@/components/BlogSidebar';
 import 'react-quill/dist/quill.snow.css';
 
 const Header = dynamic(() => import('@/components/Header'), { ssr: false });
@@ -21,6 +22,7 @@ const Footer = dynamic(() => import('@/components/Footer'), { ssr: false });
 
 interface BlogDetailClientProps {
   slug: string;
+  initialBlog?: BlogPost | null;
 }
 
 function AuthorCard({ blog, authorSettings }: { blog: BlogPost; authorSettings: AuthorSettings | null }) {
@@ -65,18 +67,41 @@ function AuthorCard({ blog, authorSettings }: { blog: BlogPost; authorSettings: 
   );
 }
 
-export default function BlogDetailClient({ slug }: BlogDetailClientProps) {
-  const [blog, setBlog] = useState<BlogPost | null>(null);
+export default function BlogDetailClient({ slug, initialBlog = null }: BlogDetailClientProps) {
+  const [blog, setBlog] = useState<BlogPost | null>(initialBlog);
   const [authorSettings, setAuthorSettings] = useState<AuthorSettings | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [mostViewed, setMostViewed] = useState<BlogPost[]>([]);
+  const [categories, setCategories] = useState<{ name: string; count: number }[]>([]);
+  const [loading, setLoading] = useState(!initialBlog);
 
   useEffect(() => {
     let active = true;
     async function load() {
-      const [b, a] = await Promise.all([getBlogBySlug(slug), getAuthorSettings()]);
+      const [b, a, allBlogs] = await Promise.all([
+        getBlogBySlug(slug),
+        getAuthorSettings(),
+        getAllBlogs().catch(() => [] as BlogPost[]),
+      ]);
       if (!active) return;
       setBlog(b);
       setAuthorSettings(a);
+
+      // Compute most viewed (top 5, excluding current if possible or including)
+      const sorted = [...allBlogs]
+        .sort((x, y) => (y.views || 0) - (x.views || 0))
+        .slice(0, 5);
+      setMostViewed(sorted);
+
+      // Compute categories with counts
+      const catMap = new Map<string, number>();
+      allBlogs.forEach((item) => {
+        const cat = item.category?.trim() || (item.tags && item.tags[0]?.trim());
+        if (cat) {
+          catMap.set(cat, (catMap.get(cat) || 0) + 1);
+        }
+      });
+      setCategories(Array.from(catMap.entries()).map(([name, count]) => ({ name, count })));
+
       setLoading(false);
       
       if (b?.id) {
@@ -133,8 +158,11 @@ export default function BlogDetailClient({ slug }: BlogDetailClientProps) {
       <Header />
       <QuickOptions />
       <main className="flex-1 bg-background py-8 md:py-12 px-4">
-        <div className="max-w-4xl mx-auto">
-          <article className="bg-card rounded-3xl shadow-sm border border-border overflow-hidden">
+        <div className="max-w-7xl mx-auto">
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+            {/* Main Article */}
+            <div className="lg:col-span-8">
+              <article className="bg-card rounded-3xl shadow-sm border border-border overflow-hidden">
                 {/* Header Image */}
                 {blog.imageUrl && (
                   <div className="relative w-full h-[40vh] min-h-[280px] bg-muted">
@@ -159,8 +187,14 @@ export default function BlogDetailClient({ slug }: BlogDetailClientProps) {
                     العودة للمدونة
                   </Link>
 
-                  {/* Tags */}
-                  <div className="flex flex-wrap gap-2 mb-5">
+                  {/* Category & Tags */}
+                  <div className="flex flex-wrap items-center gap-2 mb-5">
+                    {blog.category && (
+                      <span className="text-xs font-bold bg-primary text-primary-foreground px-3 py-1 rounded-full flex items-center gap-1 shadow-xs">
+                        <Tag className="w-3 h-3" />
+                        {blog.category}
+                      </span>
+                    )}
                     {blog.tags?.map((tag, i) => (
                       <span key={i} className="text-xs font-medium bg-primary/10 text-primary px-3 py-1 rounded-full flex items-center gap-1">
                         <Tag className="w-3 h-3" />
@@ -279,7 +313,17 @@ export default function BlogDetailClient({ slug }: BlogDetailClientProps) {
                 </div>
               </article>
             </div>
-          </main>
+
+            {/* Sidebar (4 cols on lg) */}
+            <div className="lg:col-span-4 lg:sticky lg:top-24">
+              <BlogSidebar
+                mostViewedBlogs={mostViewed}
+                categories={categories}
+              />
+            </div>
+          </div>
+        </div>
+      </main>
       <Footer />
     </div>
   );

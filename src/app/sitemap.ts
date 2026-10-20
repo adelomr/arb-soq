@@ -1,6 +1,7 @@
 import { MetadataRoute } from 'next';
 import { firestore } from '@/lib/firebase';
 import { collection, getDocs, query, where } from 'firebase/firestore';
+import { getAllBlogs } from '@/lib/blog-service';
 
 export const revalidate = 3600; // إعادة التوليد كل ساعة
 
@@ -76,14 +77,13 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   // 3. مقالات المدونة
   let blogRoutes: MetadataRoute.Sitemap = [];
   try {
-    const blogsSnapshot = await getDocs(collection(firestore, 'blogs'));
-    blogRoutes = blogsSnapshot.docs
-      .map((doc) => ({ id: doc.id, ...doc.data() } as any))
-      .filter((blog) => blog.isPublished !== false && blog.slug)
+    const blogs = await getAllBlogs().catch(() => []);
+    blogRoutes = blogs
+      .filter((blog) => (blog as any).isPublished !== false && blog.slug)
       .map((blog) => ({
         url: `${BASE_URL}/blog/${blog.slug}`,
-        lastModified: blog.updatedAt?.seconds
-          ? new Date(blog.updatedAt.seconds * 1000)
+        lastModified: (blog as any).updatedAt?.seconds
+          ? new Date((blog as any).updatedAt.seconds * 1000)
           : blog.createdAt?.seconds
           ? new Date(blog.createdAt.seconds * 1000)
           : new Date(),

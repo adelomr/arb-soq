@@ -46,5 +46,5 @@ export default async function BlogDetailPage({ params }: Props) {
     notFound();
   }
 
-  return <BlogDetailClient slug={p.slug} />;
+  return <BlogDetailClient slug={p.slug} initialBlog={blog} />;
 }

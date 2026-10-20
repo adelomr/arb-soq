@@ -18,6 +18,7 @@ import {
 } from 'lucide-react';
 import Image from 'next/image';
 import RichTextEditor from './RichTextEditor';
+import BlogCategorySelect from './BlogCategorySelect';
 
 interface CreateTopicViewProps {
   onSuccess?: () => void;
@@ -30,6 +31,7 @@ export default function CreateTopicView({ onSuccess }: CreateTopicViewProps) {
   const [slug, setSlug] = useState('');
   const [content, setContent] = useState('');
   const [author, setAuthor] = useState('مدير الموقع');
+  const [category, setCategory] = useState('');
   const [tagsStr, setTagsStr] = useState('');
   
   const [coverImage, setCoverImage] = useState<File | null>(null);
@@ -95,6 +97,7 @@ export default function CreateTopicView({ onSuccess }: CreateTopicViewProps) {
         content,
         author,
         imageUrl,
+        category: category.trim() || undefined,
         tags: tagsArray,
       });
 
@@ -109,6 +112,7 @@ export default function CreateTopicView({ onSuccess }: CreateTopicViewProps) {
       setTitle('');
       setSlug('');
       setContent('');
+      setCategory('');
       setTagsStr('');
       setCoverImage(null);
       setCoverImagePreview(null);
@@ -212,6 +216,12 @@ export default function CreateTopicView({ onSuccess }: CreateTopicViewProps) {
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <BlogCategorySelect 
+              value={category} 
+              onChange={setCategory} 
+              disabled={actionLoading}
+            />
+
             <div className="space-y-2">
               <Label htmlFor="create-topic-tags" className="text-foreground font-medium">الكلمات الدلالية (Tags)</Label>
               <Input 
@@ -223,40 +233,40 @@ export default function CreateTopicView({ onSuccess }: CreateTopicViewProps) {
                 className="bg-background border-border text-foreground text-right"
               />
             </div>
+          </div>
 
-            <div className="space-y-2 text-right">
-              <Label className="text-foreground font-medium block">الصورة البارزة للمقالة (Cover Image)</Label>
-              <div className="flex flex-row-reverse items-center gap-4 w-full">
-                <div 
-                  className="relative w-28 h-20 bg-muted rounded-xl flex items-center justify-center border-2 border-dashed border-border overflow-hidden cursor-pointer hover:border-primary transition-colors"
-                  onClick={() => document.getElementById('cover-create-upload')?.click()}
-                >
-                  {coverImagePreview ? (
-                    <Image src={coverImagePreview} alt="Cover Preview" fill className="object-cover" />
-                  ) : (
-                    <ImageIcon className="w-6 h-6 text-muted-foreground" />
-                  )}
-                </div>
-                <div className="text-sm text-muted-foreground text-right">
-                  <Button 
-                    type="button" 
-                    variant="outline" 
-                    size="sm"
-                    onClick={() => document.getElementById('cover-create-upload')?.click()}
-                    className="border-border/60 hover:bg-muted text-xs"
-                  >
-                    اختر صورة
-                  </Button>
-                  <p className="text-[10px] mt-1">يُفضل أن تكون بصيغة JPG أو PNG</p>
-                </div>
-                <input 
-                  id="cover-create-upload" 
-                  type="file" 
-                  accept="image/*" 
-                  className="hidden" 
-                  onChange={handleImageChange}
-                />
+          <div className="space-y-2 text-right">
+            <Label className="text-foreground font-medium block">الصورة البارزة للمقالة (Cover Image)</Label>
+            <div className="flex flex-row-reverse items-center gap-4 w-full">
+              <div 
+                className="relative w-28 h-20 bg-muted rounded-xl flex items-center justify-center border-2 border-dashed border-border overflow-hidden cursor-pointer hover:border-primary transition-colors"
+                onClick={() => document.getElementById('cover-create-upload')?.click()}
+              >
+                {coverImagePreview ? (
+                  <Image src={coverImagePreview} alt="Cover Preview" fill className="object-cover" />
+                ) : (
+                  <ImageIcon className="w-6 h-6 text-muted-foreground" />
+                )}
               </div>
+              <div className="text-sm text-muted-foreground text-right">
+                <Button 
+                  type="button" 
+                  variant="outline" 
+                  size="sm"
+                  onClick={() => document.getElementById('cover-create-upload')?.click()}
+                  className="border-border/60 hover:bg-muted text-xs"
+                >
+                  اختر صورة
+                </Button>
+                <p className="text-[10px] mt-1">يُفضل أن تكون بصيغة JPG أو PNG</p>
+              </div>
+              <input 
+                id="cover-create-upload" 
+                type="file" 
+                accept="image/*" 
+                className="hidden" 
+                onChange={handleImageChange}
+              />
             </div>
           </div>
 

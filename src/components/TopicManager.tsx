@@ -3,11 +3,13 @@
 import { useEffect, useState } from 'react';
 import { 
   getAllBlogs, 
+  createBlogPost,
   updateBlogPost, 
   deleteBlogPost, 
   generateSlug,
   getAuthorSettings,
   updateAuthorSettings,
+  saveBlogCategory,
   BlogPost,
   AuthorSettings
 } from '@/lib/blog-service';
@@ -39,6 +41,7 @@ import { format } from 'date-fns';
 import { ar } from 'date-fns/locale';
 import RichTextEditor from './RichTextEditor';
 import CreateTopicView from './CreateTopicView';
+import BlogCategorySelect from './BlogCategorySelect';
 
 interface TopicManagerProps {
   initialView?: 'list' | 'create';
@@ -64,6 +67,7 @@ export default function TopicManager({ initialView = 'list' }: TopicManagerProps
   const [slug, setSlug] = useState('');
   const [content, setContent] = useState('');
   const [author, setAuthor] = useState('');
+  const [category, setCategory] = useState('');
   const [tagsStr, setTagsStr] = useState('');
   const [coverImage, setCoverImage] = useState<File | null>(null);
   const [coverImagePreview, setCoverImagePreview] = useState<string | null>(null);
@@ -73,7 +77,6 @@ export default function TopicManager({ initialView = 'list' }: TopicManagerProps
   const [authorAvatarFile, setAuthorAvatarFile] = useState<File | null>(null);
   const [authorAvatarPreview, setAuthorAvatarPreview] = useState<string | null>(null);
   const [authorSettingsLoading, setAuthorSettingsLoading] = useState(false);
-
   const { toast } = useToast();
 
   useEffect(() => {
@@ -139,6 +142,7 @@ export default function TopicManager({ initialView = 'list' }: TopicManagerProps
     setSlug(topic.slug);
     setContent(topic.content);
     setAuthor(topic.author);
+    setCategory(topic.category || '');
     setTagsStr(topic.tags?.join(', ') || '');
     setCoverImage(null);
     setCoverImagePreview(topic.imageUrl || null);
@@ -183,6 +187,7 @@ export default function TopicManager({ initialView = 'list' }: TopicManagerProps
           slug: updatedSlug,
           content,
           author,
+          category: category.trim() || undefined,
           imageUrl,
           tags: tagsArray,
         });
@@ -371,6 +376,7 @@ export default function TopicManager({ initialView = 'list' }: TopicManagerProps
           <CreateTopicView onSuccess={() => { setView('list'); fetchTopics(); }} />
         ) : view === 'list' ? (
           <div className="space-y-6">
+
             {/* Search Box */}
             <div className="relative">
               <Search className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -413,7 +419,12 @@ export default function TopicManager({ initialView = 'list' }: TopicManagerProps
                     {/* Details */}
                     <div className="p-4 flex flex-col justify-between flex-grow text-right" dir="rtl">
                       <div className="space-y-2">
-                        <div className="flex gap-2 flex-wrap">
+                        <div className="flex gap-2 flex-wrap items-center">
+                          {topic.category && (
+                            <span className="text-xs bg-primary text-primary-foreground px-2.5 py-0.5 rounded-full font-semibold shadow-xs">
+                              {topic.category}
+                            </span>
+                          )}
                           {topic.tags?.slice(0, 2).map((tag, idx) => (
                             <span key={idx} className="text-xs bg-primary/10 text-primary px-2 py-0.5 rounded-full font-medium">
                               {tag}
@@ -536,6 +547,12 @@ export default function TopicManager({ initialView = 'list' }: TopicManagerProps
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <BlogCategorySelect 
+                value={category} 
+                onChange={setCategory} 
+                disabled={actionLoading}
+              />
+
               <div className="space-y-2">
                 <Label htmlFor="topic-tags" className="text-foreground font-medium">الكلمات الدلالية (Tags)</Label>
                 <Input 
@@ -547,40 +564,40 @@ export default function TopicManager({ initialView = 'list' }: TopicManagerProps
                   className="bg-background border-border text-foreground text-right"
                 />
               </div>
+            </div>
 
-              <div className="space-y-2 text-right">
-                <Label className="text-foreground font-medium block">الصورة البارزة (Cover Image)</Label>
-                <div className="flex flex-row-reverse items-center gap-4 w-full">
-                  <div 
-                    className="relative w-28 h-20 bg-muted rounded-xl flex items-center justify-center border-2 border-dashed border-border overflow-hidden cursor-pointer hover:border-primary transition-colors"
-                    onClick={() => document.getElementById('cover-edit-upload')?.click()}
-                  >
-                    {coverImagePreview ? (
-                      <Image src={coverImagePreview} alt="Cover Preview" fill className="object-cover" />
-                    ) : (
-                      <ImageIcon className="w-6 h-6 text-muted-foreground" />
-                    )}
-                  </div>
-                  <div className="text-sm text-muted-foreground text-right">
-                    <Button 
-                      type="button" 
-                      variant="outline" 
-                      size="sm"
-                      onClick={() => document.getElementById('cover-edit-upload')?.click()}
-                      className="border-border/60 hover:bg-muted text-xs"
-                    >
-                      تغيير الصورة
-                    </Button>
-                    <p className="text-[10px] mt-1">يُفضل أن تكون بصيغة JPG أو PNG</p>
-                  </div>
-                  <input 
-                    id="cover-edit-upload" 
-                    type="file" 
-                    accept="image/*" 
-                    className="hidden" 
-                    onChange={handleImageChange}
-                  />
+            <div className="space-y-2 text-right">
+              <Label className="text-foreground font-medium block">الصورة البارزة (Cover Image)</Label>
+              <div className="flex flex-row-reverse items-center gap-4 w-full">
+                <div 
+                  className="relative w-28 h-20 bg-muted rounded-xl flex items-center justify-center border-2 border-dashed border-border overflow-hidden cursor-pointer hover:border-primary transition-colors"
+                  onClick={() => document.getElementById('cover-edit-upload')?.click()}
+                >
+                  {coverImagePreview ? (
+                    <Image src={coverImagePreview} alt="Cover Preview" fill className="object-cover" />
+                  ) : (
+                    <ImageIcon className="w-6 h-6 text-muted-foreground" />
+                  )}
                 </div>
+                <div className="text-sm text-muted-foreground text-right">
+                  <Button 
+                    type="button" 
+                    variant="outline" 
+                    size="sm"
+                    onClick={() => document.getElementById('cover-edit-upload')?.click()}
+                    className="border-border/60 hover:bg-muted text-xs"
+                  >
+                    تغيير الصورة
+                  </Button>
+                  <p className="text-[10px] mt-1">يُفضل أن تكون بصيغة JPG أو PNG</p>
+                </div>
+                <input 
+                  id="cover-edit-upload" 
+                  type="file" 
+                  accept="image/*" 
+                  className="hidden" 
+                  onChange={handleImageChange}
+                />
               </div>
             </div>
 

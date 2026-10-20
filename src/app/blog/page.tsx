@@ -13,6 +13,7 @@ import Image from 'next/image';
 import Link from 'next/link';
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
+import BlogListingClient from '@/components/BlogListingClient';
 
 const BASE_URL = 'https://www.arb-soq.com';
 
@@ -88,88 +89,8 @@ export default async function BlogListingPage() {
           </div>
         </div>
 
-        {/* Articles Grid */}
-        <div className="max-w-6xl mx-auto px-4 py-12">
-          {blogs.length === 0 ? (
-            <div className="text-center py-20 bg-card rounded-2xl border border-dashed border-border" dir="rtl">
-              <BookOpen className="w-16 h-16 mx-auto mb-4 text-muted-foreground/30" />
-              <h2 className="text-xl font-medium text-muted-foreground">لا توجد مقالات بعد</h2>
-              <p className="text-sm text-muted-foreground mt-2">سيتم إضافة محتوى قريباً.</p>
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8" dir="rtl">
-              {blogs.map((blog, index) => (
-                <Link
-                  href={`/blog/${blog.slug}`}
-                  key={blog.id}
-                  className="group flex flex-col bg-card rounded-2xl overflow-hidden shadow-sm hover:shadow-lg transition-all duration-300 border border-border hover:border-primary/30"
-                >
-                  {/* Image */}
-                  <div className="relative w-full h-52 bg-muted overflow-hidden">
-                    {blog.imageUrl ? (
-                      <Image
-                        src={blog.imageUrl}
-                        alt={blog.title}
-                        fill
-                        priority={index < 2}
-                        className="object-cover group-hover:scale-105 transition-transform duration-500"
-                      />
-                    ) : (
-                      <div className="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-primary/10 to-primary/5">
-                        <BookOpen className="w-12 h-12 text-primary/30" />
-                      </div>
-                    )}
-                    {/* Tag overlay */}
-                    {blog.tags && blog.tags.length > 0 && (
-                      <div className="absolute top-3 right-3">
-                        <span className="text-xs font-medium bg-primary text-primary-foreground px-2.5 py-1 rounded-full shadow">
-                          {blog.tags[0]}
-                        </span>
-                      </div>
-                    )}
-                  </div>
-
-                  <div className="p-5 flex flex-col flex-grow">
-                    <h2 className="text-lg font-bold text-foreground mb-2 line-clamp-2 group-hover:text-primary transition-colors leading-snug">
-                      {blog.title}
-                    </h2>
-                    <div
-                      className="text-sm text-muted-foreground line-clamp-2 mb-4 leading-relaxed"
-                      dangerouslySetInnerHTML={{
-                        __html: (blog.content?.substring(0, 130).replace(/<[^>]+>/g, '') || '') + '...',
-                      }}
-                    />
-
-                    <div className="mt-auto flex items-center justify-between text-xs text-muted-foreground border-t border-border/50 pt-3">
-                      <div className="flex items-center gap-1.5">
-                        <User className="w-3.5 h-3.5 text-primary" />
-                        <span className="font-medium">{blog.author}</span>
-                      </div>
-                      <div className="flex items-center gap-1.5">
-                        <Calendar className="w-3.5 h-3.5 text-primary" />
-                        <span>
-                          {blog.createdAt?.seconds
-                            ? format(new Date(blog.createdAt.seconds * 1000), 'd MMMM, yyyy', { locale: ar })
-                            : 'حديثاً'}
-                        </span>
-                      </div>
-                      <div className="flex items-center gap-1.5">
-                        <Eye className="w-3.5 h-3.5 text-primary" />
-                        <span>{blog.views || 0}</span>
-                      </div>
-                    </div>
-
-                    {/* Read More */}
-                    <div className="mt-3 flex items-center gap-1 text-primary text-sm font-medium group-hover:gap-2 transition-all">
-                      <span>اقرأ المزيد</span>
-                      <ArrowLeft className="w-3.5 h-3.5" />
-                    </div>
-                  </div>
-                </Link>
-              ))}
-            </div>
-          )}
-        </div>
+        {/* Articles & Sidebar Section */}
+        <BlogListingClient initialBlogs={blogs} />
       </main>
 
       <Footer />

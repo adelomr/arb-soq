@@ -9,6 +9,7 @@ import { uploadFileAndReturnInfo } from "@/lib/firebase-storage-helpers";
 import { Loader2, Image as ImageIcon, Save, ArrowRight } from "lucide-react";
 import Link from "next/link";
 import Image from "next/image";
+import BlogCategorySelect from "@/components/BlogCategorySelect";
 import 'react-quill/dist/quill.snow.css';
 
 // React-Quill uses document object, which is not available during SSR
@@ -30,6 +31,7 @@ export default function CreateBlogPost() {
   const [title, setTitle] = useState("");
   const [content, setContent] = useState("");
   const [author, setAuthor] = useState("مدير الموقع");
+  const [category, setCategory] = useState("");
   const [tags, setTags] = useState("");
   
   const [coverImage, setCoverImage] = useState<File | null>(null);
@@ -162,6 +164,7 @@ export default function CreateBlogPost() {
         slug,
         content,
         author,
+        category: category.trim() || undefined,
         imageUrl,
         tags: tagsArray,
       });
@@ -279,16 +282,24 @@ export default function CreateBlogPost() {
             </div>
           </div>
 
-          <div className="space-y-2 text-right">
-            <label className="text-sm font-medium text-foreground">الكلمات الدلالية (Tags)</label>
-            <input 
-              type="text" 
-              value={tags}
-              onChange={(e) => setTags(e.target.value)}
-              placeholder="مثال: تقنية, أندرويد, صيانة، هواتف (افصل بينها بفاصلة)"
-              className="w-full px-4 py-3 bg-background border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/50 text-foreground text-right"
-              dir="rtl"
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <BlogCategorySelect 
+              value={category} 
+              onChange={setCategory} 
+              disabled={loading}
             />
+
+            <div className="space-y-2 text-right">
+              <label className="text-sm font-medium text-foreground">الكلمات الدلالية (Tags)</label>
+              <input 
+                type="text" 
+                value={tags}
+                onChange={(e) => setTags(e.target.value)}
+                placeholder="مثال: تقنية, أندرويد, صيانة، هواتف (افصل بينها بفاصلة)"
+                className="w-full px-4 py-3 bg-background border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/50 text-foreground text-right"
+                dir="rtl"
+              />
+            </div>
           </div>
 
           {/* Rich Text Editor */}
