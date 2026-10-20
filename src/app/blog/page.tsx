@@ -4,8 +4,8 @@
 // =====================================================================
 
 import type { Metadata } from 'next';
-import { getAllBlogs } from '@/lib/blog-service';
-import type { BlogPost } from '@/lib/blog-service';
+import { getAllBlogs, getAuthorSettings } from '@/lib/blog-service';
+import type { BlogPost, AuthorSettings } from '@/lib/blog-service';
 import { format } from 'date-fns';
 import { ar } from 'date-fns/locale';
 import { BookOpen, User, Calendar, ArrowLeft, Eye } from 'lucide-react';
@@ -17,7 +17,7 @@ import BlogListingClient from '@/components/BlogListingClient';
 
 const BASE_URL = 'https://www.arb-soq.com';
 
-export const revalidate = 300; // إعادة التوليد كل 5 دقائق
+export const revalidate = 30; // إعادة التوليد كل 30 ثانية لتحديث المقالات فوراً
 
 export const metadata: Metadata = {
   title: 'مدونة سوق العرب | مقالات ونصائح للبيع والشراء',
@@ -60,8 +60,11 @@ function getBlogListJsonLd(blogs: BlogPost[]) {
 }
 
 export default async function BlogListingPage() {
-  // جلب المقالات server-side — مرئية لـ Google مباشرةً
-  const blogs = await getAllBlogs().catch(() => [] as BlogPost[]);
+  // جلب المقالات وإعدادات المؤلف server-side
+  const [blogs, authorSettings] = await Promise.all([
+    getAllBlogs().catch(() => [] as BlogPost[]),
+    getAuthorSettings().catch(() => null),
+  ]);
 
   return (
     <div className="flex flex-col min-h-screen">
@@ -90,7 +93,10 @@ export default async function BlogListingPage() {
         </div>
 
         {/* Articles & Sidebar Section */}
-        <BlogListingClient initialBlogs={blogs} />
+        <BlogListingClient 
+          initialBlogs={JSON.parse(JSON.stringify(blogs))} 
+          authorSettings={authorSettings ? JSON.parse(JSON.stringify(authorSettings)) : null} 
+        />
       </main>
 
       <Footer />

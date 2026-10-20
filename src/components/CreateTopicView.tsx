@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import { createBlogPost, generateSlug } from '@/lib/blog-service';
+import { createBlogPost, generateSlug, getAuthorSettings } from '@/lib/blog-service';
 import { uploadFileAndReturnInfo } from '@/lib/firebase-storage-helpers';
 import { useAuth } from '@/context/AuthContext';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -42,13 +42,20 @@ export default function CreateTopicView({ onSuccess }: CreateTopicViewProps) {
 
   const { toast } = useToast();
 
-  // Prefill author from AuthContext
+  // Prefill author from AuthorSettings or AuthContext
   useEffect(() => {
-    if (userProfile?.name) {
-      setAuthor(userProfile.name);
-    } else if (user?.displayName) {
-      setAuthor(user.displayName);
-    }
+    getAuthorSettings().then((settings) => {
+      if (settings?.name) {
+        setAuthor(settings.name);
+      } else if (userProfile?.name) {
+        setAuthor(userProfile.name);
+      } else if (user?.displayName) {
+        setAuthor(user.displayName);
+      }
+    }).catch(() => {
+      if (userProfile?.name) setAuthor(userProfile.name);
+      else if (user?.displayName) setAuthor(user.displayName);
+    });
   }, [userProfile, user]);
 
   const handleTitleChange = (e: React.ChangeEvent<HTMLInputElement>) => {

@@ -11,9 +11,10 @@ import {
   Tag, 
   BookOpen, 
   FolderOpen, 
-  ChevronLeft,
-  Search,
-  Sparkles
+  ChevronLeft, 
+  Search, 
+  Sparkles,
+  Clock
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { ar } from 'date-fns/locale';
@@ -24,6 +25,7 @@ interface CategoryWithCount {
 }
 
 interface BlogSidebarProps {
+  recentBlogs?: BlogPost[];
   mostViewedBlogs: BlogPost[];
   categories?: CategoryWithCount[];
   selectedCategory?: string | null;
@@ -34,6 +36,7 @@ interface BlogSidebarProps {
 }
 
 export default function BlogSidebar({
+  recentBlogs = [],
   mostViewedBlogs,
   categories = [],
   selectedCategory = null,
@@ -42,6 +45,9 @@ export default function BlogSidebar({
   onSearchChange,
   className = '',
 }: BlogSidebarProps) {
+  // If recentBlogs was not provided, fallback to slice of mostViewedBlogs
+  const displayRecent = recentBlogs && recentBlogs.length > 0 ? recentBlogs : mostViewedBlogs;
+
   return (
     <aside className={`space-y-6 ${className}`} dir="rtl">
       {/* Search Widget (Optional, if handlers provided) */}
@@ -61,7 +67,92 @@ export default function BlogSidebar({
         </div>
       )}
 
-      {/* Widget 1: Most Viewed Blogs (المدونات الأكثر مشاهدة) */}
+      {/* Widget 1: Latest Topics (أحدث الموضوعات) - فوق الموضوعات الأكثر مشاهدة */}
+      <div className="bg-card rounded-2xl border border-border overflow-hidden shadow-xs">
+        {/* Header */}
+        <div className="p-4 border-b border-border/60 bg-gradient-to-l from-primary/10 via-primary/5 to-transparent flex items-center justify-between">
+          <div className="flex items-center gap-2.5">
+            <div className="w-8 h-8 rounded-lg bg-gradient-to-tr from-primary to-blue-600 text-primary-foreground flex items-center justify-center shadow-xs">
+              <Clock className="w-4 h-4" />
+            </div>
+            <div>
+              <h3 className="font-bold text-foreground text-base leading-tight">
+                أحدث الموضوعات
+              </h3>
+              <p className="text-[11px] text-muted-foreground">آخر المقالات والمشاركات المضافة</p>
+            </div>
+          </div>
+          <Sparkles className="w-4 h-4 text-primary" />
+        </div>
+
+        {/* Latest Topics List */}
+        <div className="divide-y divide-border/40 p-2">
+          {displayRecent.length === 0 ? (
+            <div className="text-center py-6 text-sm text-muted-foreground">
+              لا توجد موضوعات لعرضها حالياً
+            </div>
+          ) : (
+            displayRecent.slice(0, 5).map((blog, index) => (
+              <Link
+                key={blog.id || blog.slug || index}
+                href={`/blog/${blog.slug}`}
+                className="group flex items-start gap-3 p-3 rounded-xl hover:bg-muted/50 transition-all duration-200"
+              >
+                {/* Thumbnail */}
+                <div className="relative w-16 h-16 rounded-xl overflow-hidden bg-muted shrink-0 border border-border/60">
+                  {blog.imageUrl ? (
+                    <Image
+                      src={blog.imageUrl}
+                      alt={blog.title}
+                      fill
+                      className="object-cover group-hover:scale-105 transition-transform duration-300"
+                    />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center bg-primary/5 text-primary/40">
+                      <BookOpen className="w-6 h-6" />
+                    </div>
+                  )}
+                </div>
+
+                {/* Content */}
+                <div className="flex-1 min-w-0">
+                  {/* Category or First Tag */}
+                  {(blog.category || (blog.tags && blog.tags[0])) && (
+                    <span className="inline-block text-[10px] font-semibold text-primary bg-primary/10 px-2 py-0.5 rounded-md mb-1 truncate max-w-full">
+                      {blog.category || blog.tags?.[0]}
+                    </span>
+                  )}
+
+                  {/* Title */}
+                  <h4 className="text-xs md:text-sm font-bold text-foreground group-hover:text-primary transition-colors line-clamp-2 leading-snug">
+                    {blog.title}
+                  </h4>
+
+                  {/* Meta Info: Date & Views */}
+                  <div className="flex items-center gap-3 mt-1.5 text-[11px] text-muted-foreground">
+                    {blog.createdAt?.seconds && (
+                      <span className="flex items-center gap-1 font-medium">
+                        <Calendar className="w-3 h-3 text-primary" />
+                        <span>
+                          {format(new Date(blog.createdAt.seconds * 1000), 'd MMM', {
+                            locale: ar,
+                          })}
+                        </span>
+                      </span>
+                    )}
+                    <span className="flex items-center gap-1 text-muted-foreground">
+                      <Eye className="w-3 h-3" />
+                      <span>{blog.views || 0}</span>
+                    </span>
+                  </div>
+                </div>
+              </Link>
+            ))
+          )}
+        </div>
+      </div>
+
+      {/* Widget 2: Most Viewed Blogs (الموضوعات الأكثر مشاهدة) */}
       <div className="bg-card rounded-2xl border border-border overflow-hidden shadow-xs">
         {/* Header with vibrant flame icon */}
         <div className="p-4 border-b border-border/60 bg-gradient-to-l from-amber-500/10 via-primary/5 to-transparent flex items-center justify-between">
@@ -71,7 +162,7 @@ export default function BlogSidebar({
             </div>
             <div>
               <h3 className="font-bold text-foreground text-base leading-tight">
-                المدونات الأكثر مشاهدة
+                الموضوعات الأكثر مشاهدة
               </h3>
               <p className="text-[11px] text-muted-foreground">المقالات الأكثر قراءة وإقبالاً</p>
             </div>

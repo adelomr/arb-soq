@@ -10,6 +10,7 @@ import type { SiteStats, PageData } from '@/lib/types';
 import { Skeleton } from './ui/skeleton';
 import { appIconUrl } from '@/lib/data';
 import { getPublishedPages, getPublishedLandingPages } from '@/lib/page-service';
+import { getAllBlogCategories } from '@/lib/blog-service';
 import AppDownloadButton from './AppDownloadButton';
 
 
@@ -22,7 +23,7 @@ const translations = {
         contactUs: "اتصل بنا",
         pricing: "الأسعار",
         company: "الشركة",
-        legal: "قانوني",
+        blog: "المدونة",
         followUs: "تابعنا",
         rightsReserved: "سوق العرب. جميع الحقوق محفوظة.",
         statistics: "الإحصائيات",
@@ -41,8 +42,10 @@ export default function Footer() {
     const [loading, setLoading] = useState(true);
     const [dynamicPages, setDynamicPages] = useState<PageData[]>([]);
     const [landingPages, setLandingPages] = useState<PageData[]>();
+    const [blogCategories, setBlogCategories] = useState<string[]>([]);
     const [drawerOpen, setDrawerOpen] = useState(false);
     const [categoryDrawerOpen, setCategoryDrawerOpen] = useState(false);
+    const [blogDrawerOpen, setBlogDrawerOpen] = useState(false);
 
     useEffect(() => {
         const fetchStats = async () => {
@@ -74,6 +77,13 @@ export default function Footer() {
     useEffect(() => {
         getPublishedLandingPages().then(setLandingPages).catch(() => setLandingPages([]));
     }, []);
+
+    useEffect(() => {
+        getAllBlogCategories().then(setBlogCategories).catch(() => setBlogCategories([]));
+    }, []);
+
+    const termsPage = dynamicPages.find(p => ['terms', 'terms-of-use', 'terms-of-service'].includes(p.slug.toLowerCase()));
+    const termsHref = termsPage ? `/p/${termsPage.slug}` : '/p/terms';
 
     const formatNumber = (num: number) => {
         try {
@@ -236,54 +246,111 @@ export default function Footer() {
                 )}
             </div>
 
-            {/* Company Links */}
+            {/* Company Links (includes About, Contact, Pricing, and Terms/Privacy) */}
             <div>
                 <h3 className="font-semibold text-foreground mb-4">{t.company}</h3>
                 <nav className="flex flex-col gap-3">
                     {dynamicPages
                         .filter(page => {
-                            const COMPANY_SLUGS = ['about', 'faq', 'contact'];
-                            return COMPANY_SLUGS.includes(page.slug) && page.pageType !== 'landing';
+                            const COMPANY_AND_LEGAL_SLUGS = [
+                              'about', 'faq', 'contact', 
+                              'terms', 'privacy', 'privacy-policy', 
+                              'terms-of-use', 'terms-of-service', 'legal'
+                            ];
+                            return COMPANY_AND_LEGAL_SLUGS.includes(page.slug.toLowerCase()) && page.pageType !== 'landing' && page.pageType !== 'adpage';
                         })
                         .map((page) => (
                             <Link 
                                 key={page.id} 
                                 href={`/p/${page.slug}`} 
-                                className="text-muted-foreground hover:text-primary transition-colors"
+                                className="text-muted-foreground hover:text-primary transition-colors text-sm"
                             >
                                 {page.title}
                             </Link>
                         ))
                     }
-                    <Link href="/pricing" className="text-muted-foreground hover:text-primary transition-colors">{t.pricing}</Link>
+                    {/* Ensure Terms of Use is accessible under Company */}
+                    {!dynamicPages.some(p => ['terms', 'terms-of-use', 'terms-of-service'].includes(p.slug.toLowerCase())) && (
+                        <Link href="/p/terms" className="text-muted-foreground hover:text-primary transition-colors text-sm">
+                            {t.termsOfUse}
+                        </Link>
+                    )}
+                    <Link href="/pricing" className="text-muted-foreground hover:text-primary transition-colors text-sm">{t.pricing}</Link>
                 </nav>
             </div>
 
-             {/* Legal Links — strictly privacy & terms */}
+            {/* Blog Categories Column (Drawer styled like Landing Pages) */}
             <div>
-                <h3 className="font-semibold text-foreground mb-4">{t.legal}</h3>
-                <nav className="flex flex-col gap-3">
-                    {dynamicPages
-                        .filter(page => {
-                            const LEGAL_SLUGS = ['privacy', 'terms', 'privacy-policy', 'terms-of-use', 'terms-of-service', 'legal'];
-                            return LEGAL_SLUGS.includes(page.slug.toLowerCase()) && page.pageType !== 'landing' && page.pageType !== 'adpage';
-                        })
-                        .map((page) => (
-                            <Link 
-                                key={page.id} 
-                                href={`/p/${page.slug}`} 
-                                className="text-muted-foreground hover:text-primary transition-colors"
-                            >
-                                {page.title}
-                            </Link>
-                        ))
-                    }
+                <div className="flex items-center gap-2 font-semibold text-foreground mb-4 text-right">
+                  <Link
+                    href="/blog"
+                    className="text-foreground hover:text-primary transition-colors font-bold"
+                  >
+                    {t.blog}
+                  </Link>
+                  <button
+                    type="button"
+                    onClick={() => setBlogDrawerOpen(o => !o)}
+                    className="inline-flex items-center gap-1.5 text-muted-foreground hover:text-primary transition-colors cursor-pointer group"
+                    title="توسيع أو طي أقسام المدونة"
+                    aria-label="توسيع أو طي أقسام المدونة"
+                  >
+                    <span className="inline-flex items-center justify-center h-4.5 min-w-4.5 px-1 rounded-full bg-primary/10 text-primary text-2xs font-bold">
+                      {blogCategories.length}
+                    </span>
+                    <ChevronDown className={`h-4 w-4 text-muted-foreground group-hover:text-primary transition-transform duration-200 ${blogDrawerOpen ? 'rotate-180' : 'rotate-0'}`} />
+                  </button>
+                </div>
+                <nav 
+                  className="flex flex-col gap-2.5 overflow-hidden transition-all duration-300"
+                  style={{
+                    maxHeight: blogDrawerOpen ? '380px' : '150px',
+                    opacity: 1,
+                  }}
+                >
+                  <Link
+                    href="/blog"
+                    className="text-sm font-semibold text-primary hover:underline transition-colors flex items-center gap-1.5 pb-1 border-b border-border/40 mb-0.5"
+                  >
+                    <span className="w-1.5 h-1.5 rounded-full bg-primary flex-shrink-0" />
+                    <span>الرئيسية للمدونة</span>
+                  </Link>
+                  {blogCategories.length > 0 ? (
+                    blogCategories.map((cat, idx) => (
+                      <Link
+                        key={idx}
+                        href={`/blog?category=${encodeURIComponent(cat)}`}
+                        className="text-sm text-muted-foreground hover:text-primary transition-colors flex items-center gap-1.5"
+                      >
+                        <span className="w-1.5 h-1.5 rounded-full bg-primary/30 flex-shrink-0" />
+                        <span className="truncate">{cat}</span>
+                      </Link>
+                    ))
+                  ) : (
+                    <Link
+                      href="/blog"
+                      className="text-sm text-muted-foreground hover:text-primary transition-colors flex items-center gap-1.5"
+                    >
+                      <span className="w-1.5 h-1.5 rounded-full bg-primary/30 flex-shrink-0" />
+                      <span>تصفح كل الموضوعات</span>
+                    </Link>
+                  )}
                 </nav>
             </div>
             </div>
 
+        {/* Bottom Footer Bar */}
         <div className="mt-6 border-t pt-8 flex flex-col sm:flex-row items-center justify-between gap-4 text-sm text-muted-foreground">
-            <div>&copy; {new Date().getFullYear()} {t.rightsReserved}</div>
+            <div className="flex items-center gap-3 flex-wrap">
+                <span>&copy; {new Date().getFullYear()} {t.rightsReserved}</span>
+                <span className="text-muted-foreground/40">•</span>
+                <Link
+                  href={termsHref}
+                  className="text-xs text-muted-foreground hover:text-primary transition-colors underline-offset-4 hover:underline"
+                >
+                  {termsPage?.title || t.termsOfUse}
+                </Link>
+            </div>
             <a
                 href="https://wa.me/201127556848"
                 target="_blank"

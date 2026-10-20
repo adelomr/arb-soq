@@ -45,7 +45,13 @@ export async function getAuthorSettings(): Promise<AuthorSettings | null> {
     const { doc, getDoc } = await import('firebase/firestore');
     const settingsDoc = await getDoc(doc(firestore, 'settings', 'author'));
     if (settingsDoc.exists()) {
-      return settingsDoc.data() as AuthorSettings;
+      const data = settingsDoc.data();
+      // Ensure only plain serializable values are returned
+      return {
+        name: data?.name || '',
+        avatar: data?.avatar || '',
+        bio: data?.bio || '',
+      };
     }
     return null;
   } catch (error) {
@@ -54,30 +60,96 @@ export async function getAuthorSettings(): Promise<AuthorSettings | null> {
   }
 }
 
-export async function updateAuthorSettings(settings: AuthorSettings): Promise<void> {
+export async function updateAuthorSettings(
+  settings: AuthorSettings,
+  updateExistingPosts: boolean = true
+): Promise<number> {
   try {
-    const { doc, setDoc } = await import('firebase/firestore');
+    const { doc, setDoc, writeBatch, collection, getDocs } = await import('firebase/firestore');
+    // 1. Save to settings doc
     await setDoc(doc(firestore, 'settings', 'author'), settings);
+
+    // 2. Synchronize all blog posts in Firestore with the new author name and info
+    let updatedCount = 0;
+    if (updateExistingPosts) {
+      const blogsSnapshot = await getDocs(collection(firestore, BLOGS_COLLECTION));
+      const docs = blogsSnapshot.docs;
+
+      const chunkSize = 400;
+      for (let i = 0; i < docs.length; i += chunkSize) {
+        const chunk = docs.slice(i, i + chunkSize);
+        const batch = writeBatch(firestore);
+        chunk.forEach((d) => {
+          batch.update(d.ref, {
+            author: settings.name,
+            authorAvatar: settings.avatar || '',
+            authorBio: settings.bio || '',
+          });
+          updatedCount++;
+        });
+        await batch.commit();
+      }
+    }
+    return updatedCount;
   } catch (error) {
     console.error('Error updating author settings:', error);
     throw error;
   }
 }
 
+export async function syncAllBlogsWithAuthor(): Promise<number> {
+  const settings = await getAuthorSettings();
+  if (!settings || !settings.name) return 0;
+  return updateAuthorSettings(settings, true);
+}
+
 const BLOGS_COLLECTION = 'blogs';
+
+// Converts Firestore Timestamp into a plain serializable object safe for Next.js Server->Client components
+export function serializeBlogPost(docId: string, data: any): BlogPost {
+  let createdAtPlain = null;
+  if (data?.createdAt) {
+    if (typeof data.createdAt.toMillis === 'function') {
+      const ms = data.createdAt.toMillis();
+      createdAtPlain = {
+        seconds: Math.floor(ms / 1000),
+        nanoseconds: (ms % 1000) * 1000000,
+      };
+    } else if (typeof data.createdAt.seconds === 'number') {
+      createdAtPlain = {
+        seconds: Number(data.createdAt.seconds),
+        nanoseconds: Number(data.createdAt.nanoseconds || 0),
+      };
+    } else if (data.createdAt instanceof Date) {
+      createdAtPlain = {
+        seconds: Math.floor(data.createdAt.getTime() / 1000),
+        nanoseconds: 0,
+      };
+    }
+  }
+
+  return {
+    id: docId,
+    slug: data?.slug || '',
+    title: data?.title || '',
+    content: data?.content || '',
+    author: data?.author || '',
+    authorAvatar: data?.authorAvatar || '',
+    authorBio: data?.authorBio || '',
+    imageUrl: data?.imageUrl || '',
+    tags: Array.isArray(data?.tags) ? data.tags : [],
+    category: data?.category || '',
+    views: typeof data?.views === 'number' ? data.views : 0,
+    createdAt: createdAtPlain,
+  };
+}
 
 // Fetch all published blogs, ordered by newest first
 export async function getAllBlogs(): Promise<BlogPost[]> {
   try {
     const q = query(collection(firestore, BLOGS_COLLECTION), orderBy('createdAt', 'desc'));
     const snapshot = await getDocs(q);
-    return snapshot.docs.map(doc => {
-      const data = doc.data();
-      return {
-        id: doc.id,
-        ...data,
-      } as BlogPost;
-    });
+    return snapshot.docs.map(doc => serializeBlogPost(doc.id, doc.data()));
   } catch (error) {
     console.error('Error fetching blogs:', error);
     return [];
@@ -101,11 +173,7 @@ export async function getBlogBySlug(slug: string): Promise<BlogPost | null> {
     const snapshot = await getDocs(q);
     if (!snapshot.empty) {
       const doc = snapshot.docs[0];
-      const data = doc.data();
-      return {
-        id: doc.id,
-        ...data,
-      } as BlogPost;
+      return serializeBlogPost(doc.id, doc.data());
     }
     return null;
   } catch (error) {

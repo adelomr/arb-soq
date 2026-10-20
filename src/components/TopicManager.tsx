@@ -77,6 +77,7 @@ export default function TopicManager({ initialView = 'list' }: TopicManagerProps
   const [authorAvatarFile, setAuthorAvatarFile] = useState<File | null>(null);
   const [authorAvatarPreview, setAuthorAvatarPreview] = useState<string | null>(null);
   const [authorSettingsLoading, setAuthorSettingsLoading] = useState(false);
+  const [updateAllPosts, setUpdateAllPosts] = useState(true);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -94,6 +95,14 @@ export default function TopicManager({ initialView = 'list' }: TopicManagerProps
 
   const handleSaveAuthorSettings = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!authorSettings.name.trim()) {
+      toast({
+        title: 'اسم المؤلف مطلوب',
+        description: 'يرجى إدخال اسم المؤلف.',
+        variant: 'destructive',
+      });
+      return;
+    }
     setAuthorSettingsLoading(true);
     try {
       let avatarUrl = authorSettings.avatar;
@@ -102,11 +111,44 @@ export default function TopicManager({ initialView = 'list' }: TopicManagerProps
         avatarUrl = uploadResult.url;
       }
       const updated = { ...authorSettings, avatar: avatarUrl };
-      await updateAuthorSettings(updated);
+      const updatedCount = await updateAuthorSettings(updated, updateAllPosts);
       setAuthorSettings(updated);
-      toast({ title: 'تم حفظ إعدادات المؤلف بنجاح' });
+      toast({ 
+        title: 'تم حفظ إعدادات المؤلف بنجاح',
+        description: updateAllPosts 
+          ? `تم تحديث اسم وبيانات المؤلف في جميع التدوينات (${updatedCount} موضوع).`
+          : undefined,
+      });
+      await fetchTopics();
     } catch {
       toast({ title: 'فشل الحفظ', variant: 'destructive' });
+    } finally {
+      setAuthorSettingsLoading(false);
+    }
+  };
+
+  const handleSyncAllPosts = async () => {
+    if (!authorSettings.name.trim()) {
+      toast({
+        title: 'اسم المؤلف غير محدد',
+        description: 'يرجى إدخال اسم المؤلف أولاً.',
+        variant: 'destructive',
+      });
+      return;
+    }
+    if (!window.confirm(`هل أنت متأكد من تحديث اسم وبيانات المؤلف (${authorSettings.name}) في جميع التدوينات الحالية (${topics.length} موضوع)؟`)) {
+      return;
+    }
+    setAuthorSettingsLoading(true);
+    try {
+      const updatedCount = await updateAuthorSettings(authorSettings, true);
+      toast({
+        title: 'تمت المزامنة بنجاح',
+        description: `تم تحديث ${updatedCount} تدوينة بالاسم الجديد: ${authorSettings.name}`,
+      });
+      await fetchTopics();
+    } catch {
+      toast({ title: 'فشلت المزامنة', variant: 'destructive' });
     } finally {
       setAuthorSettingsLoading(false);
     }
@@ -364,6 +406,38 @@ export default function TopicManager({ initialView = 'list' }: TopicManagerProps
               />
             </div>
 
+            {/* Checkbox to sync with all existing posts */}
+            <div className="flex items-center gap-3 p-3 bg-muted/40 rounded-xl border border-border">
+              <input
+                type="checkbox"
+                id="update-all-posts-checkbox"
+                checked={updateAllPosts}
+                onChange={(e) => setUpdateAllPosts(e.target.checked)}
+                className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary cursor-pointer"
+              />
+              <label htmlFor="update-all-posts-checkbox" className="text-xs text-foreground font-medium cursor-pointer">
+                تحديث اسم وصورة ونبذة المؤلف في جميع التدوينات الحالية ({topics.length} موضوع)
+              </label>
+            </div>
+
+            {/* Quick Sync Button */}
+            <div className="flex items-center justify-between gap-3 p-3.5 bg-primary/5 rounded-xl border border-primary/20">
+              <div className="text-xs text-muted-foreground">
+                <span className="font-bold text-foreground block mb-0.5">مزامنة التدوينات السابقة:</span>
+                تحديث كافة التدوينات السابقة المنشورة لربطها ببيانات المؤلف الحالية دفعة واحدة.
+              </div>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={handleSyncAllPosts}
+                disabled={authorSettingsLoading || !authorSettings.name}
+                className="shrink-0 text-xs border-primary/30 text-primary hover:bg-primary/10"
+              >
+                مزامنة الكل الآن
+              </Button>
+            </div>
+
             <div className="flex justify-end gap-3 pt-2 border-t border-border/50">
               <Button type="button" variant="outline" onClick={() => setView('list')}>إلغاء</Button>
               <Button type="submit" disabled={authorSettingsLoading} className="flex items-center gap-2">
@@ -533,7 +607,18 @@ export default function TopicManager({ initialView = 'list' }: TopicManagerProps
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="topic-author" className="text-foreground font-medium">اسم الكاتب <span className="text-destructive">*</span></Label>
+                <div className="flex items-center justify-between">
+                  <Label htmlFor="topic-author" className="text-foreground font-medium">اسم الكاتب <span className="text-destructive">*</span></Label>
+                  {authorSettings.name && author !== authorSettings.name && (
+                    <button
+                      type="button"
+                      onClick={() => setAuthor(authorSettings.name)}
+                      className="text-xs text-primary hover:underline font-medium"
+                    >
+                      استخدام المؤلف الافتراضي ({authorSettings.name})
+                    </button>
+                  )}
+                </div>
                 <Input 
                   id="topic-author"
                   type="text" 

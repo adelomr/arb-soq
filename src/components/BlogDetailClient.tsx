@@ -70,6 +70,7 @@ function AuthorCard({ blog, authorSettings }: { blog: BlogPost; authorSettings: 
 export default function BlogDetailClient({ slug, initialBlog = null }: BlogDetailClientProps) {
   const [blog, setBlog] = useState<BlogPost | null>(initialBlog);
   const [authorSettings, setAuthorSettings] = useState<AuthorSettings | null>(null);
+  const [recentBlogs, setRecentBlogs] = useState<BlogPost[]>([]);
   const [mostViewed, setMostViewed] = useState<BlogPost[]>([]);
   const [categories, setCategories] = useState<{ name: string; count: number }[]>([]);
   const [loading, setLoading] = useState(!initialBlog);
@@ -85,6 +86,9 @@ export default function BlogDetailClient({ slug, initialBlog = null }: BlogDetai
       if (!active) return;
       setBlog(b);
       setAuthorSettings(a);
+
+      // Latest topics (top 5 newest)
+      setRecentBlogs(allBlogs.slice(0, 5));
 
       // Compute most viewed (top 5, excluding current if possible or including)
       const sorted = [...allBlogs]
@@ -317,6 +321,7 @@ export default function BlogDetailClient({ slug, initialBlog = null }: BlogDetai
             {/* Sidebar (4 cols on lg) */}
             <div className="lg:col-span-4 lg:sticky lg:top-24">
               <BlogSidebar
+                recentBlogs={recentBlogs}
                 mostViewedBlogs={mostViewed}
                 categories={categories}
               />

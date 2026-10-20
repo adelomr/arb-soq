@@ -1,9 +1,9 @@
 'use client';
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
-import { BlogPost } from '@/lib/blog-service';
+import { BlogPost, AuthorSettings, getAllBlogs } from '@/lib/blog-service';
 import BlogSidebar from './BlogSidebar';
 import { format } from 'date-fns';
 import { ar } from 'date-fns/locale';
@@ -21,23 +21,44 @@ import {
 
 interface BlogListingClientProps {
   initialBlogs: BlogPost[];
+  authorSettings?: AuthorSettings | null;
 }
 
-export default function BlogListingClient({ initialBlogs }: BlogListingClientProps) {
+export default function BlogListingClient({ initialBlogs, authorSettings }: BlogListingClientProps) {
+  const [blogs, setBlogs] = useState<BlogPost[]>(initialBlogs);
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
 
+  // Keep blogs in sync with props
+  useEffect(() => {
+    setBlogs(initialBlogs);
+  }, [initialBlogs]);
+
+  // Client-side live sync to ensure any deleted or newly added posts are immediately reflected
+  useEffect(() => {
+    getAllBlogs().then((fresh) => {
+      if (Array.isArray(fresh) && fresh.length > 0) {
+        setBlogs(fresh);
+      }
+    }).catch(() => {});
+  }, []);
+
   // 1. Most viewed blogs (sorted by views desc)
   const mostViewedBlogs = useMemo(() => {
-    return [...initialBlogs]
+    return [...blogs]
       .sort((a, b) => (b.views || 0) - (a.views || 0))
       .slice(0, 5);
-  }, [initialBlogs]);
+  }, [blogs]);
+
+  // Recent blogs (latest topics: ordered by newest first)
+  const recentBlogs = useMemo(() => {
+    return blogs.slice(0, 5);
+  }, [blogs]);
 
   // 2. Compute category counts
   const categoriesWithCounts = useMemo(() => {
     const map = new Map<string, number>();
-    initialBlogs.forEach((blog) => {
+    blogs.forEach((blog) => {
       const cat = blog.category?.trim();
       if (cat) {
         map.set(cat, (map.get(cat) || 0) + 1);
@@ -51,11 +72,11 @@ export default function BlogListingClient({ initialBlogs }: BlogListingClientPro
       name,
       count,
     }));
-  }, [initialBlogs]);
+  }, [blogs]);
 
   // 3. Filtered blogs based on search query and selected category
   const filteredBlogs = useMemo(() => {
-    return initialBlogs.filter((blog) => {
+    return blogs.filter((blog) => {
       // Category filter
       if (selectedCategory) {
         const matchesCategory =
@@ -68,7 +89,7 @@ export default function BlogListingClient({ initialBlogs }: BlogListingClientPro
       if (searchQuery.trim()) {
         const q = searchQuery.toLowerCase().trim();
         const matchesTitle = blog.title?.toLowerCase().includes(q);
-        const matchesAuthor = blog.author?.toLowerCase().includes(q);
+        const matchesAuthor = (authorSettings?.name || blog.author)?.toLowerCase().includes(q);
         const matchesContent = blog.content?.toLowerCase().includes(q);
         const matchesTags = blog.tags?.some((t) => t.toLowerCase().includes(q));
         const matchesCat = blog.category?.toLowerCase().includes(q);
@@ -78,7 +99,7 @@ export default function BlogListingClient({ initialBlogs }: BlogListingClientPro
 
       return true;
     });
-  }, [initialBlogs, selectedCategory, searchQuery]);
+  }, [blogs, selectedCategory, searchQuery, authorSettings]);
 
   return (
     <div className="max-w-7xl mx-auto px-4 py-8 md:py-12" dir="rtl">
@@ -99,7 +120,7 @@ export default function BlogListingClient({ initialBlogs }: BlogListingClientPro
                 : 'bg-card border border-border text-muted-foreground hover:text-foreground hover:bg-muted'
             }`}
           >
-            الكل ({initialBlogs.length})
+            الكل ({blogs.length})
           </button>
 
           {categoriesWithCounts.map((cat, idx) => {
@@ -248,7 +269,7 @@ export default function BlogListingClient({ initialBlogs }: BlogListingClientPro
                     <div className="mt-auto flex items-center justify-between text-xs text-muted-foreground border-t border-border/50 pt-3">
                       <div className="flex items-center gap-1.5 truncate max-w-[40%]">
                         <User className="w-3.5 h-3.5 text-primary shrink-0" />
-                        <span className="font-medium truncate">{blog.author}</span>
+                        <span className="font-medium truncate">{authorSettings?.name || blog.author}</span>
                       </div>
 
                       <div className="flex items-center gap-3 shrink-0">
@@ -285,6 +306,7 @@ export default function BlogListingClient({ initialBlogs }: BlogListingClientPro
         {/* Sidebar Area (4 cols, sticky on desktop) */}
         <div className="lg:col-span-4 lg:sticky lg:top-24">
           <BlogSidebar
+            recentBlogs={recentBlogs}
             mostViewedBlogs={mostViewedBlogs}
             categories={categoriesWithCounts}
             selectedCategory={selectedCategory}
