@@ -307,14 +307,6 @@ function RedirectContent() {
               يرجى الانتظار لتجهيز الرابط...
             </Button>
           )}
-
-          {targetUrl && (
-            <div className="mt-6 w-full">
-              <p className="text-[11px] text-slate-500 truncate" dir="ltr">
-                {targetUrl}
-              </p>
-            </div>
-          )}
         </div>
 
 
