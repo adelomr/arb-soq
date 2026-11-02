@@ -250,9 +250,16 @@ export default function BlogDetailClient({ slug, initialBlog = null }: BlogDetai
                   />
                   <style>{`
                     /* Download button — rendered in blog view from span[data-download-btn] */
+                    article.prose a.download-btn-wrapper,
+                    .prose a.download-btn-wrapper,
                     .download-btn-wrapper {
-                      display: inline-flex;
+                      display: inline-flex !important;
                       text-decoration: none !important;
+                      color: inherit !important;
+                      border: none !important;
+                      padding: 0 !important;
+                      background: none !important;
+                      cursor: pointer !important;
                     }
                     span.download-btn-custom {
                       display: inline-flex;
@@ -264,10 +271,11 @@ export default function BlogDetailClient({ slug, initialBlog = null }: BlogDetai
                       padding: 6px 14px;
                       font-size: 14px;
                       font-weight: 600;
-                      cursor: pointer;
+                      cursor: pointer !important;
                       transition: opacity 0.2s;
                       user-select: none;
                       text-decoration: none;
+                      pointer-events: auto !important;
                     }
                     span.download-btn-custom:hover {
                       opacity: 0.88;

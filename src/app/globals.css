@@ -268,6 +268,17 @@
   flex-shrink: 0;
 }
 
+.download-btn-wrapper {
+  display: inline-flex !important;
+  text-decoration: none !important;
+  color: inherit !important;
+  border: none !important;
+  padding: 0 !important;
+  background: none !important;
+  box-shadow: none !important;
+  cursor: pointer !important;
+}
+
 /* === Professional Contact Button Styles (WhatsApp & Call) === */
 
 /* 1. Editor-generated Buttons (using span.contact-btn-custom inside .contact-btn-wrapper) */

@@ -1,9 +1,8 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
-import { useRouter } from 'next/navigation';
 import { BlogPost } from '@/lib/blog-service';
 import { 
   Flame, 
@@ -13,10 +12,8 @@ import {
   BookOpen, 
   FolderOpen, 
   ChevronLeft, 
-  Search, 
   Sparkles,
-  Clock,
-  X
+  Clock
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { ar } from 'date-fns/locale';
@@ -44,84 +41,13 @@ export default function BlogSidebar({
   categories = [],
   selectedCategory = null,
   onSelectCategory,
-  searchQuery,
-  onSearchChange,
   className = '',
 }: BlogSidebarProps) {
-  const router = useRouter();
-  const [internalQuery, setInternalQuery] = useState(searchQuery || '');
-
-  // Keep internal state in sync with external prop
-  useEffect(() => {
-    setInternalQuery(searchQuery || '');
-  }, [searchQuery]);
-
-  const handleSearchSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    const trimmed = internalQuery.trim();
-    if (onSearchChange) {
-      onSearchChange(trimmed);
-    } else {
-      if (trimmed) {
-        router.push(`/blog?q=${encodeURIComponent(trimmed)}`);
-      } else {
-        router.push('/blog');
-      }
-    }
-  };
-
-  const handleInputChange = (val: string) => {
-    setInternalQuery(val);
-    if (onSearchChange) {
-      onSearchChange(val);
-    }
-  };
-
-  const handleClear = () => {
-    setInternalQuery('');
-    if (onSearchChange) {
-      onSearchChange('');
-    }
-  };
-
   // If recentBlogs was not provided, fallback to slice of mostViewedBlogs
   const displayRecent = recentBlogs && recentBlogs.length > 0 ? recentBlogs : mostViewedBlogs;
 
   return (
     <aside className={`space-y-6 ${className}`} dir="rtl">
-      {/* Search Widget - Always available */}
-      <div className="bg-card rounded-2xl border border-border p-3.5 shadow-xs">
-        <form onSubmit={handleSearchSubmit} className="relative">
-          <Search className="absolute right-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
-          <input
-            type="text"
-            value={internalQuery}
-            onChange={(e) => handleInputChange(e.target.value)}
-            placeholder="ابحث في المقالات والمواضيع..."
-            className="w-full pr-10 pl-20 py-2.5 bg-background border border-border rounded-xl text-xs md:text-sm focus:outline-none focus:ring-2 focus:ring-primary/40 text-foreground text-right transition-colors"
-            dir="rtl"
-          />
-          <div className="absolute left-1.5 top-1/2 -translate-y-1/2 flex items-center gap-1">
-            {internalQuery && (
-              <button
-                type="button"
-                onClick={handleClear}
-                className="p-1 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted transition-colors cursor-pointer"
-                title="مسح البحث"
-                aria-label="مسح البحث"
-              >
-                <X className="w-3.5 h-3.5" />
-              </button>
-            )}
-            <button
-              type="submit"
-              className="px-2.5 py-1 bg-primary text-primary-foreground text-xs font-semibold rounded-lg hover:bg-primary/90 transition-colors cursor-pointer"
-            >
-              بحث
-            </button>
-          </div>
-        </form>
-      </div>
 
       {/* Widget 1: Latest Topics (أحدث الموضوعات) - فوق الموضوعات الأكثر مشاهدة */}
       <div className="bg-card rounded-2xl border border-border overflow-hidden shadow-xs">

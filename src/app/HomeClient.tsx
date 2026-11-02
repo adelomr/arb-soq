@@ -355,166 +355,345 @@ export default function HomeClient() {
               </div>
 
               {topicsLoading ? (
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-                  {[...Array(4)].map((_, i) => (
-                    <div key={i} className="bg-card border border-border/80 rounded-2xl overflow-hidden flex flex-col h-[380px]">
-                      <Skeleton className="w-full h-44 rounded-none" />
-                      <div className="p-4 flex flex-col flex-grow justify-between gap-4">
-                        <div className="space-y-3">
-                          <Skeleton className="h-5 w-1/4" />
-                          <Skeleton className="h-6 w-full" />
-                          <Skeleton className="h-6 w-3/4" />
-                        </div>
-                        <div className="pt-3 border-t border-border/40 flex justify-between">
-                          <Skeleton className="h-4 w-1/4" />
-                          <Skeleton className="h-4 w-1/4" />
+                view === 'grid' ? (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+                    {[...Array(4)].map((_, i) => (
+                      <div key={i} className="bg-card border border-border/80 rounded-2xl overflow-hidden flex flex-col h-[380px]">
+                        <Skeleton className="w-full h-44 rounded-none" />
+                        <div className="p-4 flex flex-col flex-grow justify-between gap-4">
+                          <div className="space-y-3">
+                            <Skeleton className="h-5 w-1/4" />
+                            <Skeleton className="h-6 w-full" />
+                            <Skeleton className="h-6 w-3/4" />
+                          </div>
+                          <div className="pt-3 border-t border-border/40 flex justify-between">
+                            <Skeleton className="h-4 w-1/4" />
+                            <Skeleton className="h-4 w-1/4" />
+                          </div>
                         </div>
                       </div>
-                    </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    {[...Array(4)].map((_, i) => (
+                      <div key={i} className="bg-card border border-border/80 rounded-2xl overflow-hidden flex flex-col sm:flex-row h-auto sm:h-44">
+                        <Skeleton className="w-full sm:w-56 md:w-64 h-44 sm:h-full rounded-none shrink-0" />
+                        <div className="p-4 flex flex-col flex-grow justify-between gap-3">
+                          <div className="space-y-2">
+                            <Skeleton className="h-5 w-24" />
+                            <Skeleton className="h-6 w-3/4" />
+                            <Skeleton className="h-4 w-full" />
+                          </div>
+                          <div className="pt-3 border-t border-border/40 flex justify-between">
+                            <Skeleton className="h-4 w-32" />
+                            <Skeleton className="h-4 w-20" />
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )
+              ) : view === 'list' ? (
+                /* List View for Topics (Default) */
+                <div className="space-y-4">
+                  {recentTopics.map((topic, index) => (
+                    <Link
+                      href={`/blog/${topic.slug}`}
+                      key={topic.id}
+                      className="group bg-card hover:bg-card/90 border border-border/80 hover:border-primary/40 rounded-2xl overflow-hidden shadow-xs hover:shadow-md transition-all duration-300 flex flex-col sm:flex-row text-right items-stretch"
+                      dir="rtl"
+                    >
+                      {/* Image Thumbnail */}
+                      <div className="relative w-full sm:w-56 md:w-64 h-44 sm:h-auto bg-muted overflow-hidden flex-shrink-0">
+                        {topic.imageUrl ? (
+                          <Image
+                            src={topic.imageUrl}
+                            alt={topic.title}
+                            fill
+                            priority={index < 2}
+                            sizes="(max-width: 640px) 100vw, 256px"
+                            className="object-cover group-hover:scale-105 transition-transform duration-500"
+                          />
+                        ) : (
+                          <div className="absolute inset-0 flex items-center justify-center text-muted-foreground bg-secondary/30">
+                            <BookOpen className="h-10 w-10 opacity-30 text-primary" />
+                          </div>
+                        )}
+                        {topic.tags && topic.tags.length > 0 && (
+                          <div className="absolute top-2.5 right-2.5 sm:hidden">
+                            <span className="text-[10px] font-bold bg-primary text-primary-foreground px-2 py-0.5 rounded-full shadow-xs">
+                              {topic.tags[0]}
+                            </span>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Content Area */}
+                      <div className="p-4 sm:p-5 flex flex-col flex-grow justify-between min-w-0">
+                        <div className="space-y-2">
+                          <div className="hidden sm:flex gap-2 flex-wrap">
+                            {topic.tags?.slice(0, 2).map((tag, i) => (
+                              <span key={i} className="text-[10px] font-semibold bg-primary/10 text-primary px-2.5 py-0.5 rounded-full">
+                                {tag}
+                              </span>
+                            ))}
+                          </div>
+                          <h3 className="font-bold text-base sm:text-lg text-foreground group-hover:text-primary transition-colors line-clamp-2 leading-snug">
+                            {topic.title}
+                          </h3>
+                          <div
+                            className="text-xs sm:text-sm text-muted-foreground line-clamp-2 leading-relaxed"
+                            dangerouslySetInnerHTML={{ __html: topic.content?.replace(/<[^>]+>/g, '').substring(0, 150) + '...' }}
+                          />
+                        </div>
+
+                        <div className="mt-4 pt-3 border-t border-border/40 flex items-center justify-between text-[11px] sm:text-xs text-muted-foreground">
+                          <div className="flex items-center gap-3 sm:gap-4 flex-wrap">
+                            <span className="flex items-center gap-1 font-medium">
+                              <User className="h-3.5 w-3.5 text-primary" />
+                              {topic.author}
+                            </span>
+                            <span className="flex items-center gap-1">
+                              <Calendar className="h-3.5 w-3.5 text-primary" />
+                              {topic.createdAt?.seconds
+                                ? format(new Date(topic.createdAt.seconds * 1000), 'd MMMM, yyyy', { locale: ar })
+                                : "حديثاً"}
+                            </span>
+                            <span className="hidden xs:flex items-center gap-1">
+                              <Eye className="h-3.5 w-3.5 text-primary/70" />
+                              <span>{(topic.views || 0).toLocaleString('en-US')} مشاهدة</span>
+                            </span>
+                          </div>
+
+                          <div className="flex items-center gap-2">
+                            <span className="text-primary text-xs font-semibold hidden md:inline-flex items-center gap-1 group-hover:gap-2 transition-all">
+                              اقرأ التفاصيل
+                              <ChevronLeft className="w-3.5 h-3.5" />
+                            </span>
+
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  className="h-6 px-2 text-[10px] gap-1.5 rounded-full text-primary bg-primary/10 hover:bg-primary hover:text-primary-foreground border border-primary/25 shadow-xs transition-all group/share hover:scale-105 active:scale-95"
+                                  onClick={(e) => { e.preventDefault(); e.stopPropagation(); }}
+                                >
+                                  <span className="w-3.5 h-3.5 rounded-full bg-primary/20 group-hover/share:bg-white/20 flex items-center justify-center transition-colors">
+                                    <Share2 className="w-2.5 h-2.5 text-primary group-hover/share:text-white transition-colors" />
+                                  </span>
+                                  <span>مشاركة</span>
+                                </Button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent
+                                align="end"
+                                onClick={(e) => { e.stopPropagation(); e.preventDefault(); }}
+                                className="text-right text-xs min-w-[120px]"
+                              >
+                                <DropdownMenuItem asChild>
+                                  <a
+                                    href={`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(`https://www.arb-soq.com/blog/${topic.slug}`)}`}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="flex items-center gap-2 cursor-pointer p-2 justify-end w-full"
+                                    onClick={(e) => e.stopPropagation()}
+                                  >
+                                    <span>فيسبوك</span>
+                                    <Facebook className="h-3.5 w-3.5" />
+                                  </a>
+                                </DropdownMenuItem>
+                                <DropdownMenuItem asChild>
+                                  <a
+                                    href={`https://twitter.com/intent/tweet?url=${encodeURIComponent(`https://www.arb-soq.com/blog/${topic.slug}`)}&text=${encodeURIComponent(topic.title)}`}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="flex items-center gap-2 cursor-pointer p-2 justify-end w-full"
+                                    onClick={(e) => e.stopPropagation()}
+                                  >
+                                    <span>تويتر</span>
+                                    <Twitter className="h-3.5 w-3.5" />
+                                  </a>
+                                </DropdownMenuItem>
+                                <DropdownMenuItem asChild>
+                                  <a
+                                    href={`https://api.whatsapp.com/send?text=${encodeURIComponent(topic.title)}%20${encodeURIComponent(`https://www.arb-soq.com/blog/${topic.slug}`)}`}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="flex items-center gap-2 cursor-pointer p-2 justify-end w-full"
+                                    onClick={(e) => e.stopPropagation()}
+                                  >
+                                    <span>واتساب</span>
+                                    <WhatsappIcon />
+                                  </a>
+                                </DropdownMenuItem>
+                                <DropdownMenuItem
+                                  className="flex items-center gap-2 cursor-pointer p-2 justify-end w-full"
+                                  onClick={(e) => {
+                                    e.preventDefault();
+                                    e.stopPropagation();
+                                    const url = `https://www.arb-soq.com/blog/${topic.slug}`;
+                                    navigator.clipboard.writeText(url);
+                                    toast({
+                                      title: "تم نسخ الرابط!",
+                                      description: "تم نسخ رابط المقال إلى الحافظة بنجاح.",
+                                    });
+                                  }}
+                                >
+                                  <span>نسخ الرابط</span>
+                                  <Share2 className="h-3.5 w-3.5 text-primary" />
+                                </DropdownMenuItem>
+                              </DropdownMenuContent>
+                            </DropdownMenu>
+                          </div>
+                        </div>
+                      </div>
+                    </Link>
                   ))}
                 </div>
               ) : (
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-                {recentTopics.map((topic, index) => (
-                  <Link 
-                    href={`/blog/${topic.slug}`} 
-                    key={topic.id} 
-                    className="group bg-card hover:bg-card/90 border border-border/80 hover:border-primary/40 rounded-2xl overflow-hidden shadow-sm hover:shadow-md transition-all duration-300 flex flex-col text-right h-full"
-                    dir="rtl"
-                  >
-                    <div className="relative w-full h-44 bg-muted overflow-hidden flex-shrink-0">
-                      {topic.imageUrl ? (
-                        <Image 
-                          src={topic.imageUrl} 
-                          alt={topic.title}
-                          fill
-                          priority={index < 2}
-                          sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw"
-                          className="object-cover group-hover:scale-105 transition-transform duration-500"
-                        />
-                      ) : (
-                        <div className="absolute inset-0 flex items-center justify-center text-muted-foreground bg-secondary/30">
-                          <BookOpen className="h-8 w-8 opacity-30 text-primary" />
-                        </div>
-                      )}
-                    </div>
-                    
-                    <div className="p-4 flex flex-col flex-grow justify-between">
-                      <div className="space-y-2">
-                        <div className="flex gap-2 flex-wrap">
-                          {topic.tags?.slice(0, 2).map((tag, i) => (
-                            <span key={i} className="text-[10px] font-semibold bg-primary/10 text-primary px-2 py-0.5 rounded-full">
-                              {tag}
-                            </span>
-                          ))}
-                        </div>
-                        <h3 className="font-bold text-base text-foreground group-hover:text-primary transition-colors line-clamp-2">
-                          {topic.title}
-                        </h3>
-                        <div 
-                          className="text-xs text-muted-foreground line-clamp-2"
-                          dangerouslySetInnerHTML={{ __html: topic.content?.replace(/<[^>]+>/g, '').substring(0, 100) }}
-                        />
+                /* Grid View for Topics */
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+                  {recentTopics.map((topic, index) => (
+                    <Link 
+                      href={`/blog/${topic.slug}`} 
+                      key={topic.id} 
+                      className="group bg-card hover:bg-card/90 border border-border/80 hover:border-primary/40 rounded-2xl overflow-hidden shadow-sm hover:shadow-md transition-all duration-300 flex flex-col text-right h-full"
+                      dir="rtl"
+                    >
+                      <div className="relative w-full h-44 bg-muted overflow-hidden flex-shrink-0">
+                        {topic.imageUrl ? (
+                          <Image 
+                            src={topic.imageUrl} 
+                            alt={topic.title}
+                            fill
+                            priority={index < 2}
+                            sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw"
+                            className="object-cover group-hover:scale-105 transition-transform duration-500"
+                          />
+                        ) : (
+                          <div className="absolute inset-0 flex items-center justify-center text-muted-foreground bg-secondary/30">
+                            <BookOpen className="h-8 w-8 opacity-30 text-primary" />
+                          </div>
+                        )}
                       </div>
+                      
+                      <div className="p-4 flex flex-col flex-grow justify-between">
+                        <div className="space-y-2">
+                          <div className="flex gap-2 flex-wrap">
+                            {topic.tags?.slice(0, 2).map((tag, i) => (
+                              <span key={i} className="text-[10px] font-semibold bg-primary/10 text-primary px-2 py-0.5 rounded-full">
+                                {tag}
+                              </span>
+                            ))}
+                          </div>
+                          <h3 className="font-bold text-base text-foreground group-hover:text-primary transition-colors line-clamp-2">
+                            {topic.title}
+                          </h3>
+                          <div 
+                            className="text-xs text-muted-foreground line-clamp-2"
+                            dangerouslySetInnerHTML={{ __html: topic.content?.replace(/<[^>]+>/g, '').substring(0, 100) }}
+                          />
+                        </div>
 
-                      <div className="mt-4 pt-3 border-t border-border/40 space-y-2 text-[11px] text-muted-foreground">
-                        <div className="flex items-center justify-between">
-                          <span className="flex items-center gap-1">
-                            <User className="h-3.5 w-3.5 text-primary" />
-                            {topic.author}
-                          </span>
-                          <span className="flex items-center gap-1">
-                            <Calendar className="h-3.5 w-3.5 text-primary" />
-                            {topic.createdAt?.seconds 
-                              ? format(new Date(topic.createdAt.seconds * 1000), 'd MMMM, yyyy', { locale: ar })
-                              : "حديثاً"}
-                          </span>
-                        </div>
-                        <div className="flex items-center justify-between pt-2 border-t border-border/20">
-                          <span className="flex items-center gap-1">
-                            <Eye className="h-3.5 w-3.5 text-primary/70" />
-                            <span>{(topic.views || 0).toLocaleString('en-US')} مشاهدة</span>
-                          </span>
-                          
-                          <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                              <Button 
-                                variant="outline" 
-                                size="sm" 
-                                className="h-6 px-2 text-[10px] gap-1.5 rounded-full text-primary bg-primary/10 hover:bg-primary hover:text-primary-foreground border border-primary/25 shadow-xs transition-all group/share hover:scale-105 active:scale-95"
-                                onClick={(e) => { e.preventDefault(); e.stopPropagation(); }}
+                        <div className="mt-4 pt-3 border-t border-border/40 space-y-2 text-[11px] text-muted-foreground">
+                          <div className="flex items-center justify-between">
+                            <span className="flex items-center gap-1">
+                              <User className="h-3.5 w-3.5 text-primary" />
+                              {topic.author}
+                            </span>
+                            <span className="flex items-center gap-1">
+                              <Calendar className="h-3.5 w-3.5 text-primary" />
+                              {topic.createdAt?.seconds 
+                                ? format(new Date(topic.createdAt.seconds * 1000), 'd MMMM, yyyy', { locale: ar })
+                                : "حديثاً"}
+                            </span>
+                          </div>
+                          <div className="flex items-center justify-between pt-2 border-t border-border/20">
+                            <span className="flex items-center gap-1">
+                              <Eye className="h-3.5 w-3.5 text-primary/70" />
+                              <span>{(topic.views || 0).toLocaleString('en-US')} مشاهدة</span>
+                            </span>
+                            
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <Button 
+                                  variant="outline" 
+                                  size="sm" 
+                                  className="h-6 px-2 text-[10px] gap-1.5 rounded-full text-primary bg-primary/10 hover:bg-primary hover:text-primary-foreground border border-primary/25 shadow-xs transition-all group/share hover:scale-105 active:scale-95"
+                                  onClick={(e) => { e.preventDefault(); e.stopPropagation(); }}
+                                >
+                                  <span className="w-3.5 h-3.5 rounded-full bg-primary/20 group-hover/share:bg-white/20 flex items-center justify-center transition-colors">
+                                    <Share2 className="w-2.5 h-2.5 text-primary group-hover/share:text-white transition-colors" />
+                                  </span>
+                                  <span>مشاركة</span>
+                                </Button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent 
+                                align="end" 
+                                onClick={(e) => { e.stopPropagation(); e.preventDefault(); }}
+                                className="text-right text-xs min-w-[120px]"
                               >
-                                <span className="w-3.5 h-3.5 rounded-full bg-primary/20 group-hover/share:bg-white/20 flex items-center justify-center transition-colors">
-                                  <Share2 className="w-2.5 h-2.5 text-primary group-hover/share:text-white transition-colors" />
-                                </span>
-                                <span>مشاركة</span>
-                              </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent 
-                              align="end" 
-                              onClick={(e) => { e.stopPropagation(); e.preventDefault(); }}
-                              className="text-right text-xs min-w-[120px]"
-                            >
-                              <DropdownMenuItem asChild>
-                                <a 
-                                  href={`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(`https://www.arb-soq.com/blog/${topic.slug}`)}`} 
-                                  target="_blank" 
-                                  rel="noopener noreferrer" 
+                                <DropdownMenuItem asChild>
+                                  <a 
+                                    href={`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(`https://www.arb-soq.com/blog/${topic.slug}`)}`} 
+                                    target="_blank" 
+                                    rel="noopener noreferrer" 
+                                    className="flex items-center gap-2 cursor-pointer p-2 justify-end w-full"
+                                    onClick={(e) => e.stopPropagation()}
+                                  >
+                                    <span>فيسبوك</span>
+                                    <Facebook className="h-3.5 w-3.5" />
+                                  </a>
+                                </DropdownMenuItem>
+                                <DropdownMenuItem asChild>
+                                  <a 
+                                    href={`https://twitter.com/intent/tweet?url=${encodeURIComponent(`https://www.arb-soq.com/blog/${topic.slug}`)}&text=${encodeURIComponent(topic.title)}`} 
+                                    target="_blank" 
+                                    rel="noopener noreferrer" 
+                                    className="flex items-center gap-2 cursor-pointer p-2 justify-end w-full"
+                                    onClick={(e) => e.stopPropagation()}
+                                  >
+                                    <span>تويتر</span>
+                                    <Twitter className="h-3.5 w-3.5" />
+                                  </a>
+                                </DropdownMenuItem>
+                                <DropdownMenuItem asChild>
+                                  <a 
+                                    href={`https://api.whatsapp.com/send?text=${encodeURIComponent(topic.title)}%20${encodeURIComponent(`https://www.arb-soq.com/blog/${topic.slug}`)}`} 
+                                    target="_blank" 
+                                    rel="noopener noreferrer" 
+                                    className="flex items-center gap-2 cursor-pointer p-2 justify-end w-full"
+                                    onClick={(e) => e.stopPropagation()}
+                                  >
+                                    <span>واتساب</span>
+                                    <WhatsappIcon />
+                                  </a>
+                                </DropdownMenuItem>
+                                <DropdownMenuItem 
                                   className="flex items-center gap-2 cursor-pointer p-2 justify-end w-full"
-                                  onClick={(e) => e.stopPropagation()}
+                                  onClick={(e) => {
+                                    e.preventDefault();
+                                    e.stopPropagation();
+                                    const url = `https://www.arb-soq.com/blog/${topic.slug}`;
+                                    navigator.clipboard.writeText(url);
+                                    toast({
+                                      title: "تم نسخ الرابط!",
+                                      description: "تم نسخ رابط المقال إلى الحافظة بنجاح.",
+                                    });
+                                  }}
                                 >
-                                  <span>فيسبوك</span>
-                                  <Facebook className="h-3.5 w-3.5" />
-                                </a>
-                              </DropdownMenuItem>
-                              <DropdownMenuItem asChild>
-                                <a 
-                                  href={`https://twitter.com/intent/tweet?url=${encodeURIComponent(`https://www.arb-soq.com/blog/${topic.slug}`)}&text=${encodeURIComponent(topic.title)}`} 
-                                  target="_blank" 
-                                  rel="noopener noreferrer" 
-                                  className="flex items-center gap-2 cursor-pointer p-2 justify-end w-full"
-                                  onClick={(e) => e.stopPropagation()}
-                                >
-                                  <span>تويتر</span>
-                                  <Twitter className="h-3.5 w-3.5" />
-                                </a>
-                              </DropdownMenuItem>
-                              <DropdownMenuItem asChild>
-                                <a 
-                                  href={`https://api.whatsapp.com/send?text=${encodeURIComponent(topic.title)}%20${encodeURIComponent(`https://www.arb-soq.com/blog/${topic.slug}`)}`} 
-                                  target="_blank" 
-                                  rel="noopener noreferrer" 
-                                  className="flex items-center gap-2 cursor-pointer p-2 justify-end w-full"
-                                  onClick={(e) => e.stopPropagation()}
-                                >
-                                  <span>واتساب</span>
-                                  <WhatsappIcon />
-                                </a>
-                              </DropdownMenuItem>
-                              <DropdownMenuItem 
-                                className="flex items-center gap-2 cursor-pointer p-2 justify-end w-full"
-                                onClick={(e) => {
-                                  e.preventDefault();
-                                  e.stopPropagation();
-                                  const url = `https://www.arb-soq.com/blog/${topic.slug}`;
-                                  navigator.clipboard.writeText(url);
-                                  toast({
-                                    title: "تم نسخ الرابط!",
-                                    description: "تم نسخ رابط المقال إلى الحافظة بنجاح.",
-                                  });
-                                }}
-                              >
-                                <span>نسخ الرابط</span>
-                                <Share2 className="h-3.5 w-3.5 text-primary" />
-                              </DropdownMenuItem>
-                            </DropdownMenuContent>
-                          </DropdownMenu>
+                                  <span>نسخ الرابط</span>
+                                  <Share2 className="h-3.5 w-3.5 text-primary" />
+                                </DropdownMenuItem>
+                              </DropdownMenuContent>
+                            </DropdownMenu>
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  </Link>
-                ))}
-              </div>
+                    </Link>
+                  ))}
+                </div>
               )}
 
               <div className="mt-8 text-center sm:hidden">

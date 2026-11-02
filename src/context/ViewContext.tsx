@@ -1,6 +1,6 @@
 'use client';
 
-import { createContext, useState, useContext, ReactNode } from 'react';
+import { createContext, useState, useContext, useEffect, ReactNode } from 'react';
 
 type ViewType = 'grid' | 'list';
 
@@ -12,10 +12,27 @@ type ViewContextType = {
 const ViewContext = createContext<ViewContextType | undefined>(undefined);
 
 export function ViewProvider({ children }: { children: ReactNode }) {
-  const [view, setView] = useState<ViewType>('grid');
+  // Default view is 'list' as requested
+  const [view, setView] = useState<ViewType>('list');
+
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem('app_view_mode') as ViewType | null;
+      if (saved === 'grid' || saved === 'list') {
+        setView(saved);
+      }
+    } catch (_) {}
+  }, []);
+
+  const handleSetView = (newView: ViewType) => {
+    setView(newView);
+    try {
+      localStorage.setItem('app_view_mode', newView);
+    } catch (_) {}
+  };
 
   return (
-    <ViewContext.Provider value={{ view, setView }}>
+    <ViewContext.Provider value={{ view, setView: handleSetView }}>
       {children}
     </ViewContext.Provider>
   );

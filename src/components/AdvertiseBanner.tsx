@@ -28,14 +28,17 @@ const WHATSAPP_URL = 'https://wa.me/201127556848?text=%D8%A3%D8%B1%D9%8A%D8%AF%2
 interface AdvertiseBannerProps {
   href?: string;
   className?: string;
+  size?: 'default' | 'large';
 }
 
 export default function AdvertiseBanner({
   href = WHATSAPP_URL,
   className = '',
+  size = 'default',
 }: AdvertiseBannerProps) {
   const { language } = useLanguage();
   const t = translations[language];
+  const isLarge = size === 'large';
 
   return (
     <Link
@@ -47,21 +50,21 @@ export default function AdvertiseBanner({
     >
       {/* ===== الحاوية الرئيسية ===== */}
       <div
-        className="
-          relative w-full overflow-hidden rounded-2xl
+        className={`
+          relative w-full overflow-hidden ${isLarge ? 'rounded-3xl' : 'rounded-2xl'}
           bg-gradient-to-r from-[hsl(190,55%,18%)] via-[hsl(190,45%,26%)] to-[hsl(186,61%,22%)]
           border border-white/10
           shadow-[0_4px_24px_rgba(0,0,0,0.25)]
           hover:shadow-[0_8px_32px_rgba(0,180,180,0.25)]
           transition-all duration-500
           p-[2px]
-        "
+        `}
       >
         {/* حدود متوهجة */}
-        <div className="absolute inset-0 rounded-2xl bg-gradient-to-r from-teal-400/20 via-transparent to-teal-500/20 opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none" />
+        <div className={`absolute inset-0 ${isLarge ? 'rounded-3xl' : 'rounded-2xl'} bg-gradient-to-r from-teal-400/20 via-transparent to-teal-500/20 opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none`} />
 
         {/* الجسم الداخلي */}
-        <div className="relative flex items-center gap-3 sm:gap-5 px-4 sm:px-6 py-3 sm:py-4 rounded-[calc(1rem-2px)] bg-gradient-to-r from-[hsl(190,55%,16%)] to-[hsl(186,55%,20%)] overflow-hidden">
+        <div className={`relative flex items-center gap-3 sm:gap-6 ${isLarge ? 'px-5 sm:px-8 md:px-10 py-7 sm:py-9 md:py-11 min-h-[160px] md:min-h-[190px] rounded-[calc(1.5rem-2px)]' : 'px-4 sm:px-6 py-3 sm:py-4 rounded-[calc(1rem-2px)]'} bg-gradient-to-r from-[hsl(190,55%,16%)] to-[hsl(186,55%,20%)] overflow-hidden`}>
 
           {/* نجوم متحركة في الخلفية */}
           <div className="absolute inset-0 overflow-hidden pointer-events-none">
@@ -74,67 +77,66 @@ export default function AdvertiseBanner({
 
           {/* ===== الأيقونة ===== */}
           <div className="relative flex-shrink-0">
-            <div className="
-              relative w-14 h-14 sm:w-16 sm:h-16
-              rounded-xl overflow-hidden
+            <div className={`
+              relative ${isLarge ? 'w-20 h-20 sm:w-24 sm:h-24 md:w-28 md:h-28 rounded-2xl' : 'w-14 h-14 sm:w-16 sm:h-16 rounded-xl'}
+              overflow-hidden
               ring-2 ring-teal-400/40 ring-offset-2 ring-offset-transparent
               group-hover:ring-teal-300/70
               transition-all duration-300
               group-hover:scale-105
               shadow-[0_4px_12px_rgba(0,0,0,0.4)]
-            ">
+            `}>
               <Image
                 src={appIconUrl}
                 alt="سوق العرب"
                 fill
                 className="object-cover"
-                sizes="64px"
+                sizes={isLarge ? "120px" : "64px"}
               />
             </div>
             {/* شارة Sparkles */}
-            <div className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full bg-yellow-400 flex items-center justify-center shadow-md group-hover:scale-110 transition-transform">
-              <Sparkles className="w-3 h-3 text-yellow-900" />
+            <div className={`absolute -top-1.5 -right-1.5 ${isLarge ? 'w-7 h-7' : 'w-5 h-5'} rounded-full bg-yellow-400 flex items-center justify-center shadow-md group-hover:scale-110 transition-transform`}>
+              <Sparkles className={`${isLarge ? 'w-4 h-4' : 'w-3 h-3'} text-yellow-900`} />
             </div>
           </div>
 
           {/* ===== النصوص ===== */}
           <div className="flex-1 min-w-0">
             {/* شارة إعلان مميز */}
-            <div className="flex items-center gap-1.5 mb-1">
-              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-yellow-400/20 border border-yellow-400/30 text-yellow-300 text-[10px] font-bold tracking-wide">
-                <Star className="w-2.5 h-2.5 fill-yellow-300" />
+            <div className="flex items-center gap-1.5 mb-1.5">
+              <span className={`inline-flex items-center gap-1 ${isLarge ? 'px-3 py-0.5 text-xs sm:text-sm font-extrabold' : 'px-2 py-0.5 text-[10px] font-bold'} rounded-full bg-yellow-400/20 border border-yellow-400/30 text-yellow-300 tracking-wide`}>
+                <Star className={`${isLarge ? 'w-3.5 h-3.5' : 'w-2.5 h-2.5'} fill-yellow-300`} />
                 {t.badge}
               </span>
             </div>
 
-            <h3 className="text-white font-black text-base sm:text-lg leading-tight">
+            <h3 className={`text-white font-black ${isLarge ? 'text-lg sm:text-2xl md:text-3xl' : 'text-base sm:text-lg'} leading-tight`}>
               {t.advertiseHere}
-              <span className="mr-1.5 text-teal-300 font-black">{t.price}</span>
+              <span className={`mr-1.5 text-teal-300 font-black ${isLarge ? 'text-base sm:text-xl md:text-2xl' : ''}`}>{t.price}</span>
             </h3>
 
-            <p className="text-teal-200/70 text-xs sm:text-sm mt-0.5 flex items-center gap-1.5">
-              <Megaphone className="w-3 h-3 text-teal-300 flex-shrink-0" />
+            <p className={`text-teal-200/70 ${isLarge ? 'text-xs sm:text-base mt-1.5' : 'text-xs sm:text-sm mt-0.5'} flex items-center gap-1.5`}>
+              <Megaphone className={`${isLarge ? 'w-4 h-4' : 'w-3 h-3'} text-teal-300 flex-shrink-0`} />
               {t.reach}
             </p>
           </div>
 
           {/* ===== زر CTA ===== */}
           <div className="flex-shrink-0">
-            <div className="
-              flex items-center gap-1.5
-              px-3 sm:px-4 py-2 sm:py-2.5
-              rounded-xl
+            <div className={`
+              flex items-center gap-2
+              ${isLarge ? 'px-4 sm:px-6 py-2.5 sm:py-3.5 rounded-2xl text-xs sm:text-base font-extrabold' : 'px-3 sm:px-4 py-2 sm:py-2.5 rounded-xl text-xs sm:text-sm font-bold'}
               bg-gradient-to-br from-teal-400 to-teal-600
-              text-white font-bold text-xs sm:text-sm
+              text-white
               shadow-[0_4px_12px_rgba(0,180,160,0.4)]
               group-hover:from-teal-300 group-hover:to-teal-500
               group-hover:shadow-[0_6px_20px_rgba(0,200,180,0.5)]
               group-hover:scale-105
               transition-all duration-300
               whitespace-nowrap
-            ">
+            `}>
               {t.cta}
-              <ArrowLeft className="w-3.5 h-3.5 group-hover:-translate-x-0.5 transition-transform" />
+              <ArrowLeft className={`${isLarge ? 'w-4 h-4' : 'w-3.5 h-3.5'} group-hover:-translate-x-0.5 transition-transform`} />
             </div>
           </div>
 

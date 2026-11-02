@@ -17,9 +17,43 @@ function RedirectContent() {
   const [countdown, setCountdown] = useState(20);
   const [initialCountdown, setInitialCountdown] = useState(20);
   const [isReady, setIsReady] = useState(false);
+  const [isPaused, setIsPaused] = useState(false);
   const [pageTitle, setPageTitle] = useState<string>('أنت تغادر سوق العرب الآن');
   const [pageContent, setPageContent] = useState<string>('رابط التوجيه آمن وجاهز. يرجى الانتظار قليلاً ليتم تجهيز رابط التحويل الخارجي.');
   const contentRef = useRef<HTMLDivElement>(null);
+
+  // Monitor tab visibility and focus to pause countdown if user switches tabs/windows
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.hidden) {
+        setIsPaused(true);
+      } else {
+        setIsPaused(false);
+      }
+    };
+
+    const handleWindowBlur = () => {
+      // Ignore blur if the user clicked into an iframe (e.g., Google AdSense ads)
+      if (document.activeElement && document.activeElement.tagName === 'IFRAME') {
+        return;
+      }
+      setIsPaused(true);
+    };
+
+    const handleWindowFocus = () => {
+      setIsPaused(false);
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    window.addEventListener('blur', handleWindowBlur);
+    window.addEventListener('focus', handleWindowFocus);
+
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      window.removeEventListener('blur', handleWindowBlur);
+      window.removeEventListener('focus', handleWindowFocus);
+    };
+  }, []);
 
   useEffect(() => {
     const fetchPageConfig = async () => {
@@ -157,8 +191,14 @@ function RedirectContent() {
   }, [searchParams]);
 
   useEffect(() => {
+    if (isReady) return;
+
     if (countdown > 0) {
-      const timer = setTimeout(() => setCountdown(countdown - 1), 1000);
+      if (isPaused) return; // Stop countdown when user leaves the tab/window
+
+      const timer = setTimeout(() => {
+        setCountdown((prev) => prev - 1);
+      }, 1000);
       return () => clearTimeout(timer);
     } else {
       if (targetUrl) {
@@ -167,7 +207,7 @@ function RedirectContent() {
         router.push('/');
       }
     }
-  }, [countdown, targetUrl, router]);
+  }, [countdown, targetUrl, router, isPaused, isReady]);
 
   const handleGoToLink = () => {
     if (targetUrl) {
@@ -248,8 +288,6 @@ function RedirectContent() {
               <span className="text-[10px] text-slate-400 font-medium">ثانية</span>
             </div>
           </div>
-
-
 
           {/* Action Button */}
           {isReady ? (

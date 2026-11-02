@@ -6,6 +6,7 @@ import Image from 'next/image';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { BlogPost, AuthorSettings, getAllBlogs } from '@/lib/blog-service';
 import BlogSidebar from './BlogSidebar';
+import AdvertiseBanner from '@/components/AdvertiseBanner';
 import { format } from 'date-fns';
 import { ar } from 'date-fns/locale';
 import { 
@@ -19,7 +20,6 @@ import {
   X,
   Layers,
   Search,
-  Sparkles,
   HelpCircle,
   RotateCcw,
   Globe
@@ -38,15 +38,6 @@ interface BlogListingClientProps {
   initialQuery?: string;
 }
 
-// Quick popular search tags
-const POPULAR_SEARCH_TAGS = [
-  'ملفات القنوات',
-  'فلاشات',
-  'شروحات الأجهزة',
-  'صن بلص',
-  'نايل سات',
-  'سوفت وير',
-];
 
 /**
  * Remove HTML tags from string to allow clean content matching
@@ -273,11 +264,6 @@ export default function BlogListingClient({
     syncUrlParams(null, '');
   };
 
-  const handleQuickTagClick = (tag: string) => {
-    setSearchQuery(tag);
-    syncUrlParams(selectedCategory, tag);
-  };
-
   // 1. Most viewed blogs (sorted by views desc)
   const mostViewedBlogs = useMemo(() => {
     return [...blogs]
@@ -355,85 +341,52 @@ export default function BlogListingClient({
 
   return (
     <div>
-      {/* Hero Section with Professional Search Bar */}
-      <div className="bg-gradient-to-b from-primary/10 via-primary/5 to-transparent border-b border-border/50 py-12 md:py-16 px-4">
-        <div className="max-w-4xl mx-auto text-center" dir="rtl">
-          <div className="inline-flex items-center gap-2 bg-primary/15 text-primary px-4 py-1.5 rounded-full text-xs md:text-sm font-semibold mb-4 shadow-2xs">
-            <BookOpen className="w-4 h-4" />
-            <span>مدونة سوق العرب</span>
+      {/* Blog Top Header Bar: Centered title with full-width ad banner below it */}
+      <div className="bg-gradient-to-b from-primary/10 via-primary/5 to-transparent border-b border-border/50 py-6 md:py-8 px-4">
+        <div className="max-w-7xl mx-auto" dir="rtl">
+          {/* Header Row: Centered Title with Compact Search Bar on the side */}
+          <div className="relative flex flex-col md:flex-row items-center justify-center mb-6">
+            {/* Centered Main Title */}
+            <h1 className="text-2xl md:text-3xl lg:text-4xl font-extrabold text-foreground tracking-tight text-center">
+              مدونة سوق العرب
+            </h1>
+
+            {/* Small & Comfortable Side Search Bar */}
+            <div className="mt-3 md:mt-0 md:absolute md:left-0 w-60 sm:w-68 md:w-72 max-w-[300px] shrink-0">
+              <form
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  syncUrlParams(selectedCategory, searchQuery);
+                }}
+                className="relative flex items-center w-full"
+              >
+                <Search className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
+                <input
+                  type="text"
+                  value={searchQuery}
+                  onChange={(e) => handleSearchChange(e.target.value)}
+                  placeholder="ابحث في المدونة..."
+                  className="w-full h-11 pr-10 pl-9 bg-card border border-border/80 rounded-xl text-sm font-medium text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all text-right shadow-2xs"
+                  dir="rtl"
+                />
+                {searchQuery && (
+                  <button
+                    type="button"
+                    onClick={() => handleSearchChange('')}
+                    className="absolute left-2.5 top-1/2 -translate-y-1/2 p-1 text-muted-foreground hover:text-foreground rounded-lg hover:bg-muted transition-colors cursor-pointer"
+                    title="مسح البحث"
+                    aria-label="مسح البحث"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                )}
+              </form>
+            </div>
           </div>
 
-          <h1 className="text-3xl md:text-5xl font-extrabold text-foreground mb-3 tracking-tight">
-            المقالات، الشروحات، وملفات القنوات
-          </h1>
-
-          <p className="text-muted-foreground text-sm md:text-base max-w-2xl mx-auto mb-8 leading-relaxed">
-            تصفح أحدث الأخبار التقنية، ملفات القنوات المحدثة، الفلاشات والشروحات الحصرية الموثوقة.
-          </p>
-
-          {/* Professional Hero Search Bar */}
-          <div className="max-w-2xl mx-auto">
-            <form
-              onSubmit={(e) => {
-                e.preventDefault();
-                syncUrlParams(selectedCategory, searchQuery);
-              }}
-              className="relative flex items-center bg-card rounded-2xl shadow-lg border-2 border-primary/20 focus-within:border-primary focus-within:ring-4 focus-within:ring-primary/15 transition-all p-1.5"
-            >
-              <div className="pr-3.5 pl-2 text-primary shrink-0">
-                <Search className="w-5 h-5" />
-              </div>
-
-              <input
-                type="text"
-                value={searchQuery}
-                onChange={(e) => handleSearchChange(e.target.value)}
-                placeholder="ابحث عن ملف قنوات، فلاشة، جهاز، أو موضوع..."
-                className="w-full bg-transparent border-none py-2.5 text-sm md:text-base text-foreground placeholder:text-muted-foreground/70 focus:outline-none focus:ring-0 text-right font-medium"
-                dir="rtl"
-              />
-
-              {searchQuery && (
-                <button
-                  type="button"
-                  onClick={() => handleSearchChange('')}
-                  className="p-1.5 mx-1 rounded-xl text-muted-foreground hover:text-foreground hover:bg-muted transition-colors cursor-pointer"
-                  title="مسح البحث"
-                  aria-label="مسح البحث"
-                >
-                  <X className="w-4 h-4" />
-                </button>
-              )}
-
-              <button
-                type="submit"
-                className="px-5 py-2.5 bg-primary text-primary-foreground text-xs md:text-sm font-bold rounded-xl hover:bg-primary/90 transition-all shrink-0 shadow-xs cursor-pointer flex items-center gap-1.5"
-              >
-                <span>بحث</span>
-              </button>
-            </form>
-
-            {/* Quick Keyword Suggestions Chips */}
-            <div className="mt-3.5 flex items-center justify-center gap-1.5 flex-wrap text-xs text-muted-foreground">
-              <span className="font-semibold text-foreground/80 flex items-center gap-1 ml-1 text-2xs md:text-xs">
-                <Sparkles className="w-3.5 h-3.5 text-amber-500" />
-                <span>كلمات شائعة:</span>
-              </span>
-              {POPULAR_SEARCH_TAGS.map((tag, idx) => (
-                <button
-                  key={idx}
-                  type="button"
-                  onClick={() => handleQuickTagClick(tag)}
-                  className={`px-2.5 py-1 rounded-lg text-2xs md:text-xs transition-colors cursor-pointer border ${
-                    searchQuery === tag
-                      ? 'bg-primary text-primary-foreground border-primary font-bold shadow-2xs'
-                      : 'bg-card/70 border-border/80 text-muted-foreground hover:text-primary hover:border-primary/40 hover:bg-muted/60'
-                  }`}
-                >
-                  {tag}
-                </button>
-              ))}
-            </div>
+          {/* Ad Banner Directly Below Title */}
+          <div className="w-full">
+            <AdvertiseBanner size="large" className="shadow-lg" />
           </div>
         </div>
       </div>
@@ -715,8 +668,6 @@ export default function BlogListingClient({
               categories={categoriesWithCounts}
               selectedCategory={selectedCategory}
               onSelectCategory={handleCategorySelect}
-              searchQuery={searchQuery}
-              onSearchChange={handleSearchChange}
             />
           </div>
         </div>
