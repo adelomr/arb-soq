@@ -219,8 +219,8 @@ function RedirectContent() {
   const radius = 45;
   const strokeWidth = 6;
   const circumference = 2 * Math.PI * radius;
-  const strokeDashoffset = initialCountdown > 0 
-    ? circumference - (countdown / initialCountdown) * circumference 
+  const strokeDashoffset = initialCountdown > 0
+    ? circumference - (countdown / initialCountdown) * circumference
     : circumference;
 
 
@@ -241,20 +241,18 @@ function RedirectContent() {
       </header>
 
       {/* Main Content Area */}
-      <main className="flex-grow max-w-4xl w-full mx-auto px-4 py-8 flex flex-col items-center justify-center gap-8">
-        
+      <main className="flex-grow max-w-6xl w-full mx-auto px-4 py-8 flex flex-col items-center justify-center gap-8">
 
-
-        {/* Redirect Card */}
-        <div className="w-full max-w-md bg-slate-900/70 border border-slate-800 rounded-3xl p-8 shadow-2xl flex flex-col items-center text-center backdrop-blur-lg">
+        {/* Redirect Card — Wide layout for optimal AdSense banner integration */}
+        <div className="w-full max-w-5xl bg-slate-900/70 border border-slate-800 rounded-3xl p-6 md:p-10 shadow-2xl flex flex-col items-center text-center backdrop-blur-lg">
           <div className="p-3 bg-amber-500/10 text-amber-400 rounded-2xl mb-4 border border-amber-500/20">
             <ShieldAlert className="h-8 w-8" />
           </div>
-          
-          <h2 className="text-2xl font-bold mb-2">{pageTitle}</h2>
-          <div 
+
+          <h2 className="text-2xl md:text-3xl font-bold mb-4">{pageTitle}</h2>
+          <div
             ref={contentRef}
-            className="text-sm text-slate-400 mb-6 rich-content w-full"
+            className="text-sm md:text-base text-slate-300 mb-8 rich-content w-full"
             dangerouslySetInnerHTML={{ __html: pageContent }}
           />
 
@@ -290,23 +288,25 @@ function RedirectContent() {
           </div>
 
           {/* Action Button */}
-          {isReady ? (
-            <Button
-              onClick={handleGoToLink}
-              className="w-full py-6 text-base font-bold bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white rounded-2xl shadow-lg shadow-emerald-950/40 border border-emerald-400/20 slow-pulse-btn transition-all duration-300 flex items-center justify-center gap-2"
-            >
-              <ExternalLink className="h-5 w-5" />
-              اضغط هنا للانتقال إلى الرابط
-            </Button>
-          ) : (
-            <Button
-              disabled
-              className="w-full py-6 text-base font-medium bg-slate-800 text-slate-500 rounded-2xl border border-slate-750 flex items-center justify-center gap-2 cursor-not-allowed"
-            >
-              <Loader2 className="h-4 w-4 animate-spin text-slate-500" />
-              يرجى الانتظار لتجهيز الرابط...
-            </Button>
-          )}
+          <div className="w-full max-w-md mx-auto">
+            {isReady ? (
+              <Button
+                onClick={handleGoToLink}
+                className="w-full py-6 text-base font-bold bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white rounded-2xl shadow-lg shadow-emerald-950/40 border border-emerald-400/20 slow-pulse-btn transition-all duration-300 flex items-center justify-center gap-2"
+              >
+                <ExternalLink className="h-5 w-5" />
+                اضغط هنا للانتقال إلى الرابط
+              </Button>
+            ) : (
+              <Button
+                disabled
+                className="w-full py-6 text-base font-medium bg-slate-800 text-slate-500 rounded-2xl border border-slate-750 flex items-center justify-center gap-2 cursor-not-allowed"
+              >
+                <Loader2 className="h-4 w-4 animate-spin text-slate-500" />
+                يرجى الانتظار لتجهيز الرابط...
+              </Button>
+            )}
+          </div>
         </div>
 
 
@@ -346,6 +346,12 @@ function RedirectContent() {
         .rich-content a {
           color: #34d399;
           text-decoration: underline;
+        }
+        .rich-content ins.adsbygoogle,
+        .rich-content amp-ad {
+          margin: 1.5rem auto !important;
+          max-width: 100% !important;
+          display: block !important;
         }
       `}</style>
     </div>
