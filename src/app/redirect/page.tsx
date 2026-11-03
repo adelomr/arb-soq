@@ -293,7 +293,7 @@ function RedirectContent() {
           {isReady ? (
             <Button
               onClick={handleGoToLink}
-              className="w-full py-6 text-base font-bold bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white rounded-2xl shadow-lg shadow-emerald-950/40 border border-emerald-400/20 animate-pulse transition-all duration-300 flex items-center justify-center gap-2"
+              className="w-full py-6 text-base font-bold bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white rounded-2xl shadow-lg shadow-emerald-950/40 border border-emerald-400/20 slow-pulse-btn transition-all duration-300 flex items-center justify-center gap-2"
             >
               <ExternalLink className="h-5 w-5" />
               اضغط هنا للانتقال إلى الرابط
@@ -319,6 +319,21 @@ function RedirectContent() {
       </footer>
 
       <style>{`
+        @keyframes slowPulse {
+          0%, 100% {
+            opacity: 1;
+            transform: scale(1);
+            box-shadow: 0 10px 25px -5px rgba(16, 185, 129, 0.4);
+          }
+          50% {
+            opacity: 0.85;
+            transform: scale(0.985);
+            box-shadow: 0 4px 12px -2px rgba(16, 185, 129, 0.15);
+          }
+        }
+        .slow-pulse-btn {
+          animation: slowPulse 3.5s ease-in-out infinite;
+        }
         .rich-content p {
           margin-bottom: 0.5rem;
         }
