@@ -2,7 +2,7 @@
 
 'use client';
 
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState, useRef, useMemo } from 'react';
 import { useSwipe } from '@/hooks/useSwipe';
 import { useParams, notFound } from 'next/navigation';
 import Link from 'next/link';
@@ -13,7 +13,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
 import Image from 'next/image';
 import { AspectRatio } from '@/components/ui/aspect-ratio';
-import { MapPin, Tag, Calendar, User, Phone, MessageCircle, ZoomIn, ZoomOut, RotateCcw, Star, PlusCircle, ShoppingCart, Globe, Hash, Package, Eye, MousePointerClick, Activity, ChevronLeft, ChevronRight, AlertTriangle, ExternalLink, BadgeCheck, Crown, Sparkles, Rocket } from 'lucide-react';
+import { MapPin, Tag, Calendar, User, Phone, MessageCircle, ZoomIn, ZoomOut, RotateCcw, Star, PlusCircle, ShoppingCart, Globe, Hash, Package, Eye, MousePointerClick, Activity, ChevronLeft, ChevronRight, AlertTriangle, ExternalLink, BadgeCheck, Crown, Sparkles, Rocket, Home } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { useMarket } from '@/context/MarketContext';
@@ -23,7 +23,8 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import ZoomableImage from '@/components/ZoomableImage';
 import Reviews from '@/components/Reviews';
-import { isPhysicalGoodsCategory } from '@/lib/category-utils';
+import { isPhysicalGoodsCategory, normalizeKey, getParentCategoryId } from '@/lib/category-utils';
+import { isVehicleCategory } from '@/lib/car-brands';
 import { useCart } from '@/context/CartContext';
 import { useToast } from '@/hooks/use-toast';
 import { AdPlaceholder, AdPlaceholderSquare } from './Adsense';
@@ -175,7 +176,7 @@ const t = {
   };
 
 export default function AdDetailClient({ initialAd }: { initialAd: Ad }) {
-  const { user, userProfile, incrementAdView } = useAuth();
+  const { user, userProfile, incrementAdView, categories, getPageUrlForCategory } = useAuth();
   const { market } = useMarket();
   const { cart, addToCart } = useCart();
   const { toast } = useToast();
@@ -187,6 +188,132 @@ export default function AdDetailClient({ initialAd }: { initialAd: Ad }) {
   const [authModalMessage, setAuthModalMessage] = useState('يجب تسجيل الدخول للتواصل مع البائع');
   const hasImage = !!(ad.imageUrls && ad.imageUrls.length > 0 && ad.imageUrls[0]);
   const viewIncremented = useRef(false);
+
+  // ── استخراج بيانات الفئة الرئيسية والفرعية والمسار بدقة ──
+  const resolvedCategory = useMemo(() => {
+    if (!ad) return null;
+    const catKey = ad.categoryId || ad.category;
+    const catNameFallback = (ad as any).categoryName;
+
+    // 1. فحص الفئات المطابقة بالمعرف أو الاسم العربي
+    let foundCat = categories.find((c) =>
+      (catKey &&
+        (normalizeKey(c.id) === normalizeKey(catKey) ||
+          normalizeKey(c.name?.ar) === normalizeKey(catKey))) ||
+      (catNameFallback &&
+        (normalizeKey(c.id) === normalizeKey(catNameFallback) ||
+          normalizeKey(c.name?.ar) === normalizeKey(catNameFallback)))
+    );
+
+    // 2. إذا لم تتطابق مباشرة، فحص عبر الفئة الأب
+    if (!foundCat && (catKey || ad.subcategory)) {
+      const parentId = getParentCategoryId(catKey || ad.subcategory || '', categories);
+      if (parentId) {
+        foundCat = categories.find(
+          (c) =>
+            normalizeKey(c.id) === normalizeKey(parentId) ||
+            normalizeKey(c.name?.ar) === normalizeKey(parentId)
+        );
+      }
+    }
+
+    // 3. فحص خاص بمركبات وسيارات
+    if (
+      !foundCat &&
+      (isVehicleCategory(ad.category) ||
+        isVehicleCategory((ad as any).categoryId) ||
+        Boolean(ad.brand))
+    ) {
+      foundCat = categories.find(
+        (c) => isVehicleCategory(c.id) || isVehicleCategory(c.name?.ar)
+      );
+    }
+
+    const id = foundCat?.id || catKey || '';
+    const name = foundCat?.name?.ar || catNameFallback || (catKey ? catKey : '');
+    const href = getPageUrlForCategory
+      ? getPageUrlForCategory(id, undefined, name)
+      : `/search?q=${encodeURIComponent(name)}`;
+
+    return { id, name, href, obj: foundCat };
+  }, [ad, categories, getPageUrlForCategory]);
+
+  const resolvedSubcategory = useMemo(() => {
+    if (!ad) return null;
+    const subKey = (ad as any).subcategoryId || ad.subcategory;
+    const subNameFallback = (ad as any).subcategoryName;
+
+    if (!subKey && !subNameFallback) return null;
+
+    const catObj = resolvedCategory?.obj;
+    let foundSub = catObj?.subcategories?.find(
+      (s) =>
+        (subKey &&
+          (normalizeKey(s.id) === normalizeKey(subKey) ||
+            normalizeKey(s.name?.ar) === normalizeKey(subKey))) ||
+        (subNameFallback &&
+          (normalizeKey(s.id) === normalizeKey(subNameFallback) ||
+            normalizeKey(s.name?.ar) === normalizeKey(subNameFallback)))
+    );
+
+    // إذا لم تتطابق في الفئة الحالية، فحص عبر كامل الفئات
+    if (!foundSub && subKey) {
+      for (const c of categories) {
+        const sub = c.subcategories?.find(
+          (s) =>
+            normalizeKey(s.id) === normalizeKey(subKey) ||
+            normalizeKey(s.name?.ar) === normalizeKey(subKey)
+        );
+        if (sub) {
+          foundSub = sub;
+          break;
+        }
+      }
+    }
+
+    const id = foundSub?.id || subKey || '';
+    const name = foundSub?.name?.ar || subNameFallback || (subKey ? subKey : '');
+
+    // عدم تكرار الفئة الفرعية إذا كانت مطابقة تماماً لاسم الفئة الرئيسية
+    if (
+      name &&
+      resolvedCategory?.name &&
+      normalizeKey(name) === normalizeKey(resolvedCategory.name)
+    ) {
+      return null;
+    }
+
+    const mainId = resolvedCategory?.id || '';
+    const href = getPageUrlForCategory
+      ? getPageUrlForCategory(mainId, id, name)
+      : `/search?q=${encodeURIComponent(name)}`;
+
+    return { id, name, href };
+  }, [ad, categories, resolvedCategory, getPageUrlForCategory]);
+
+  const resolvedBrand = useMemo(() => {
+    if (!ad?.brand) return null;
+    const brandName = ad.brand.trim();
+    if (!brandName) return null;
+
+    if (
+      resolvedCategory?.name &&
+      normalizeKey(brandName) === normalizeKey(resolvedCategory.name)
+    )
+      return null;
+    if (
+      resolvedSubcategory?.name &&
+      normalizeKey(brandName) === normalizeKey(resolvedSubcategory.name)
+    )
+      return null;
+
+    const mainHref = resolvedCategory?.href || '';
+    const href = mainHref.startsWith('/p/')
+      ? `${mainHref}?brand=${encodeURIComponent(brandName)}`
+      : `/search?q=${encodeURIComponent(brandName)}`;
+
+    return { name: brandName, href };
+  }, [ad?.brand, resolvedCategory, resolvedSubcategory]);
 
   // Swipe to navigate images on mobile
   const swipe = useSwipe({
@@ -296,6 +423,69 @@ export default function AdDetailClient({ initialAd }: { initialAd: Ad }) {
       <Header />
       <main className="flex-1 bg-background py-8 md:py-12">
         <div className="container mx-auto px-4 max-w-7xl">
+            {/* مسار الفئات (Breadcrumb) فوق الإعلان */}
+            <nav
+              aria-label="مسار التنقل"
+              className="mb-5 flex flex-wrap items-center gap-1.5 sm:gap-2 text-xs sm:text-sm text-muted-foreground bg-card/60 backdrop-blur-xs border border-border/70 py-2.5 px-3.5 sm:px-4 rounded-xl shadow-2xs"
+            >
+              <Link
+                href="/"
+                className="inline-flex items-center gap-1.5 hover:text-primary transition-colors py-0.5 px-1.5 rounded-md hover:bg-muted/60 font-medium"
+                title="الرئيسية"
+              >
+                <Home className="h-3.5 w-3.5" />
+                <span>الرئيسية</span>
+              </Link>
+
+              {resolvedCategory?.name && (
+                <>
+                  <ChevronLeft className="h-3.5 w-3.5 text-muted-foreground/60 shrink-0 rtl:rotate-0" />
+                  <Link
+                    href={resolvedCategory.href}
+                    className="hover:text-primary transition-colors py-0.5 px-1.5 rounded-md hover:bg-muted/60 font-medium"
+                    title={`تصفح قسم ${resolvedCategory.name}`}
+                  >
+                    {resolvedCategory.name}
+                  </Link>
+                </>
+              )}
+
+              {resolvedSubcategory?.name && (
+                <>
+                  <ChevronLeft className="h-3.5 w-3.5 text-muted-foreground/60 shrink-0 rtl:rotate-0" />
+                  <Link
+                    href={resolvedSubcategory.href}
+                    className="hover:text-primary transition-colors py-0.5 px-1.5 rounded-md hover:bg-muted/60 font-medium"
+                    title={`تصفح قسم ${resolvedSubcategory.name}`}
+                  >
+                    {resolvedSubcategory.name}
+                  </Link>
+                </>
+              )}
+
+              {resolvedBrand?.name && (
+                <>
+                  <ChevronLeft className="h-3.5 w-3.5 text-muted-foreground/60 shrink-0 rtl:rotate-0" />
+                  <Link
+                    href={resolvedBrand.href}
+                    className="hover:text-primary transition-colors py-0.5 px-1.5 rounded-md hover:bg-muted/60 font-medium"
+                    title={`تصفح ماركة ${resolvedBrand.name}`}
+                  >
+                    {resolvedBrand.name}
+                  </Link>
+                </>
+              )}
+
+              <ChevronLeft className="h-3.5 w-3.5 text-muted-foreground/60 shrink-0 rtl:rotate-0" />
+              <span
+                className="text-foreground font-semibold truncate max-w-[180px] sm:max-w-[280px] md:max-w-[380px]"
+                aria-current="page"
+                title={ad.title}
+              >
+                {ad.title}
+              </span>
+            </nav>
+
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12">
 
                 {/* Main Content */}
@@ -644,6 +834,8 @@ export default function AdDetailClient({ initialAd }: { initialAd: Ad }) {
                         <div className="block lg:hidden mt-6">
                             <RelatedAdsSidebar 
                                 category={ad.category} 
+                                categoryId={ad.categoryId || ad.category}
+                                categoryName={resolvedCategory?.name}
                                 subcategory={ad.subcategory}
                                 brand={ad.brand}
                                 city={ad.city}
@@ -750,6 +942,8 @@ export default function AdDetailClient({ initialAd }: { initialAd: Ad }) {
                     <div className="hidden lg:block">
                         <RelatedAdsSidebar 
                             category={ad.category} 
+                            categoryId={ad.categoryId || ad.category}
+                            categoryName={resolvedCategory?.name}
                             subcategory={ad.subcategory}
                             brand={ad.brand}
                             city={ad.city}

@@ -11,10 +11,13 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { Tag, Sparkles, Bell, Layers } from 'lucide-react';
 import { isVehicleCategory } from '@/lib/car-brands';
+import { matchAdToCategory, matchAdToSubcategory, normalizeKey, getParentCategoryId } from '@/lib/category-utils';
 import { useToast } from '@/hooks/use-toast';
 
 interface RelatedAdsSidebarProps {
   category?: string;
+  categoryId?: string;
+  categoryName?: string;
   subcategory?: string;
   brand?: string;
   city?: string;
@@ -24,13 +27,15 @@ interface RelatedAdsSidebarProps {
 
 export default function RelatedAdsSidebar({
   category,
+  categoryId,
+  categoryName,
   subcategory,
   brand,
   city,
   currentAdId,
   currentAdTitle,
 }: RelatedAdsSidebarProps) {
-  const { getAds } = useAuth();
+  const { getAds, categories } = useAuth();
   const { market } = useMarket();
   const { toast } = useToast();
   const [relatedAds, setRelatedAds] = useState<Ad[]>([]);
@@ -40,45 +45,97 @@ export default function RelatedAdsSidebar({
   useEffect(() => {
     setLoading(true);
     const unsubscribe = getAds(
-      { status: 'active', market: market.id, limit: 30 },
+      { status: 'active', market: market.id, limit: 60 },
       (fetchedAds) => {
         // Filter out current ad and ads without valid images
-        let filtered = fetchedAds.filter(
+        const filtered = fetchedAds.filter(
           (ad) => ad.id !== currentAdId && ad.imageUrls && ad.imageUrls.length > 0 && ad.imageUrls[0]
         );
 
-        // Sorting & Matching hierarchy:
-        // 1. Same Brand (highest match)
-        // 2. Same Subcategory
-        // 3. Same Category
-        // 4. Other ads in same market
-        const sameBrand = brand ? filtered.filter((ad) => ad.brand === brand) : [];
-        const sameSub = subcategory
-          ? filtered.filter((ad) => ad.subcategory === subcategory && ad.brand !== brand)
+        const hasCategoryFilter = Boolean(category || categoryId || subcategory || brand);
+
+        if (!hasCategoryFilter) {
+          // General sidebar mode (e.g. Home page)
+          setRelatedAds(filtered.slice(0, 8));
+          setLoading(false);
+          return;
+        }
+
+        // Strict category verification: ONLY ads that belong to the same category
+        const isAdInSameCategory = (ad: Ad): boolean => {
+          // 1. Direct match with matchAdToCategory
+          if (category && matchAdToCategory(ad, category, categories)) return true;
+          if (categoryId && matchAdToCategory(ad, categoryId, categories)) return true;
+
+          // 2. Direct string equality checks
+          const adCat = normalizeKey(ad.category);
+          const adCatId = normalizeKey((ad as any).categoryId);
+          const targetCat = normalizeKey(category);
+          const targetCatId = normalizeKey(categoryId);
+
+          if (targetCat && (adCat === targetCat || adCatId === targetCat)) return true;
+          if (targetCatId && (adCat === targetCatId || adCatId === targetCatId)) return true;
+
+          // 3. Parent category comparison
+          const adParent = getParentCategoryId(adCatId || adCat || ad.subcategory || '', categories);
+          const targetParent = getParentCategoryId(targetCatId || targetCat || subcategory || '', categories);
+          if (adParent && targetParent && adParent === targetParent) return true;
+
+          // 4. Vehicles / Automotive category match
+          const isTargetVehicle = isVehicleCategory(category) || isVehicleCategory(categoryId) || Boolean(brand);
+          if (isTargetVehicle) {
+            const isAdVehicle = isVehicleCategory(ad.category) || isVehicleCategory((ad as any).categoryId) || Boolean(ad.brand);
+            if (isAdVehicle) return true;
+          }
+
+          // 5. Subcategory match
+          if (subcategory && matchAdToSubcategory(ad, subcategory)) return true;
+
+          return false;
+        };
+
+        // Filter strictly to the same category
+        const sameCategoryAds = filtered.filter((ad) => isAdInSameCategory(ad));
+
+        // Prioritize within the same category:
+        // 1. Same Brand (highest match, e.g. same car brand or tech brand)
+        const sameBrand = brand
+          ? sameCategoryAds.filter((ad) => ad.brand && normalizeKey(ad.brand) === normalizeKey(brand))
           : [];
-        const sameCat = category
-          ? filtered.filter(
+
+        // 2. Same Subcategory
+        const sameSub = subcategory
+          ? sameCategoryAds.filter(
               (ad) =>
-                ad.category === category &&
-                ad.brand !== brand &&
-                ad.subcategory !== subcategory
+                !sameBrand.some((b) => b.id === ad.id) &&
+                (matchAdToSubcategory(ad, subcategory) ||
+                  (ad.subcategory && normalizeKey(ad.subcategory) === normalizeKey(subcategory)))
             )
           : [];
-        const others = filtered.filter(
-          (ad) =>
-            ad.category !== category &&
-            ad.brand !== brand &&
-            ad.subcategory !== subcategory
+
+        // 3. Same Category (remaining ads strictly from this category)
+        const sameCat = sameCategoryAds.filter(
+          (ad) => !sameBrand.some((b) => b.id === ad.id) && !sameSub.some((s) => s.id === ad.id)
         );
 
-        const combined = [...sameBrand, ...sameSub, ...sameCat, ...others];
-        setRelatedAds(combined.slice(0, 9));
+        // Optional city sorting: same city ads come first
+        const sortedSameCat = city
+          ? [...sameCat].sort((a, b) => {
+              const aCity = a.city === city ? -1 : 0;
+              const bCity = b.city === city ? -1 : 0;
+              return aCity - bCity;
+            })
+          : sameCat;
+
+        // Combined ads strictly within the same category - NO unrelated ads!
+        const combined = [...sameBrand, ...sameSub, ...sortedSameCat];
+        setRelatedAds(combined.slice(0, 8));
         setLoading(false);
       }
     );
 
     return () => unsubscribe();
-  }, [getAds, market.id, category, subcategory, brand, currentAdId, currentAdTitle]);
+  }, [getAds, categories, market.id, category, categoryId, subcategory, brand, city, currentAdId, currentAdTitle]);
 
   const handleFollowOffers = () => {
     setIsFollowing(!isFollowing);
@@ -90,7 +147,12 @@ export default function RelatedAdsSidebar({
     });
   };
 
-  const categoryHint = [brand || subcategory || category, city ? `في ${city}` : '']
+  const displayCatName =
+    categoryName ||
+    categories.find((c) => c.id === category || c.id === categoryId)?.name?.ar ||
+    category;
+
+  const categoryHint = [brand || subcategory || displayCatName, city ? `في ${city}` : '']
     .filter(Boolean)
     .join(' ');
 
