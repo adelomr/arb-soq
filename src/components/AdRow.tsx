@@ -52,10 +52,15 @@ type AdRowProps = {
 
 function AdRow({ ad, priority = false }: AdRowProps) {
   const { market } = useMarket();
-  const { incrementAdClick, getUserById, user } = useAuth();
+  const { incrementAdClick, getUserById, user, categories } = useAuth();
   const { toast } = useToast();
   const [showAuthModal, setShowAuthModal] = useState(false);
   const touchPosRef = useRef({ x: 0, y: 0, moved: false });
+
+  const displayCategoryName =
+    categories?.find((c) => c.id === ad.category || c.id === (ad as any).categoryId)?.name?.ar ||
+    (ad as any).categoryName ||
+    ad.category;
 
   const handleTouchStart = (e: React.TouchEvent) => {
     if (e.touches.length > 0) {
@@ -134,11 +139,90 @@ function AdRow({ ad, priority = false }: AdRowProps) {
         </div>
 
         <div className="p-4 flex flex-col justify-between flex-1">
-          <div className="flex items-center justify-between mb-2">
-            <Badge variant="outline">{ad.category}</Badge>
-            <div className="flex items-center gap-2 text-xs text-muted-foreground">
+          {/* السطر العلوي: الفئة والشارات على اليمين، وزر المشاركة في الزاوية العلوية على اليسار */}
+          <div className="flex items-center justify-between gap-2 mb-2">
+            <div className="flex items-center gap-2 flex-wrap">
+              <Badge variant="outline" className="text-xs">{displayCategoryName}</Badge>
               {(ad as any).isService && <Badge variant="secondary" className="gap-1"><Wrench className="w-3 h-3" />{t.service}</Badge>}
               {(ad as any).isRequested && <Badge variant="secondary" className="gap-1"><Handshake className="w-3 h-3" />{t.requested}</Badge>}
+            </div>
+
+            {/* زر المشاركة في الزاوية العلوية */}
+            <div className="shrink-0" onClick={(e) => { e.preventDefault(); e.stopPropagation(); }}>
+              {!user ? (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-7 sm:h-8 px-2.5 sm:px-3 rounded-full text-xs font-medium text-primary bg-primary/10 hover:bg-primary hover:text-primary-foreground border border-primary/25 shadow-xs transition-all gap-1.5 touch-manipulation group/share hover:scale-105 active:scale-95 cursor-pointer"
+                  aria-label={t.share}
+                  onTouchStart={handleTouchStart}
+                  onTouchMove={handleTouchMove}
+                  onClick={(e) => {
+                    if (touchPosRef.current.moved) {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      touchPosRef.current.moved = false;
+                      return;
+                    }
+                    e.preventDefault();
+                    e.stopPropagation();
+                    setShowAuthModal(true);
+                  }}
+                >
+                  <span className="w-4 h-4 sm:w-5 sm:h-5 rounded-full bg-primary/20 group-hover/share:bg-white/20 flex items-center justify-center transition-colors">
+                    <Share2 className="w-3 h-3 text-primary group-hover/share:text-white transition-colors" />
+                  </span>
+                  <span>{t.share}</span>
+                </Button>
+              ) : (
+                <DropdownMenu modal={false}>
+                  <DropdownMenuTrigger asChild>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="h-7 sm:h-8 px-2.5 sm:px-3 rounded-full text-xs font-medium text-primary bg-primary/10 hover:bg-primary hover:text-primary-foreground border border-primary/25 shadow-xs transition-all gap-1.5 touch-manipulation group/share hover:scale-105 active:scale-95 cursor-pointer"
+                      aria-label={t.share}
+                      onTouchStart={handleTouchStart}
+                      onTouchMove={handleTouchMove}
+                      onClick={(e) => {
+                        if (touchPosRef.current.moved) {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          touchPosRef.current.moved = false;
+                          return;
+                        }
+                        e.preventDefault();
+                        e.stopPropagation();
+                      }}
+                    >
+                      <span className="w-4 h-4 sm:w-5 sm:h-5 rounded-full bg-primary/20 group-hover/share:bg-white/20 flex items-center justify-center transition-colors">
+                        <Share2 className="w-3 h-3 text-primary group-hover/share:text-white transition-colors" />
+                      </span>
+                      <span>{t.share}</span>
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent onClick={(e) => e.stopPropagation()} align="end">
+                    <DropdownMenuItem asChild>
+                      <a href={`https://www.facebook.com/sharer/sharer.php?u=${encodedAdUrl}`} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 cursor-pointer">
+                        <Facebook className="h-4 w-4 text-blue-600" />
+                        {t.facebook}
+                      </a>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem asChild>
+                      <a href={`https://twitter.com/intent/tweet?url=${encodedAdUrl}&text=${shareText}`} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 cursor-pointer">
+                        <Twitter className="h-4 w-4" />
+                        {t.twitter}
+                      </a>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem asChild>
+                      <a href={`https://api.whatsapp.com/send?text=${shareText}%20${encodedAdUrl}`} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 cursor-pointer">
+                        <WhatsappIcon />
+                        {t.whatsapp}
+                      </a>
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              )}
             </div>
           </div>
 
@@ -166,8 +250,31 @@ function AdRow({ ad, priority = false }: AdRowProps) {
             </div>
           )}
 
-          <div className="flex items-center justify-between w-full mt-auto text-xs text-muted-foreground">
-            <div className="flex items-center gap-2 font-medium">
+          {/* السطر السفلي: بيانات السعر والحالة بجانب الصورة، وإحصائيات المشاهدات في الطرف المقابل */}
+          <div className="flex items-end justify-between w-full mt-auto pt-2.5 border-t border-border/40 text-xs text-muted-foreground gap-3">
+            {/* بيانات السعر والحالة — بجانب الصورة مباشرة (على اليمين في نمط RTL) */}
+            <div className="flex flex-col items-start gap-1">
+              {!!ad.price && Number(ad.price) > 0 ? (
+                <div className="flex items-center gap-1.5">
+                  <Tag className="w-4 h-4 sm:w-5 sm:h-5 text-primary shrink-0" />
+                  <span className="text-base sm:text-lg font-extrabold text-primary leading-tight">
+                    {formatAdPrice(Number(ad.price), ad, market.currency)}
+                  </span>
+                </div>
+              ) : (
+                <span className="text-sm font-bold text-primary">
+                  {ad.price === 0 ? t.onDemand : t.negotiable}
+                </span>
+              )}
+              {isPhysicalGoodsCategory(ad.category, (ad as any).categoryName || (ad as any).subcategory) && ad.condition && (
+                <span className="text-xs font-semibold text-muted-foreground">
+                  الحالة/ {ad.condition === 'new' ? 'جديد' : 'مستعمل'}
+                </span>
+              )}
+            </div>
+
+            {/* إحصائيات المشاهدات والنقرات — على الطرف المقابل (اليسار) */}
+            <div className="flex items-center gap-2 font-medium shrink-0 pb-0.5">
               <span className="flex items-center gap-1 text-blue-600 dark:text-blue-400" title="المشاهدات">
                 <Eye className="h-3.5 w-3.5" />
                 <span>{(ad.views || 0).toLocaleString('en-US')}</span>
@@ -177,97 +284,6 @@ function AdRow({ ad, priority = false }: AdRowProps) {
                 <MousePointerClick className="h-3.5 w-3.5" />
                 <span>{(ad.clicks || 0).toLocaleString('en-US')}</span>
               </span>
-            </div>
-
-            {!user ? (
-              <Button
-                variant="outline"
-                size="sm"
-                className="h-8 px-3 rounded-full text-xs font-medium text-primary bg-primary/10 hover:bg-primary hover:text-primary-foreground border border-primary/25 shadow-xs transition-all gap-1.5 touch-manipulation group/share hover:scale-105 active:scale-95"
-                aria-label={t.share}
-                onTouchStart={handleTouchStart}
-                onTouchMove={handleTouchMove}
-                onClick={(e) => {
-                  if (touchPosRef.current.moved) {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    touchPosRef.current.moved = false;
-                    return;
-                  }
-                  e.preventDefault();
-                  e.stopPropagation();
-                  setShowAuthModal(true);
-                }}
-              >
-                <span className="w-5 h-5 rounded-full bg-primary/20 group-hover/share:bg-white/20 flex items-center justify-center transition-colors">
-                  <Share2 className="w-3 h-3 text-primary group-hover/share:text-white transition-colors" />
-                </span>
-                <span>{t.share}</span>
-              </Button>
-            ) : (
-              <DropdownMenu modal={false}>
-                <DropdownMenuTrigger asChild>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="h-8 px-3 rounded-full text-xs font-medium text-primary bg-primary/10 hover:bg-primary hover:text-primary-foreground border border-primary/25 shadow-xs transition-all gap-1.5 touch-manipulation group/share hover:scale-105 active:scale-95"
-                    aria-label={t.share}
-                    onTouchStart={handleTouchStart}
-                    onTouchMove={handleTouchMove}
-                    onClick={(e) => {
-                      if (touchPosRef.current.moved) {
-                        e.preventDefault();
-                        e.stopPropagation();
-                        touchPosRef.current.moved = false;
-                        return;
-                      }
-                      e.preventDefault();
-                      e.stopPropagation();
-                    }}
-                  >
-                    <span className="w-5 h-5 rounded-full bg-primary/20 group-hover/share:bg-white/20 flex items-center justify-center transition-colors">
-                      <Share2 className="w-3 h-3 text-primary group-hover/share:text-white transition-colors" />
-                    </span>
-                    <span>{t.share}</span>
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent onClick={(e) => e.stopPropagation()}>
-                  <DropdownMenuItem asChild>
-                    <a href={`https://www.facebook.com/sharer/sharer.php?u=${encodedAdUrl}`} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 cursor-pointer">
-                      <Facebook className="h-4 w-4 text-blue-600" />
-                      {t.facebook}
-                    </a>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem asChild>
-                    <a href={`https://twitter.com/intent/tweet?url=${encodedAdUrl}&text=${shareText}`} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 cursor-pointer">
-                      <Twitter className="h-4 w-4" />
-                      {t.twitter}
-                    </a>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem asChild>
-                    <a href={`https://api.whatsapp.com/send?text=${shareText}%20${encodedAdUrl}`} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 cursor-pointer">
-                      <WhatsappIcon />
-                      {t.whatsapp}
-                    </a>
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-            )}
-
-            <div className="flex flex-col items-end gap-1">
-              {!!ad.price && Number(ad.price) > 0 && (
-                <div className="flex items-center gap-2">
-                  <Tag className="w-5 h-5 text-primary" />
-                  <span className="text-lg font-bold text-primary">
-                    {formatAdPrice(Number(ad.price), ad, market.currency)}
-                  </span>
-                </div>
-              )}
-              {isPhysicalGoodsCategory(ad.category, (ad as any).categoryName || (ad as any).subcategory) && ad.condition && (
-                <span className="text-xs font-semibold text-muted-foreground">
-                  الحالة/ {ad.condition === 'new' ? 'جديد' : 'مستعمل'}
-                </span>
-              )}
             </div>
           </div>
         </div>
