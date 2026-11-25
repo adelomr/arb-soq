@@ -188,6 +188,18 @@ export async function createBlogPost(blog: Omit<BlogPost, 'id' | 'createdAt'>): 
       ...blog,
       createdAt: serverTimestamp(),
     });
+
+    // إشعار محركات البحث تلقائياً بالمقال الجديد عبر API الأرشفة الفورية
+    if (blog.slug && typeof window !== 'undefined') {
+      try {
+        fetch('/api/seo/ping', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ url: `https://www.arb-soq.com/blog/${blog.slug}` }),
+        }).catch(() => {});
+      } catch {}
+    }
+
     return docRef.id;
   } catch (error) {
     console.error('Error creating blog post:', error);
@@ -199,6 +211,17 @@ export async function updateBlogPost(id: string, data: Partial<BlogPost>): Promi
   try {
     const docRef = doc(firestore, BLOGS_COLLECTION, id);
     await updateDoc(docRef, data);
+
+    // إشعار محركات البحث بالتحديث
+    if (data.slug && typeof window !== 'undefined') {
+      try {
+        fetch('/api/seo/ping', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ url: `https://www.arb-soq.com/blog/${data.slug}` }),
+        }).catch(() => {});
+      } catch {}
+    }
   } catch (error) {
     console.error('Error updating blog post:', error);
     throw error;
